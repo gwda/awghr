@@ -37,8 +37,11 @@ apt-get -y install \
     libswitch-perl \
     libyaml-dev \
     python3.10 \
+    python3.10-venv \
     ;
 apt-get -y clean
+update-alternatives --install /usr/bin/python python /usr/bin/python3 1
+update-alternatives --set python /usr/bin/python3
 update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
 update-alternatives --set python3 /usr/bin/python3.10
 EOF
@@ -94,7 +97,7 @@ SlurmdDebug=info
 SlurmdLogFile=/var/log/slurmd.log
 AuthType = auth/none
 CredType = cred/none
-NodeName=localhost CPUs=1 RealMemory=500 State=UNKNOWN
+NodeName=localhost Sockets=2 CoresPerSocket=1 RealMemory=500 State=UNKNOWN
 PartitionName=LocalQ Nodes=ALL Default=YES MaxTime=INFINITE State=UP
 EOF
 COPY <<EOF /usr/local/etc/cgroup.conf

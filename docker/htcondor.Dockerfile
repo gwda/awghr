@@ -15,8 +15,14 @@ apt-get -y upgrade
 apt-get -y install \
     curl \
     less \
+    python3.10 \
+    python3.10-venv \
     ;
 apt-get -y clean
+update-alternatives --install /usr/bin/python python /usr/bin/python3 1
+update-alternatives --set python /usr/bin/python3
+update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
+update-alternatives --set python3 /usr/bin/python3.10
 EOF
 
 # Download and install HTCondor
@@ -24,6 +30,11 @@ RUN <<EOF
 curl -fsSL https://get.htcondor.org | /bin/bash -s -- --no-dry-run --channel stable
 condor_off
 apt-get -y clean
+EOF
+
+# Create additional HTCondor configuration
+COPY <<EOF /etc/condor/config.d/01-local
+NUM_SLOTS = 2
 EOF
 
 # Install daemon-less systemctl
