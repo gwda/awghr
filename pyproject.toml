@@ -5,3 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "awghr"
 version = "0.1"
+description = "A(nother) Workflow Generator for High-throughput computeRing"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Karl Wette", email = "karl.wette@anu.edu.au" },
+]
+dependencies = [
+]
