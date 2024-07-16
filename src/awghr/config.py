@@ -21,6 +21,7 @@ _keys: Dict[str, Any] = {
     "account": None,
     "basedir": Path.cwd(),
     "dated?": True,
+    "slurm:jobfs": None,
 }
 
 # override host name for tests in test_config.py

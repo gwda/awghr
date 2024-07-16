@@ -1,2 +1,440 @@
+import json
+import logging
+import math
+import os
+import stat
+import sys
+from datetime import datetime
+from hashlib import blake2b
+from pathlib import Path
+from shutil import which
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+from pint import Unit, UnitRegistry
+
+from .config import read_config
+from .util import FileLineWriter, ProgressLogger, job_dir_from_ID
+
 __author__ = "Karl Wette"
 __version__ = "0.1"
+
+_ureg = UnitRegistry()
+
+# set up logging
+logging.basicConfig(
+    stream=sys.stdout,
+    level=logging.INFO,
+    format="%(levelname)s %(asctime)s %(name)s : %(message)s",
+)
+_logger = logging.getLogger(__name__)
+
+
+class Workflow:
+    """
+    Generate a workflow.
+
+    Default workflow configurations are retrieved from `~/.awghr.cfg`.
+    """
+
+    # useful units of time
+    MIN = _ureg.Quantity(1.0, "minute")
+    HOUR = _ureg.Quantity(1.0, "hour")
+    DAY = _ureg.Quantity(1.0, "day")
+
+    # useful units of size
+    ZB = _ureg.Quantity(0.0, "byte")
+    MiB = _ureg.Quantity(1.0, "mebibyte")
+    GiB = _ureg.Quantity(1.0, "gibibyte")
+
+    def __init__(
+        self,
+        name: str,
+        *,
+        tags: Optional[List[str]] = None,
+        account: Optional[str] = None,
+        basedir: Optional[Path] = None,
+        dated: Optional[bool] = None,
+    ):
+        """
+        Create a new workflow.
+
+        Args:
+            name (str):
+                Name of workflow.
+            tags (Optional[List[str]]):
+                List of tags, used to retrieve default arguments from `~/.awghr.cfg`.
+            account (Optional[str]):
+                Accounting tag the workflow should be charged against.
+                If not given, use the default value retrieved from `~/.awghr.cfg`.
+            basedir (Optional[Path]):
+                Base directory for all workflows; this workflow will be written to a subdirectory.
+                If not given, use the default value retrieved from `~/.awghr.cfg`,
+                or else the current directory.
+            dated (Optional[bool]):
+                If true, the workflow subdirectory in `basedir` will be named after the current
+                date and time, plus `name`. If false, the workflow subdirectory will be just `name`.
+                If not given, use the default value retrieved from `~/.awghr.cfg`, or else true.
+        """
+
+        # read configuration
+        _logger.info("reading configuration")
+        cfg = read_config(tags=tags)
+
+        # get default values
+        if account is None:
+            account = cfg["account"]
+        if basedir is None:
+            basedir = cfg["basedir"]
+        if dated is None:
+            dated = cfg["dated?"]
+
+        # check input values
+        try:
+            basedir = basedir.resolve(strict=True)
+        except (FileNotFoundError, RuntimeError):
+            raise ValueError(f"Base directory '{basedir}' is not a directory")
+
+        # initialise internal variables
+        self._name = name
+        self._account = account
+        self._batch_system_cfg = cfg["batch_system_cfg"]
+        self._workflow_writer = cfg["workflow_writer"]()
+        self._workflow_hash = blake2b(digest_size=8, usedforsecurity=False)
+        self._jobs: Dict[str, Dict[str, Any]] = dict()
+        self._log_add_jobs = ProgressLogger(_logger, "added %s jobs to workflow")
+
+        # add workflow directory to base directory
+        if dated:
+            workdirname = datetime.now().strftime("%Y-%m-%d_%H-%M-%S_") + self._name
+        else:
+            workdirname = self._name
+        self._workdir = basedir / workdirname
+
+        # log details
+        _logger.info("workflow name: %s", self._name)
+        _logger.info("workflow account: %s", self._account)
+        _logger.info("workflow directory: %s", self._workdir)
+
+    def add_job(
+        self,
+        *,
+        args: Dict[str, Any],
+        cmds: List[List[str]],
+        time: Unit,
+        mem: Unit,
+        disk: Unit,
+        threads: int = 1,
+        inputs: Optional[List[Union[Path, Tuple[str, str]]]] = None,
+        outputs: List[str],
+        final: Optional[bool] = None,
+    ) -> str:
+        """
+        Add a new job to the workflow.
+
+        Args:
+            args (Dict[str, Any]):
+                Arguments and their values which uniquely identify the job.
+            cmds (List[List[str]]):
+                A list of commands and their arguments to execute.
+                May contain `{format}` strings which will be filled by:
+                * the dictionary supplied in `args`;
+                * `_in[n]`: the `n`th input file supplied in `inputs`;
+                * `_out[n]`: the `n`th output file supplied in `outputs`.
+            time (Unit):
+                Requested wall time of the job.
+                Use the pre-defined constants: `w.MIN`, `w.HOUR`, `w.DAY`.
+            mem (Unit):
+                Requested memory of the job.
+                Use the pre-defined constants: `w.ZB` (zero), `w.MiB`, `w.GiB`.
+            disk (Unit):
+                Requested temporary disk space of the job.
+                Use the pre-defined constants: `w.ZB` (zero), `w.MiB`, `w.GiB`.
+            threads (int):
+                Requested number of threads of the job.
+                Default is 1.
+            inputs (Optional[List[Union[Path, Tuple[str, str]]]]):
+                A list of input files, either:
+                * a path to a file not generated by the workflow; or
+                * a tuple (job ID, file name) representing a file generated
+                  by a previous job in the workflow.
+                  May contain `{format}` strings which will be filled by:
+                  * the dictionary supplied in `args` to the previous job;
+                  * `_id`: the unique string representing the previous job.
+                Input files will be staged to the working directory of the job.
+            outputs (List[str]):
+                A list of output files generated by the job.
+                May contain `{format}` strings which will be filled by:
+                * the dictionary supplied in `args`;
+                * `_id`: the unique string representing the job.
+                Output files will be staged out of the working directory of the job.
+            final (Optional[bool]):
+                If true, output files from this job will be copied to the final
+                workflow directory. If not given, all jobs which are not dependencies
+                of other jobs will have their output files copied to this directory.
+
+        Returns:
+            str: a unique string representing the job.
+        """
+
+        # generate JSON representation of arguments
+        args_json = json.dumps(args, sort_keys=True)
+
+        # generate job ID as hash of JSON representation,
+        # and update hash used to generate workflow ID
+        job_hash = blake2b(digest_size=8, usedforsecurity=False)
+        args_json_bytes = args_json.encode("utf-8")
+        job_hash.update(args_json_bytes)
+        self._workflow_hash.update(args_json_bytes)
+        job_ID = job_hash.hexdigest()
+
+        # create job
+        if job_ID in self._jobs:
+            raise ValueError(f"job with arguments {args} already exists in workflow")
+        job: Dict[str, Any] = dict()
+        job["ID"] = job_ID
+
+        # store job arguments
+        job["args"] = args
+        job["args_json"] = args_json
+
+        # normalise and store resource requests
+        job["time_min"] = int(math.ceil(time.to(self.MIN).magnitude))
+        job["mem_MiB"] = int(math.ceil(mem.to(self.MiB).magnitude))
+        job["disk_MiB"] = int(math.ceil(disk.to(self.MiB).magnitude))
+        job["threads"] = threads
+
+        # create job directory
+        jobdir = job_dir_from_ID(self._workdir / "jobs", job_ID)
+        job["dir"] = jobdir
+
+        # parse input file list, job dependencies, and dependency order
+        job["infiles"] = []
+        job["needs"] = []
+        job["order"] = 0
+        needs_hash = blake2b(digest_size=8, usedforsecurity=False)
+        if inputs is not None:
+            if len(inputs) != len(set(inputs)):
+                raise ValueError("'inputs' is not a unique list")
+            for inp in inputs:
+                if isinstance(inp, Path):
+                    if not inp.is_file():
+                        raise ValueError(f"external input file '{inp}' does not exist")
+                    job["infiles"].append(inp)
+                else:
+                    inp_job_ID, inp_filename = inp
+                    if inp_job_ID not in self._jobs:
+                        raise ValueError(
+                            f"job for input file '{inp_filename}' does not exist"
+                        )
+                    inp_file = self._jobs[inp_job_ID]["dir"] / inp_filename.format(
+                        **self._jobs[inp_job_ID]["args"], _id=inp_job_ID
+                    )
+                    job["infiles"].append(inp_file)
+                    job["needs"].append(inp_job_ID)
+                    job["order"] = max(
+                        job["order"], self._jobs[inp_job_ID]["order"] + 1
+                    )
+                    needs_hash.update(
+                        self._jobs[inp_job_ID]["args_json"].encode("utf-8")
+                    )
+        job["needs_ID"] = needs_hash.hexdigest()
+
+        # parse output file list, and store whether job is considered final
+        job["outfiles"] = []
+        if outputs is not None:
+            if len(outputs) != len(set(outputs)):
+                raise ValueError("'outputs' is not a unique list")
+            for outp in outputs:
+                job["outfiles"].append(jobdir / outp.format(**args, _id=job_ID))
+        job["outfinal"] = final
+
+        # format and store commands
+        cmdargs = dict(args)
+        cmdargs["_in"] = [p.name for p in job["infiles"]]
+        cmdargs["_out"] = [p.name for p in job["outfiles"]]
+        job["cmds"] = [[arg.format(**cmdargs) for arg in cmd] for cmd in cmds]
+
+        # determine full path to executables
+        for cmd in job["cmds"]:
+            execpath = which(cmd[0])
+            if execpath is None:
+                raise ValueError(f"executable '{cmd[0]}' cannot be found")
+            cmd[0] = execpath
+
+        # add job to workflow
+        self._jobs[job_ID] = job
+
+        # log progress
+        self._log_add_jobs.update()
+
+        return job_ID
+
+    def __getitem__(self, key: Tuple[str, str]) -> Any:
+        """
+        Retrieve the value of a job argument.
+        """
+        return self._jobs[key[0]]["args"][key[1]]
+
+    def write(self) -> Path:
+        """
+        Write workflow files and directories.
+
+        Returns:
+            Path: path where workflow was written.
+        """
+
+        # log progress
+        self._log_add_jobs.finish()
+
+        # generate workflow ID as hash of all job JSON representations
+        workflow_ID = self._workflow_hash.hexdigest()
+
+        # determine intermediate jobs, which are required as dependencies
+        intermediate_jobs = set()
+        for job in self._jobs.values():
+            intermediate_jobs.update(job["needs"])
+
+        # determine which jobs are final
+        for job in self._jobs.values():
+            if job["outfinal"] is None:
+                job["outfinal"] = job["ID"] not in intermediate_jobs
+
+        # check for unique output files from final jobs
+        out_final_files = set()
+        for job in [job for job in self._jobs.values() if job["outfinal"]]:
+            for out_file in job["outfiles"]:
+                if out_file.name in out_final_files:
+                    raise ValueError(
+                        f"final output file '{out_file.name}' is not unique to workflow"
+                    )
+                out_final_files.add(out_file.name)
+
+        # make directory for final output files, and check any existing files
+        outfinaldir = self._workdir / "outputs"
+        outfinaldir.mkdir(parents=True, exist_ok=True)
+        for outfinaldir_file in outfinaldir.iterdir():
+            if outfinaldir_file.name in out_final_files:
+                raise ValueError(
+                    f"final output file '{outfinaldir_file.name}' already exists in '{outfinaldir}'"
+                )
+
+        log_make_jobs = ProgressLogger(_logger, "wrote %s job directories in workflow")
+        for job in self._jobs.values():
+
+            # make job directory
+            job["dir"].mkdir(parents=True, exist_ok=True)
+
+            # write JSON representation of arguments
+            job_args_file = job["dir"] / "job_args.json"
+            with job_args_file.open("w") as f:
+                print(job["args_json"], file=f)
+
+            # write job script
+            job_script_file = job["dir"] / "job_script.sh"
+            job["infiles"].append(job_script_file)
+            with job_script_file.open("w") as f:
+                print("set -e", file=f)
+                for cmd in job["cmds"]:
+                    print(
+                        "./{} '{}'".format(Path(cmd[0]).name, "' '".join(cmd[1:])),
+                        file=f,
+                    )
+
+            log_make_jobs.update()
+        log_make_jobs.finish()
+
+        # write list of all job directories
+        all_jobs_file = self._workdir / f"workflow_jobs_{workflow_ID}.txt"
+        with all_jobs_file.open("w") as f:
+            for job in self._jobs.values():
+                print(job["dir"], file=f)
+
+        # name of file containing directories of any failed jobs
+        failedjobfile = self._workdir / f"workflow_failed_jobs_{workflow_ID}.txt"
+
+        # name of file which workflow will write final state to
+        statefile = self._workdir / f"workflow_state_{workflow_ID}.txt"
+
+        # write top-level submit/queue/cancel control script stubs
+        ctrlscripts = dict()
+        for ctrlscript in ("submit", "queue", "cancel"):
+            ctrlscripts[ctrlscript] = self._workdir / ctrlscript
+            with FileLineWriter(ctrlscripts[ctrlscript]) as f:
+                f += """
+#!/bin/bash
+set -e
+if test "X$1" != X; then
+    echo "usage: $0" >&2
+    exit 1
+fi
+"""
+
+        # write preambles to top-level control scripts
+        with FileLineWriter(ctrlscripts["submit"], append=True) as f:
+            f += f"""
+if test -f '{statefile}'; then
+    state=`cat '{statefile}'`
+    if test "X${{state}}" = XSUCCESS; then
+        echo "info: workflow {workflow_ID} has already been successfully run"
+        exit 0
+    fi
+fi
+rm -f '{statefile}'
+rm -f '{failedjobfile}'
+"""
+
+        # make batch system script directory
+        batchdir = self._workdir / "batch" / workflow_ID
+        batchdir.mkdir(parents=True, exist_ok=False)
+
+        # write batch system scripts
+        self._workflow_writer(
+            batchsyscfg=self._batch_system_cfg,
+            workflowname=f"awghr_{workflow_ID}",
+            batchdir=batchdir,
+            account=self._account,
+            jobs=self._jobs,
+            outfinaldir=outfinaldir,
+            failedjobfile=failedjobfile,
+            statefile=statefile,
+            ctrlscripts=ctrlscripts,
+        )
+
+        # write codas to top-level control scripts
+        with FileLineWriter(ctrlscripts["submit"], append=True) as f:
+            f += f"echo 'info: submitted all jobs in workflow {workflow_ID}'"
+        with FileLineWriter(ctrlscripts["cancel"], append=True) as f:
+            f += f"echo 'info: cancelled all jobs in workflow {workflow_ID}'"
+
+        # write top-level wait script
+        ctrlscripts["wait"] = self._workdir / "wait"
+        with FileLineWriter(ctrlscripts["wait"]) as f:
+            f += f"""
+#!/bin/bash
+set -e
+sleepfor=5.0
+case "$1" in
+    -h|--help)
+        echo "usage: $0 [-n sleepfor] [command args...]" >&2
+        exit 1
+        ;;
+    -n)
+        shift
+        sleepfor="$1"
+        shift
+esac
+until test -f '{statefile}'; do
+    "$@"
+    sleep ${{sleepfor}}
+done
+echo "workflow state: `cat '{statefile}'`"
+"""
+
+        # make top-level control scripts executable
+        for ctrlscriptpath in ctrlscripts.values():
+            os.chmod(ctrlscriptpath, stat.S_IRUSR | stat.S_IXUSR)
+
+        # log completion
+        _logger.info("workflow has been written")
+
+        return self._workdir

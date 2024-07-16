@@ -13,4 +13,5 @@ authors = [
     { name = "Karl Wette", email = "karl.wette@anu.edu.au" },
 ]
 dependencies = [
+    "pint>=0.24.0"
 ]

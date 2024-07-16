@@ -6,6 +6,7 @@ from awghr.config import ConfigException, _batch_systems, read_config
 default_src = """
 [DEFAULT SLURM]
 match batch = slurm
+jobfs = /tmp
 """
 
 

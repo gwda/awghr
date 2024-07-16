@@ -1,5 +1,17 @@
 set -e
 
+batch_system="$1"
+
+echo "===== $0: set up batch system: ${batch_system}"
+case "${batch_system}" in
+    slurm)
+        scancel -u 0
+        sed -i '/^MaxArraySize/d' /usr/local/etc/slurm.conf
+        echo "MaxArraySize = 7" >> /usr/local/etc/slurm.conf
+        scontrol reconfigure
+        ;;
+esac
+
 echo "===== $0: set up virtual environment"
 if test ! -f /tmp/venv/bin/activate; then
     python3 -m venv /tmp/venv
