@@ -1,1 +1,1 @@
-import awghr
+import awghr  # noqa: F401
