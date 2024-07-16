@@ -22,6 +22,7 @@ for TEST in `cat /tmp/test/list-of-tests.txt`; do
     echo "===== $0: test: ${TEST}"
     scratchdir="/tmp/scratch/${TEST}"
     mkdir -p "${scratchdir}"
+    cp "/tmp/test/awghr.cfg" "${scratchdir}/.awghr.cfg"
     (
         cd "${scratchdir}"
         export HOME="${scratchdir}"
