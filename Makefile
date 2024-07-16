@@ -25,7 +25,7 @@ init:
 $(INIT_DOCKER_TARGETS): .initialised-docker-%: Makefile
 	-docker stop awghr-testing-$*
 	-docker rm awghr-testing-$*
-	docker create --name "awghr-testing-$*" "kwwette/testing-batch-system:$*" /bin/bash ./test/runner.sh
+	docker create --name "awghr-testing-$*" "kwwette/testing-batch-system:$*" /bin/bash /tmp/test/runner.sh
 	@date > $@
 
 .PHONY: pretty
@@ -37,8 +37,24 @@ CHECK_TARGETS = $(addprefix check-,$(BATCH_SYSTEMS))
 .PHONY: check
 check: build $(CHECK_TARGETS)
 
+.PHONY: check-list-of-tests
+check-list-of-tests:
+	@for testpy in test/test_*.py; do \
+		test=`expr "X$${testpy}" : 'Xtest/test_\(.*\)\.py'`; \
+		if ! grep -qF "$${test}" test/list-of-tests.txt; then \
+			echo "ERROR: test $${test} not in test/list-of-tests.txt"; \
+			exit 1; \
+		fi; \
+	done
+	@for test in `cat test/list-of-tests.txt`; do \
+		if ! test -f "test/test_$${test}.py"; then \
+			echo "ERROR: test test/test_$${test}.py does not exist"; \
+			exit 1; \
+		fi; \
+	done
+
 .PHONY: $(CHECK_TARGETS)
-$(CHECK_TARGETS): check-%:
+$(CHECK_TARGETS): check-%: check-list-of-tests
 	-docker stop "awghr-testing-$*"
 	docker cp "dist/." "awghr-testing-$*:/tmp/dist"
 	docker cp "test/." "awghr-testing-$*:/tmp/test"
