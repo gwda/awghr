@@ -15,6 +15,7 @@ apt-get -y upgrade
 apt-get -y install \
     build-essential \
     bzip2 \
+    less \
     libcurl4-openssl-dev \
     libfreeipmi-dev \
     libgtk2.0-dev \
