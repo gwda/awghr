@@ -78,6 +78,7 @@ condor_submit condor.sub
 condor_wait condor.log
 EOF
 RUN <<EOF
+set -e
 entrypoint /bin/bash condor.sh
 for n in 0 1 2; do
   test "X`cat condor.err.${n}`" = "X"

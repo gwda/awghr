@@ -153,6 +153,7 @@ COPY <<EOF /tmp/slurm.sh
 echo "slurm:\${SLURM_ARRAY_TASK_ID}"
 EOF
 RUN <<EOF
+set -e
 entrypoint sbatch --wait slurm.sh
 for n in 0 1 2; do
   test "X`cat slurm.err.${n}`" = "X"
