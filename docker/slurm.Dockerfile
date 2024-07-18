@@ -98,7 +98,8 @@ SlurmdDebug=info
 SlurmdLogFile=/var/log/slurmd.log
 AuthType=auth/none
 CredType=cred/none
-NodeName=localhost Sockets=2 CoresPerSocket=1 RealMemory=500 State=UNKNOWN
+JobContainerType=job_container/none
+NodeName=localhost Sockets=2 CoresPerSocket=1 RealMemory=500 TmpDisk=100 State=UNKNOWN
 PartitionName=LocalQ Nodes=ALL Default=YES MaxTime=INFINITE State=UP
 EOF
 COPY <<EOF /usr/local/etc/cgroup.conf
@@ -148,6 +149,7 @@ COPY <<EOF /tmp/slurm.sh
 #SBATCH --array=0-2
 #SBATCH --time=10:00
 #SBATCH --mem=10MB
+#SBATCH --tmp=10MB
 #SBATCH --output=slurm.out.%a
 #SBATCH --error=slurm.err.%a
 echo "slurm:\${SLURM_ARRAY_TASK_ID}"
