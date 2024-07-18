@@ -17,8 +17,16 @@ coverage erase
 scratchbasedir="/tmp/scratch"
 rm -rf "${scratchbasedir}"
 
-echo "===== $0: run tests"
-for TEST in `cat /tmp/test/list-of-tests.txt`; do
+TESTS=`cat /tmp/test/.single-test.txt`
+if test "X${TESTS}" != X; then
+    echo "===== $0: run single test"
+    report_coverage=no
+else
+    TESTS=`cat /tmp/test/list-of-tests.txt`
+    echo "===== $0: run all tests"
+    report_coverage=yes
+fi
+for TEST in ${TESTS}; do
     echo "===== $0: test: ${TEST}"
     scratchdir="/tmp/scratch/${TEST}"
     mkdir -p "${scratchdir}"
@@ -37,7 +45,9 @@ for TEST in `cat /tmp/test/list-of-tests.txt`; do
     fi
 done
 
-echo "===== $0: report coverage"
-coverage report
+if test "${report_coverage}" = yes; then
+    echo "===== $0: report coverage"
+    coverage report
+fi
 
 echo "===== $0: SUCCESS"

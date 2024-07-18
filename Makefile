@@ -37,8 +37,8 @@ CHECK_TARGETS = $(addprefix check-,$(BATCH_SYSTEMS))
 .PHONY: check
 check: build $(CHECK_TARGETS)
 
-.PHONY: check-list-of-tests
-check-list-of-tests:
+.PHONY: .pre-check
+.pre-check:
 	@for testpy in test/test_*.py; do \
 		test=`expr "X$${testpy}" : 'Xtest/test_\(.*\)\.py'`; \
 		if ! grep -qF "$${test}" test/list-of-tests.txt; then \
@@ -52,11 +52,16 @@ check-list-of-tests:
 			exit 1; \
 		fi; \
 	done
+	@if test "X$(TEST)" != X && ! test -f "test/test_$(TEST).py"; then \
+		echo "ERROR: test test/test_$(TEST).py does not exist"; \
+		exit 1; \
+	fi
 
 .PHONY: $(CHECK_TARGETS)
-$(CHECK_TARGETS): check-%: check-list-of-tests
+$(CHECK_TARGETS): check-%: .pre-check
 	-docker stop "awghr-testing-$*"
 	docker cp "dist/." "awghr-testing-$*:/tmp/dist"
+	@echo "$(TEST)" > "test/.single-test.txt"
 	docker cp "test/." "awghr-testing-$*:/tmp/test"
 	docker start "awghr-testing-$*" -ai
 	-docker stop "awghr-testing-$*"

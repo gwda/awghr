@@ -1,3 +1,4 @@
-.initialised-*
+/.initialised-*
 /dist
 /src/*.egg-info
+/test/.single-test.txt
