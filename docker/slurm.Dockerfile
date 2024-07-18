@@ -96,8 +96,8 @@ SlurmctldDebug=info
 SlurmctldLogFile=/var/log/slurmctld.log
 SlurmdDebug=info
 SlurmdLogFile=/var/log/slurmd.log
-AuthType = auth/none
-CredType = cred/none
+AuthType=auth/none
+CredType=cred/none
 NodeName=localhost Sockets=2 CoresPerSocket=1 RealMemory=500 State=UNKNOWN
 PartitionName=LocalQ Nodes=ALL Default=YES MaxTime=INFINITE State=UP
 EOF
