@@ -25,7 +25,7 @@ init:
 $(INIT_DOCKER_TARGETS): .initialised-docker-%: Makefile
 	-docker stop awghr-testing-$*
 	-docker rm awghr-testing-$*
-	docker create --name "awghr-testing-$*" "kwwette/testing-batch-system:$*" /bin/bash /tmp/test/runner.sh "$*"
+	docker create --name "awghr-testing-$*" -it "kwwette/testing-batch-system:$*" /bin/bash /tmp/test/runner.sh "$*"
 	@date > $@
 
 .PHONY: pretty
