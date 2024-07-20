@@ -52,7 +52,11 @@ check: build $(CHECK_TARGETS)
 			exit 1; \
 		fi; \
 	done
-	@if test "X$(TEST)" != X && ! test -f "test/test_$(TEST).py"; then \
+	@if test -f "test/test_coverage.py"; then \
+		echo "ERROR: 'coverage' is a special test target"; \
+		exit 1; \
+	fi
+	@if test "X$(TEST)" != X && test "X$(TEST)" != Xcoverage && ! test -f "test/test_$(TEST).py"; then \
 		echo "ERROR: test test/test_$(TEST).py does not exist"; \
 		exit 1; \
 	fi

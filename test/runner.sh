@@ -17,15 +17,26 @@ coverage erase
 scratchbasedir="/tmp/scratch"
 rm -rf "${scratchbasedir}"
 
+export BATCH_SUBMISSION=yes
 TESTS=`cat /tmp/test/.single-test.txt`
 if test "X${TESTS}" != X; then
-    echo "===== $0: run single test"
-    report_coverage=no
+
+    if test "X${TESTS}" = Xcoverage; then
+        echo "===== $0: check test coverage only"
+        TESTS=`cat /tmp/test/list-of-tests.txt`
+        BATCH_SUBMISSION=no
+        report_coverage=yes
+    else
+        echo "===== $0: run single test"
+        report_coverage=no
+    fi
+
 else
-    TESTS=`cat /tmp/test/list-of-tests.txt`
     echo "===== $0: run all tests"
+    TESTS=`cat /tmp/test/list-of-tests.txt`
     report_coverage=yes
 fi
+
 for TEST in ${TESTS}; do
     echo "===== $0: test: ${TEST}"
     scratchdir="/tmp/scratch/${TEST}"
