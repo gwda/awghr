@@ -70,6 +70,14 @@ $(CHECK_TARGETS): check-%: .pre-check
 	docker start "awghr-testing-$*" -ai
 	-docker stop "awghr-testing-$*"
 
+DEBUG_CHECK_TARGETS = $(addprefix debug-,$(CHECK_TARGETS))
+
+.PHONY: $(DEBUG_CHECK_TARGETS)
+$(DEBUG_CHECK_TARGETS): debug-check-%:
+	@image=`docker commit awghr-testing-$*`; \
+	docker run -it --rm --entrypoint=/usr/local/bin/entrypoint "$${image}" /bin/bash; \
+	docker image rm "$${image}" >/dev/null
+
 .PHONY: clean
 clean:
 	git clean -Xdf
