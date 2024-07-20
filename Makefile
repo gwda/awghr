@@ -25,7 +25,7 @@ init:
 $(INIT_DOCKER_TARGETS): .initialised-docker-%: Makefile
 	-docker stop awghr-testing-$* >/dev/null
 	-docker rm awghr-testing-$* >/dev/null
-	docker create --name "awghr-testing-$*" -it "kwwette/testing-batch-system:$*" /bin/bash /tmp/test/runner.sh "$*" >/dev/null
+	docker create -it --hostname "$*-ubuntu-host" --name "awghr-testing-$*" "kwwette/testing-batch-system:$*" /bin/bash /tmp/test/runner.sh "$*" >/dev/null
 	@date > $@
 
 .PHONY: pretty
@@ -67,7 +67,7 @@ $(CHECK_TARGETS): check-%: .pre-check
 	docker cp "dist/." "awghr-testing-$*:/tmp/dist" >/dev/null
 	@echo "$(TEST)" > "test/.single-test.txt"
 	docker cp "test/." "awghr-testing-$*:/tmp/test" >/dev/null
-	docker start "awghr-testing-$*" -ai
+	docker start -ai "awghr-testing-$*"
 	-docker stop "awghr-testing-$*" >/dev/null
 
 DEBUG_CHECK_TARGETS = $(addprefix debug-,$(CHECK_TARGETS))
@@ -75,8 +75,30 @@ DEBUG_CHECK_TARGETS = $(addprefix debug-,$(CHECK_TARGETS))
 .PHONY: $(DEBUG_CHECK_TARGETS)
 $(DEBUG_CHECK_TARGETS): debug-check-%:
 	@image=`docker commit awghr-testing-$*`; \
-	docker run -it --rm --entrypoint=/usr/local/bin/entrypoint "$${image}" /bin/bash; \
+	docker run -it --hostname "$*-ubuntu-host" --rm --entrypoint /usr/local/bin/entrypoint "$${image}" /bin/bash; \
 	docker image rm "$${image}" >/dev/null
+
+DOCKER_IMAGES = htcondor slurm
+BUILD_DOCKER_TARGETS = $(addprefix docker-,$(DOCKER_IMAGES))
+
+.PHONY: docker
+docker: $(BUILD_DOCKER_TARGETS)
+
+.PHONY: $(BUILD_DOCKER_TARGETS)
+$(BUILD_DOCKER_TARGETS): docker-%:
+	docker buildx build \
+	--allow network.host \
+	--build-arg "BUILDKIT_SANDBOX_HOSTNAME=$*-ubuntu-host" \
+	--add-host "$*-ubuntu-host:host-gateway" \
+	--file "docker/$*.Dockerfile" \
+	--tag "kwwette/testing-batch-system:$*" \
+	docker/
+
+.PHONY: docker-push
+docker-push:
+	docker login
+	for tag in $(DOCKER_IMAGES); do docker push "kwwette/testing-batch-system:$${tag}" || break; done
+	-docker logout
 
 .PHONY: clean
 clean:
