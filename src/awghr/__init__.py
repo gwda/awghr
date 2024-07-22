@@ -335,8 +335,9 @@ class Workflow:
             with job_script_file.open("w") as f:
                 print("set -e", file=f)
                 for cmd in job["cmds"]:
+                    quotedargs = [arg.replace("'", "'\"'\"'") for arg in cmd[1:]]
                     print(
-                        "./{} '{}'".format(Path(cmd[0]).name, "' '".join(cmd[1:])),
+                        "./{} '{}'".format(Path(cmd[0]).name, "' '".join(quotedargs)),
                         file=f,
                     )
 

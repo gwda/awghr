@@ -3,3 +3,4 @@ config
 workflow
 simple
 dag
+dag_fail
