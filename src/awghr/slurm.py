@@ -355,7 +355,7 @@ else
         sbatch_dependency="${{sbatch_dependency}},afterok${{all_needs_slurmIDs}}"
     fi
     sbatch_slurmID=`sbatch --parsable ${{sbatch_dependency}} --kill-on-invalid-dep=yes --array=${{sbatch_array_indexes}} '{jobarray_script_file}'`
-    sbatch_slurmID="${{sbatch_slurmID/:*/}}"
+    sbatch_slurmID=`echo "${{sbatch_slurmID}}" | sed 's/[^0-9[:space:]]/ /g' | awk '{{print $1}}'`
     echo "info: submitted indexes ${{sbatch_array_indexes}} of job array {job_array_ID}, Slurm ID ${{sbatch_slurmID}}"
     all_state_slurmIDs="${{all_state_slurmIDs}}:${{sbatch_slurmID}}"
 fi
