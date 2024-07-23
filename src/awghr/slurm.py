@@ -296,9 +296,6 @@ fi
             # save all Slurm job IDs for state job
             f += "all_state_slurmIDs="
 
-            # save all Slurm job IDs for releasing
-            f += "all_release_slurm_IDs="
-
             # write commands to submit each job array
             for (_, job_array_ID), job_array in sorted(job_arrays.items()):
 
@@ -353,14 +350,14 @@ fi
 if test "X${{sbatch_array_indexes}}" = X; then
     sbatch_slurmID=COMPLETED
 else
+    sbatch_dependency="--dependency=afterok:${{SLURM_JOB_ID}}"
     if test "X${{all_needs_slurmIDs}}" != X; then
-        sbatch_dependency="--dependency=afterok${{all_needs_slurmIDs}}"
+        sbatch_dependency="${{sbatch_dependency}},afterok${{all_needs_slurmIDs}}"
     fi
-    sbatch_slurmID=`sbatch --hold --parsable ${{sbatch_dependency}} --kill-on-invalid-dep=yes --array=${{sbatch_array_indexes}} '{jobarray_script_file}'`
+    sbatch_slurmID=`sbatch --parsable ${{sbatch_dependency}} --kill-on-invalid-dep=yes --array=${{sbatch_array_indexes}} '{jobarray_script_file}'`
     sbatch_slurmID="${{sbatch_slurmID/:*/}}"
     echo "info: submitted indexes ${{sbatch_array_indexes}} of job array {job_array_ID}, Slurm ID ${{sbatch_slurmID}}"
     all_state_slurmIDs="${{all_state_slurmIDs}}:${{sbatch_slurmID}}"
-    all_release_slurmIDs="${{all_release_slurmIDs}},${{sbatch_slurmID}}"
 fi
 echo "${{sbatch_slurmID}}" > '{jobarray_slurmID_file}'
 """
@@ -369,18 +366,15 @@ echo "${{sbatch_slurmID}}" > '{jobarray_slurmID_file}'
                 for job in job_array:
                     all_jobs_ID_written.add(job["ID"])
 
-            # submit final state job, and release all jobs
+            # submit final state job
             f += f"""
-sbatch_dependency=
+sbatch_dependency="--dependency=afterok:${{SLURM_JOB_ID}}"
 if test "X${{all_state_slurmIDs}}" != X; then
-    sbatch_dependency="--dependency=afterany${{all_state_slurmIDs}}"
+    sbatch_dependency="${{sbatch_dependency}},afterany${{all_state_slurmIDs}}"
 fi
-sbatch_slurmID=`sbatch --hold --parsable ${{sbatch_dependency}} --kill-on-invalid-dep=yes '{state_job_script_file}'`
+sbatch_slurmID=`sbatch --parsable ${{sbatch_dependency}} --kill-on-invalid-dep=yes '{state_job_script_file}'`
 sbatch_slurmID="${{sbatch_slurmID/:*/}}"
 echo "info: submitted state job, Slurm ID ${{sbatch_slurmID}}"
-all_release_slurmIDs="${{all_release_slurmIDs}},${{sbatch_slurmID}}"
-scontrol release "${{all_release_slurmIDs/,/}}"
-echo "info: all jobs have been released"
     """
 
         # write commands to top-level submit script
