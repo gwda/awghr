@@ -151,13 +151,13 @@ while True:
     if len(fail_files) > 0:
         assert len(list(workdir.glob("workflow_failed_jobs_*.txt"))) == 1
 
-    logger.info("check state (%i fail files exist)", len(fail_files))
+    expected_state = "FAILED" if len(fail_files) > 0 else "SUCCESS"
+    logger.info(
+        "check state is %s (%i fail files exist)", expected_state, len(fail_files)
+    )
     statefile = list(workdir.glob("workflow_state_*.txt"))[0]
     state = statefile.read_text().strip()
-    if len(fail_files) > 0:
-        assert state == "FAILED"
-    else:
-        assert state == "SUCCESS"
+    assert state == expected_state
 
     # successively remove fail files so that jobs can pass
     if len(fail_files) == 0:
