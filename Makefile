@@ -23,9 +23,9 @@ init:
 	@date > $@
 
 $(INIT_DOCKER_TARGETS): .initialised-docker-%: Makefile
-	-docker stop awghr-testing-$*
-	-docker rm awghr-testing-$*
-	docker create --name "awghr-testing-$*" -it "kwwette/testing-batch-system:$*" /bin/bash /tmp/test/runner.sh "$*"
+	-docker stop awghr-testing-$* >/dev/null
+	-docker rm awghr-testing-$* >/dev/null
+	docker create --name "awghr-testing-$*" -it "kwwette/testing-batch-system:$*" /bin/bash /tmp/test/runner.sh "$*" >/dev/null
 	@date > $@
 
 .PHONY: pretty
@@ -63,12 +63,12 @@ check: build $(CHECK_TARGETS)
 
 .PHONY: $(CHECK_TARGETS)
 $(CHECK_TARGETS): check-%: .pre-check
-	-docker stop "awghr-testing-$*"
-	docker cp "dist/." "awghr-testing-$*:/tmp/dist"
+	-docker stop "awghr-testing-$*" >/dev/null
+	docker cp "dist/." "awghr-testing-$*:/tmp/dist" >/dev/null
 	@echo "$(TEST)" > "test/.single-test.txt"
-	docker cp "test/." "awghr-testing-$*:/tmp/test"
+	docker cp "test/." "awghr-testing-$*:/tmp/test" >/dev/null
 	docker start "awghr-testing-$*" -ai
-	-docker stop "awghr-testing-$*"
+	-docker stop "awghr-testing-$*" >/dev/null
 
 DEBUG_CHECK_TARGETS = $(addprefix debug-,$(CHECK_TARGETS))
 
