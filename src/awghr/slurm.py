@@ -67,6 +67,30 @@ function job_array_indexes() {
 }
 """
 
+    # Command to submit a job array, and the type
+    # of dependency to use for prerequisite array jobs.
+    # - Slurm's `--kill-on-invalid-dep=yes` option will kill jobs with
+    #   an unsatisfied dependency (because a prerequisite job failed),
+    #   so it's safe to use `afterok` for prerequisite jobs here
+    # - Slurm can also be run without this option, i.e.:
+    #     BATCHQ_SUBMIT_ARRAY = "sbatch --parsable"
+    #     BATCHQ_SUBMIT_ARRAY_DEPEND = "afterany"
+    #   This still works because dependent jobs will be run even if
+    #   a prerequisite job fails (because of `afterany`) but will
+    #   immediately fail if the `job_completed` files for their
+    #   prerequisites do not exist. So the workflow will still fail
+    #   gracefully, but slower, because all jobs will have to be run.
+    BATCHQ_SUBMIT_ARRAY = "sbatch --parsable --kill-on-invalid-dep=yes"
+    BATCHQ_SUBMIT_ARRAY_DEPEND = "afterok"
+
+    # Command to submit the final state job and the type
+    # of dependency to use for prerequisite jobs.
+    # - The final state job should always run even if the
+    #   workflow jobs (its prerequisites) have failed, so
+    #   BATCHQ_SUBMIT_STATE_DEPEND should be e.g. `afterany`.
+    BATCHQ_SUBMIT_STATE = "sbatch --parsable --kill-on-invalid-dep=yes"
+    BATCHQ_SUBMIT_STATE_DEPEND = "afterany"
+
     def __init__(self):
 
         # run `scontrol show config` and parse its output
@@ -363,9 +387,9 @@ if test "X${{sbatch_array_indexes}}" = X; then
 else
     sbatch_dependency="--dependency=afterok:${{SLURM_JOB_ID}}"
     if test "X${{all_needs_slurmIDs}}" != X; then
-        sbatch_dependency="${{sbatch_dependency}},afterok${{all_needs_slurmIDs}}"
+        sbatch_dependency="${{sbatch_dependency}},{self.BATCHQ_SUBMIT_ARRAY_DEPEND}${{all_needs_slurmIDs}}"
     fi
-    sbatch_slurmID=`sbatch --parsable ${{sbatch_dependency}} --kill-on-invalid-dep=yes --array=${{sbatch_array_indexes}} '{jobarray_script_file}'`
+    sbatch_slurmID=`{self.BATCHQ_SUBMIT_ARRAY} ${{sbatch_dependency}} --array=${{sbatch_array_indexes}} '{jobarray_script_file}'`
     sbatch_slurmID=`echo "${{sbatch_slurmID}}" | sed 's/[^0-9[:space:]]/ /g' | awk '{{print $1}}'`
     echo "info: submitted indexes ${{sbatch_array_indexes}} of job array {job_array_ID}, Slurm ID ${{sbatch_slurmID}}"
     all_state_slurmIDs="${{all_state_slurmIDs}}:${{sbatch_slurmID}}"
@@ -381,9 +405,9 @@ echo "${{sbatch_slurmID}}" > '{jobarray_slurmID_file}'
             f += f"""
 sbatch_dependency="--dependency=afterok:${{SLURM_JOB_ID}}"
 if test "X${{all_state_slurmIDs}}" != X; then
-    sbatch_dependency="${{sbatch_dependency}},afterany${{all_state_slurmIDs}}"
+    sbatch_dependency="${{sbatch_dependency}},{self.BATCHQ_SUBMIT_STATE_DEPEND}${{all_state_slurmIDs}}"
 fi
-sbatch_slurmID=`sbatch --parsable ${{sbatch_dependency}} --kill-on-invalid-dep=yes '{state_job_script_file}'`
+sbatch_slurmID=`{self.BATCHQ_SUBMIT_STATE} ${{sbatch_dependency}} '{state_job_script_file}'`
 sbatch_slurmID="${{sbatch_slurmID/:*/}}"
 echo "info: submitted state job, Slurm ID ${{sbatch_slurmID}}"
     """
