@@ -186,6 +186,17 @@ function job_array_indexes() {
                     # print comment used to extract job indexes and directories
                     f += f"# JOB {idx} {job['dir']}"
 
+                    # check that all prerequisite jobs have completed successfully
+                    for needs_job_ID in job["needs"]:
+
+                        # path to file indicating job has completed successfully
+                        needs_job_completed_file = (
+                            jobs[needs_job_ID]["dir"] / "job_completed"
+                        )
+
+                        # test that file exists
+                        f += f"test -f '{needs_job_completed_file}'"
+
                     # hard-link standard output/error files from job array back to job directory
                     for stdouterr in ("job_stdout", "job_stderr"):
                         jobarray_stdouterr_file = jobarraydir / (
