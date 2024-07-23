@@ -55,6 +55,8 @@ for TEST in ${TESTS}; do
     mkdir -p "${scratchdir}"
     cp "/tmp/test/awghr.cfg" "${scratchdir}/.awghr.cfg"
     (
+        exec > >(trap "" INT TERM; sed "s/^/${TEST}: /")
+        exec 2> >(trap "" INT TERM; sed "s/^/${TEST} ERROR: /" >&2)
         cd "${scratchdir}"
         export HOME="${scratchdir}"
         coverage run -a "/tmp/test/test_${TEST}.py"
