@@ -32,6 +32,27 @@ class SlurmWorkflowWriter:
 #SBATCH --error={stderr}
 """
 
+    # Name of environment variable which gives
+    # the batch system ID of the current job
+    BATCHQ_JOB_ID = "SLURM_JOB_ID"
+
+    # Name of environment variable which gives
+    # the job array index
+    BATCHQ_ARRAY_INDEX = "SLURM_ARRAY_TASK_ID"
+
+    # String for encoding a dependency on a job in a job array.
+    # May define the format() fields:
+    # - job_array_batchID: batch system ID of job array
+    # - job_array_index: index of job in job array to depend on.
+    #   Omit this field if batch system does not support depending
+    #   on a job within a job array; instead the whole job array must
+    #   be a dependency
+    # - Slurm can run without `{job_array_index}`, since job arrays
+    #   always contain jobs of the same dependency order, but the
+    #   workflow will likely run slower, because it will have to wait
+    #   for a whole job array to finish before running its dependents
+    BATCHQ_DEPEND_ARRAY_INDEX_SUFFIX = "{job_array_batchID}_{job_array_index}"
+
     # Command to submit a job array, and the type
     # of dependency to use for prerequisite array jobs.
     # - Slurm's `--kill-on-invalid-dep=yes` option will kill jobs with
@@ -55,6 +76,21 @@ class SlurmWorkflowWriter:
     #   BATCHQ_SUBMIT_STATE_DEPEND should be e.g. `afterany`.
     BATCHQ_SUBMIT_STATE = "sbatch --parsable --kill-on-invalid-dep=yes"
     BATCHQ_SUBMIT_STATE_DEPEND = "afterany"
+
+    # Command to submit job script that submits all jobs
+    BATCHQ_SUBMIT_ALL = """
+sbatch --quiet '{script}'
+"""
+
+    # Command to display all queued jobs with the given name
+    BATCHQ_QUEUE = """
+squeue --name='{jobname}' --format='%20i  %2t  %.12M  %.10m  %.12d  %.4C  %.8p  %12P  %R' --sort='-M,-p'
+"""
+
+    # Command to cancel all jobs with the given name
+    BATCHQ_CANCEL = """
+scancel --name='{jobname}'
+"""
 
     def __init__(self, batchsyscfg):
 
@@ -168,7 +204,8 @@ function fail() {
                 f += f'cd "{self.jobfs}"'
 
                 # Select which job in job array to run
-                f += "case ${SLURM_ARRAY_TASK_ID} in"
+                job_index = f"${{{self.BATCHQ_ARRAY_INDEX}}}"
+                f += f"case {job_index} in"
 
                 # Iterate over jobs in job array
                 for idx, job in enumerate(job_array):
@@ -194,7 +231,7 @@ function fail() {
                     # Hard-link standard output/error files from job array back to job directory
                     for stdouterr in ("job_stdout", "job_stderr"):
                         jobarray_stdouterr_file = jobarraydir / (
-                            stdouterr + "_${SLURM_ARRAY_TASK_ID}"
+                            stdouterr + "_" + job_index
                         )
                         job_stdouterr_file = job["dir"] / stdouterr
                         f += f'ln -f "{jobarray_stdouterr_file}" "{job_stdouterr_file}"'
@@ -227,9 +264,9 @@ function fail() {
                     f += ";;"
 
                 # Handle an incorrect job array index
-                max_slurm_array_task_id = len(job_array) - 1
+                max_job_index = len(job_array) - 1
                 f += "(*)"
-                f += f'fail "SLURM_ARRAY_TASK_ID=${{SLURM_ARRAY_TASK_ID}} should be between 0 and {max_slurm_array_task_id}"'
+                f += f'fail "{self.BATCHQ_ARRAY_INDEX}={job_index} should be between 0 and {max_job_index}"'
 
                 # end: Select which job in job array to run
                 f += "esac"
@@ -344,8 +381,8 @@ function job_array_indexes() {
 }
 """
 
-            # Save all Slurm job IDs for state job
-            f += "all_state_slurmIDs="
+            # Save all batch system IDs for state job
+            f += "batchq_all_IDs="
 
             # Write commands to submit each job array
             for (_, job_array_ID), job_array in sorted(job_arrays.items()):
@@ -356,8 +393,8 @@ function job_array_indexes() {
                 # Use first job in array for retrieving dependencies
                 job = job_array[0]
 
-                # Get Slurm job IDs of prerequisite jobs
-                f += "all_needs_slurmIDs="
+                # Get batch system IDs of prerequisite jobs
+                f += "batchq_needs_IDs="
                 for needs_job_ID in job["needs"]:
 
                     # Check that prerequisite job has been written
@@ -378,39 +415,47 @@ function job_array_indexes() {
                         batchdir / "job_arrays", needs_job_array_ID
                     )
 
-                    # Add Slurm job ID of prerequisit job to dependency
-                    needs_jobarray_slurmID_file = (
-                        needs_jobarraydir / "job_array_slurmID"
+                    # Format dependency on needed job in job array
+                    needs_job_in_array_batchqID = (
+                        self.BATCHQ_DEPEND_ARRAY_INDEX_SUFFIX.format(
+                            job_array_batchID="${batchq_ID}",
+                            job_array_index=needs_job_array_idx,
+                        )
+                    )
+
+                    # Add batch system ID of prerequisite job to dependency
+                    needs_jobarray_batchqID_file = (
+                        needs_jobarraydir / "job_array_batchqID"
                     )
                     f += f"""
 if test ! -f '{needs_job_completed_file}'; then
-    test -r '{needs_jobarray_slurmID_file}' || fail 'Dependent job array {needs_job_array_ID} has not been submitted'
-    needs_slurmID=`cat '{needs_jobarray_slurmID_file}'`
-    all_needs_slurmIDs="${{all_needs_slurmIDs}}:${{needs_slurmID}}_{needs_job_array_idx}"
+    test -r '{needs_jobarray_batchqID_file}' || fail 'Dependent job array {needs_job_array_ID} has not been submitted'
+    batchq_ID=`cat '{needs_jobarray_batchqID_file}'`
+    batchq_needs_IDs="${{batchq_needs_IDs}}:{needs_job_in_array_batchqID}"
 fi
 """
 
                 # Determine array indexes which should be submitted
                 jobarray_script_file = jobarraydir / "submit_job_array.sh"
-                f += f"sbatch_array_indexes=`job_array_indexes {jobarray_script_file}`"
+                f += f"batchq_array_indexes=`job_array_indexes {jobarray_script_file}`"
 
-                # If jobs in array need to be run, submit them and save Slurm job ID
+                # If jobs in array need to be run, submit them and save job ID
                 # - jobs are initially submitted in a held state
-                jobarray_slurmID_file = jobarraydir / "job_array_slurmID"
+                jobarray_batchqID_file = jobarraydir / "job_array_batchqID"
                 f += f"""
-if test "X${{sbatch_array_indexes}}" = X; then
-    sbatch_slurmID=COMPLETED
+if test "X${{batchq_array_indexes}}" = X; then
+    batchq_ID=COMPLETED
 else
-    sbatch_dependency="--dependency=afterok:${{SLURM_JOB_ID}}"
-    if test "X${{all_needs_slurmIDs}}" != X; then
-        sbatch_dependency="${{sbatch_dependency}},{self.BATCHQ_SUBMIT_ARRAY_DEPEND}${{all_needs_slurmIDs}}"
+    batchq_dependency="--dependency=afterok:${{{self.BATCHQ_JOB_ID}}}"
+    if test "X${{batchq_needs_IDs}}" != X; then
+        batchq_dependency="${{batchq_dependency}},{self.BATCHQ_SUBMIT_ARRAY_DEPEND}${{batchq_needs_IDs}}"
     fi
-    sbatch_slurmID=`{self.BATCHQ_SUBMIT_ARRAY} ${{sbatch_dependency}} --array=${{sbatch_array_indexes}} '{jobarray_script_file}'`
-    sbatch_slurmID=`echo "${{sbatch_slurmID}}" | sed 's/[^0-9[:space:]]/ /g' | awk '{{print $1}}'`
-    echo "info: submitted indexes ${{sbatch_array_indexes}} of job array {job_array_ID}, Slurm ID ${{sbatch_slurmID}}"
-    all_state_slurmIDs="${{all_state_slurmIDs}}:${{sbatch_slurmID}}"
+    batchq_ID=`{self.BATCHQ_SUBMIT_ARRAY} ${{batchq_dependency}} --array=${{batchq_array_indexes}} '{jobarray_script_file}'`
+    batchq_ID=`echo "${{batchq_ID}}" | sed 's/[^0-9[:space:]]/ /g' | awk '{{print $1}}'`
+    echo "info: submitted indexes ${{batchq_array_indexes}} of job array {job_array_ID}, batch ID ${{batchq_ID}}"
+    batchq_all_IDs="${{batchq_all_IDs}}:${{batchq_ID}}"
 fi
-echo "${{sbatch_slurmID}}" > '{jobarray_slurmID_file}'
+echo "${{batchq_ID}}" > '{jobarray_batchqID_file}'
 """
 
                 # Mark all jobs in array as having been written
@@ -419,29 +464,23 @@ echo "${{sbatch_slurmID}}" > '{jobarray_slurmID_file}'
 
             # Submit final state job
             f += f"""
-sbatch_dependency="--dependency=afterok:${{SLURM_JOB_ID}}"
-if test "X${{all_state_slurmIDs}}" != X; then
-    sbatch_dependency="${{sbatch_dependency}},{self.BATCHQ_SUBMIT_STATE_DEPEND}${{all_state_slurmIDs}}"
+batchq_dependency="--dependency=afterok:${{{self.BATCHQ_JOB_ID}}}"
+if test "X${{batchq_all_IDs}}" != X; then
+    batchq_dependency="${{batchq_dependency}},{self.BATCHQ_SUBMIT_STATE_DEPEND}${{batchq_all_IDs}}"
 fi
-sbatch_slurmID=`{self.BATCHQ_SUBMIT_STATE} ${{sbatch_dependency}} '{state_job_script_file}'`
-sbatch_slurmID="${{sbatch_slurmID/:*/}}"
-echo "info: submitted state job, Slurm ID ${{sbatch_slurmID}}"
+batchq_ID=`{self.BATCHQ_SUBMIT_STATE} ${{batchq_dependency}} '{state_job_script_file}'`
+batchq_ID="${{batchq_ID/:*/}}"
+echo "info: submitted state job, batch ID ${{batchq_ID}}"
     """
 
         # Write commands to top-level submit script
         with FileLineWriter(ctrlscripts["submit"], append=True) as f:
-            f += f"""
-sbatch --quiet '{all_jobs_script_file}'
-"""
+            f += self.BATCHQ_SUBMIT_ALL.format(script=all_jobs_script_file)
 
         # Write commands to top-level queue script
         with FileLineWriter(ctrlscripts["queue"], append=True) as f:
-            f += f"""
-squeue --name='{workflowname}' --format="%20i  %2t  %.12M  %.10m  %.12d  %.4C  %.8p  %12P  %R" --sort="-M,-p"
-"""
+            f += self.BATCHQ_QUEUE.format(jobname=workflowname)
 
         # Write commands to top-level cancel script
         with FileLineWriter(ctrlscripts["cancel"], append=True) as f:
-            f += f"""
-scancel --name='{workflowname}'
-"""
+            f += self.BATCHQ_CANCEL.format(jobname=workflowname)
