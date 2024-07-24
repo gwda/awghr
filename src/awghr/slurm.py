@@ -334,6 +334,18 @@ fi
             # Exit on any errors
             f += "set -e"
 
+            # If errors are encountered, write to the state file
+            f += f"""
+function trap_state() {{
+    local status=$?
+    if test ${{status}} -ne 0; then
+        echo FAILED > '{statefile}'
+    fi
+    exit ${{status}}
+}}
+trap trap_state EXIT
+"""
+
             # Write shell functions
             # - fail() is a convenience function for reporting errors
             # - job_array_indexes() determines which indexes of an array
