@@ -5,7 +5,7 @@ import sys
 
 from awghr import Workflow
 
-# set up logging
+# Set up logging
 logging.basicConfig(
     stream=sys.stdout,
     level=logging.INFO,
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 w = Workflow(name="dag", dated=False)
 
-# build up files containing up to 3 digits
+# Build up files containing up to 3 digits
 for level in range(3):
     if level == 0:
         jobs = []
@@ -56,7 +56,7 @@ for level in range(3):
                 )
                 jobs.append(job_ID)
 
-# sort files containing digits pairwise
+# Sort files containing digits pairwise
 jobs = sorted(jobs)
 while len(jobs) > 1:
     prev_jobs = jobs

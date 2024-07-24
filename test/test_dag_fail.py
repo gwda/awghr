@@ -6,7 +6,7 @@ from pathlib import Path
 
 from awghr import Workflow
 
-# set up logging
+# Set up logging
 logging.basicConfig(
     stream=sys.stdout,
     level=logging.INFO,
@@ -14,7 +14,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# these files are created to cause jobs to fail
+# These files are created to cause jobs to fail
 fail_files = []
 for i in range(3):
     fail_file = Path.cwd() / f"FAIL{i}"
@@ -24,7 +24,7 @@ for i in range(3):
 fail_file_index = 0
 
 
-# return a command that will fail if a given file exists
+# Return a command that will fail if a given file exists
 def get_fail_cmd(cmd):
     global fail_files
     global fail_file_index
@@ -39,7 +39,7 @@ def get_fail_cmd(cmd):
 
 w = Workflow(name="dag_fail", dated=False)
 
-# build up files containing up to 3 digits
+# Build up files containing up to 3 digits
 for level in range(3):
     if level == 0:
         jobs = []
@@ -80,7 +80,7 @@ for level in range(3):
                 )
                 jobs.append(job_ID)
 
-# sort files containing digits pairwise
+# Sort files containing digits pairwise
 jobs = sorted(jobs)
 while len(jobs) > 1:
     prev_jobs = jobs
@@ -159,7 +159,7 @@ while True:
     state = statefile.read_text().strip()
     assert state == expected_state
 
-    # successively remove fail files so that jobs can pass
+    # Successively remove fail files so that jobs can pass
     if len(fail_files) == 0:
         break
     fail_file = fail_files.pop(0)

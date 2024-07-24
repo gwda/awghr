@@ -6,7 +6,7 @@ from pathlib import Path
 
 from awghr import Workflow
 
-# set up logging
+# Set up logging
 logging.basicConfig(
     stream=sys.stdout,
     level=logging.INFO,
@@ -19,7 +19,7 @@ w = Workflow(name="simple")
 infile = Path.cwd() / "prefix.txt"
 infile.write_text("XYZ")
 
-# add 10 independent jobs
+# Add 10 independent jobs
 for i in range(10):
     w.add_job(
         args=dict(infile=str(infile), index=i),

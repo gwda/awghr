@@ -8,7 +8,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from .slurm import SlurmWorkflowWriter
 from .util import ConfigException
 
-# known batch systems:
+# Known batch systems:
 # - name of batch system
 # - characteristic executable used to identify batch system
 # - function which writes workflow specific to batch system
@@ -16,7 +16,7 @@ _batch_systems: List[Tuple[str, str, Optional[Callable]]] = [
     ("slurm", "sbatch", SlurmWorkflowWriter)
 ]
 
-# known configuration keys and their default values
+# Known configuration keys and their default values
 _keys: Dict[str, Any] = {
     "account": None,
     "basedir": Path.cwd(),
@@ -24,7 +24,7 @@ _keys: Dict[str, Any] = {
     "slurm:jobfs": None,
 }
 
-# override host name for tests in test_config.py
+# Override host name for tests in test_config.py
 _override_host = None
 
 
@@ -32,7 +32,7 @@ def read_config(src: Optional[str] = None, tags: Optional[List[str]] = None):
 
     cfg: Dict[str, Any] = dict()
 
-    # determine batch system
+    # Determine batch system
     for batch_system, batch_exec, workflow_writer in _batch_systems:
         if which(batch_exec) is not None:
             if "batch_system" not in cfg:
@@ -43,12 +43,12 @@ def read_config(src: Optional[str] = None, tags: Optional[List[str]] = None):
                     f"Both '{cfg['batch_system']}' and '{batch_system}' batch systems appear to be present"
                 )
 
-    # names of batch systems
+    # Names of batch systems
     batch_system_names = set(
         batch_system for batch_system, batch_exec, workflow_writer in _batch_systems
     )
 
-    # read configuration
+    # Read configuration
     parser = ConfigParser()
     if src is None:
         src_file = Path(os.environ["HOME"]) / ".awghr.cfg"
@@ -56,14 +56,14 @@ def read_config(src: Optional[str] = None, tags: Optional[List[str]] = None):
     else:
         parser.read_string(src)
 
-    # parse sections
+    # Parse sections
     batch_system_cfg = dict()
     for section in parser:
         use_section = True
         batch_system_section = None
         if section != parser.default_section:
 
-            # read `match` keys from configuration
+            # Read `match` keys from configuration
             for key in parser[section]:
                 if not key.startswith("match "):
                     continue
@@ -75,7 +75,7 @@ def read_config(src: Optional[str] = None, tags: Optional[List[str]] = None):
 
                     # `match` starting with "." must match end of host name
                     # `match` containing "." (but not at start/end) must match whole host name
-                    # otherwise `match` must match start of host name
+                    # Otherwise `match` must match start of host name
                     if match.startswith("."):
                         if not host.endswith(match):
                             use_section = False
@@ -104,7 +104,7 @@ def read_config(src: Optional[str] = None, tags: Optional[List[str]] = None):
 
                 elif target == "tag":
 
-                    # if `tags` is empty, do not match any tagged section
+                    # If `tags` is empty, do not match any tagged section
                     if tags is None:
                         use_section = False
 
@@ -116,19 +116,19 @@ def read_config(src: Optional[str] = None, tags: Optional[List[str]] = None):
 
         if use_section:
 
-            # read non-`match` keys from configuration
+            # Read non-`match` keys from configuration
             for key in parser[section]:
                 if key.startswith("match "):
                     continue
 
-                # check for valid key
+                # Check for valid key
                 if key not in _keys and (
                     batch_system_section is None
                     or f"{batch_system_section}:{key}" not in _keys
                 ):
                     raise ConfigException(f"Unknown section key '[{section}].{key}'")
 
-                # parse value of key
+                # Parse value of key
                 val: Any
                 if key.endswith("?"):
                     try:
@@ -151,14 +151,14 @@ def read_config(src: Optional[str] = None, tags: Optional[List[str]] = None):
                 else:
                     val = parser[section][key]
 
-                # assign value to common/batch system-specific configuration
+                # Assign value to common/batch system-specific configuration
                 if val is not None:
                     if key in _keys:
                         cfg[key] = val
                     else:
                         batch_system_cfg[key] = val
 
-    # check all keys are present
+    # Check all keys are present
     for key in _keys:
         if key.startswith(cfg["batch_system"] + ":"):
             batch_system_key = key.split(":", maxsplit=1)[1]
@@ -173,7 +173,7 @@ def read_config(src: Optional[str] = None, tags: Optional[List[str]] = None):
             if cfg[key] is None:
                 raise ConfigException(f"Configuration key '{key}' is undefined")
 
-    # store batch system-specific configuration
+    # Store batch system-specific configuration
     cfg["batch_system_cfg"] = batch_system_cfg
 
     return cfg

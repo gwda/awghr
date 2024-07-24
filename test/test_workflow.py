@@ -4,7 +4,7 @@ from pathlib import Path
 
 from awghr import Workflow
 
-# set up logging
+# Set up logging
 logging.basicConfig(
     stream=sys.stdout,
     level=logging.INFO,
@@ -12,17 +12,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# create workflow
+# Create workflow
 w = Workflow(name="add_job", dated=False)
 
-# try creating a workflow with a non-existent base directory
+# Try creating a workflow with a non-existent base directory
 try:
     Workflow(name="dummy", basedir=Path("/nonexistent"))
     raise AssertionError("should have raised a ValueError")
 except ValueError:
     pass
 
-# add job
+# Add job
 job_args = dict(
     args=dict(index=0),
     cmds=[["true"]],
@@ -33,14 +33,14 @@ job_args = dict(
 )
 w.add_job(**job_args)
 
-# try to add a duplicate job
+# Try to add a duplicate job
 try:
     w.add_job(**job_args)
     raise AssertionError("should have raised a ValueError")
 except ValueError:
     pass
 
-# try to add a job with non-existent executable
+# Try to add a job with non-existent executable
 try:
     w.add_job(
         args=dict(index=999),
@@ -54,7 +54,7 @@ try:
 except ValueError:
     pass
 
-# try to add a job with non-unique inputs
+# Try to add a job with non-unique inputs
 try:
     w.add_job(
         args=dict(index=999),
@@ -69,7 +69,7 @@ try:
 except ValueError:
     pass
 
-# try to add a job with non-existent inputs
+# Try to add a job with non-existent inputs
 try:
     w.add_job(
         args=dict(index=999),
@@ -84,7 +84,7 @@ try:
 except ValueError:
     pass
 
-# try to add a job with non-existent dependency
+# Try to add a job with non-existent dependency
 try:
     w.add_job(
         args=dict(index=999),
@@ -99,7 +99,7 @@ try:
 except ValueError:
     pass
 
-# try to add a job with non-unique outputs
+# Try to add a job with non-unique outputs
 try:
     w.add_job(
         args=dict(index=999),
@@ -113,7 +113,7 @@ try:
 except ValueError:
     pass
 
-# try to add a job with non-workflow-unique final output file
+# Try to add a job with non-workflow-unique final output file
 bad_job = w.add_job(
     args=dict(index=999),
     cmds=[["true"]],
@@ -130,7 +130,7 @@ except ValueError:
 finally:
     del w._jobs[bad_job]
 
-# try to write workflow when a final output file already exists
+# Try to write workflow when a final output file already exists
 existing_outfile = Path(".") / "add_job" / "outputs" / "out_0.txt"
 existing_outfile.parent.mkdir(parents=True, exist_ok=True)
 existing_outfile.write_text("already here!")

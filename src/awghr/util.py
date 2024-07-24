@@ -9,7 +9,7 @@ class BatchSystemException(Exception):
     """Raise for batch system errors"""
 
 
-# generate job directory from job ID:
+# Generate job directory from job ID:
 # basedir
 # └── subdirs 00/ to ff/ (max 256)
 #     └── subdirs 00/ to ff/ (max 256)
@@ -19,7 +19,7 @@ def job_dir_from_ID(basedir: Path, job_ID):
     return basedir / job_ID[0:2] / job_ID[2:4] / job_ID[4:]
 
 
-# log progress at progressively longer intervals
+# Log progress at progressively longer intervals
 class ProgressLogger:
 
     def __init__(self, logger, msg):
@@ -38,7 +38,7 @@ class ProgressLogger:
         self._logger.info(self._msg, "a total of " + str(self._count))
 
 
-# convenience class for writing lines to a text file
+# Convenience class for writing lines to a text file
 class FileLineWriter:
 
     def __init__(self, filepath: Path, *, append: bool = False):
