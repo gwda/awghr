@@ -11,62 +11,6 @@ _logger = logging.getLogger(__name__)
 # write Slurm workflow
 class SlurmWorkflowWriter:
 
-    # header of job array submission scripts:
-    # - fail() is a convenience function for reporting errors
-    _jobarray_script_header = """
-function fail() {
-  echo 'FAIL:' "$@" >&2
-  exit 1
-}
-"""
-
-    # header of all-job submission script:
-    # - fail() is a convenience function for reporting errors
-    # - job_array_indexes() determines which indexes of an array
-    #    job need to be run, and represents them as compactly as possible
-    #    as an sbatch --array argument
-    _all_job_script_header = """
-function fail() {
-  echo 'FAIL:' "$@" >&2
-  exit 1
-}
-function job_array_indexes() {
-    local idxexpr=
-    local idxlo=
-    local idxhi=
-    local idx=
-    local jobdir=
-    while read idx jobdir; do
-        if test "X${idx}" != XEND; then
-            jobcompleted="${jobdir}/job_completed"
-            if test -r "${jobcompleted}"; then
-                continue
-            fi
-            if test "X${idxlo}" = X; then
-                idxlo=${idx}
-                idxhi=${idx}
-                continue
-            fi
-            if test $((idxhi+1)) -eq ${idx}; then
-                idxhi=${idx}
-                continue
-            fi
-        fi
-        if test "X${idxexpr}" != X; then
-            idxexpr="${idxexpr},"
-        fi
-        if test ${idxlo} -eq ${idxhi}; then
-            idxexpr="${idxexpr}${idxlo}"
-        else
-            idxexpr="${idxexpr}${idxlo}-${idxhi}"
-        fi
-        idxlo=${idx}
-        idxhi=${idx}
-    done < <(sed -n 's/^# JOB //p' "$1")
-    echo "${idxexpr}"
-}
-"""
-
     # Command to submit a job array, and the type
     # of dependency to use for prerequisite array jobs.
     # - Slurm's `--kill-on-invalid-dep=yes` option will kill jobs with
@@ -189,8 +133,14 @@ function job_array_indexes() {
                 # exit on any errors
                 f += "set -e"
 
-                # write job array submission script header
-                f += self._jobarray_script_header
+                # Write shell functions
+                # - fail() is a convenience function for reporting errors
+                f += """
+function fail() {
+    echo 'FAIL:' "$@" >&2
+    exit 1
+}
+"""
 
                 # change to job scratch directory
                 jobfs = batchsyscfg["jobfs"]
@@ -325,8 +275,52 @@ fi
             # exit on any errors
             f += "set -e"
 
-            # write all job submission script header
-            f += self._all_job_script_header
+            # Write shell functions
+            # - fail() is a convenience function for reporting errors
+            # - job_array_indexes() determines which indexes of an array
+            #   job need to be run, and represents them as compactly as
+            #   possible as an --array argument
+            f += """
+function fail() {
+    echo 'FAIL:' "$@" >&2
+    exit 1
+}
+function job_array_indexes() {
+    local idxexpr=
+    local idxlo=
+    local idxhi=
+    local idx=
+    local jobdir=
+    while read idx jobdir; do
+        if test "X${idx}" != XEND; then
+            jobcompleted="${jobdir}/job_completed"
+            if test -r "${jobcompleted}"; then
+                continue
+            fi
+            if test "X${idxlo}" = X; then
+                idxlo=${idx}
+                idxhi=${idx}
+                continue
+            fi
+            if test $((idxhi+1)) -eq ${idx}; then
+                idxhi=${idx}
+                continue
+            fi
+        fi
+        if test "X${idxexpr}" != X; then
+            idxexpr="${idxexpr},"
+        fi
+        if test ${idxlo} -eq ${idxhi}; then
+            idxexpr="${idxexpr}${idxlo}"
+        else
+            idxexpr="${idxexpr}${idxlo}-${idxhi}"
+        fi
+        idxlo=${idx}
+        idxhi=${idx}
+    done < <(sed -n 's/^# JOB //p' "$1")
+    echo "${idxexpr}"
+}
+"""
 
             # save all Slurm job IDs for state job
             f += "all_state_slurmIDs="
