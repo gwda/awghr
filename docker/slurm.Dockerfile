@@ -10,6 +10,7 @@ WORKDIR /tmp
 ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
 RUN <<EOF
+set -e
 apt-get update
 apt-get -y upgrade
 apt-get -y install \
@@ -53,6 +54,7 @@ ADD https://download.schedmd.com/slurm/slurm-${SLURM_VERSION}.tar.bz2 /tmp
 
 # Build and install Slurm
 RUN <<EOF
+set -e
 tar xf slurm-${SLURM_VERSION}.tar.bz2
 cd /tmp/slurm-${SLURM_VERSION}
 ./configure --prefix=/usr/local --with-systemdsystemunitdir=/lib/systemd/system
@@ -108,6 +110,7 @@ EOF
 
 # Configure Slurm
 RUN <<EOF
+set -e
 groupadd slurm
 useradd -g slurm -d /nonexistent -s /usr/sbin/nologin slurm
 chown slurm:slurm /usr/local/etc/slurm.conf /usr/local/etc/cgroup.conf
@@ -119,6 +122,7 @@ EOF
 
 # Install daemon-less systemctl
 RUN <<EOF
+set -e
 apt-get -y remove systemd
 apt-get -y install systemctl
 apt-get -y clean

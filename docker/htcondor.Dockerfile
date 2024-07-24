@@ -10,6 +10,7 @@ WORKDIR /tmp
 ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
 RUN <<EOF
+set -e
 apt-get update
 apt-get -y upgrade
 apt-get -y install \
@@ -27,6 +28,7 @@ EOF
 
 # Download and install HTCondor
 RUN <<EOF
+set -e
 curl -fsSL https://get.htcondor.org | /bin/bash -s -- --no-dry-run --channel stable
 condor_off
 apt-get -y clean
@@ -39,6 +41,7 @@ EOF
 
 # Install daemon-less systemctl
 RUN <<EOF
+set -e
 apt-get -y remove systemd
 apt-get -y install systemctl
 apt-get -y clean
