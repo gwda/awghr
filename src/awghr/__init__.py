@@ -97,8 +97,7 @@ class Workflow:
         # initialise internal variables
         self._name = name
         self._account = account
-        self._batch_system_cfg = cfg["batch_system_cfg"]
-        self._workflow_writer = cfg["workflow_writer"]()
+        self._workflow_writer = cfg["workflow_writer"](cfg["batch_system_cfg"])
         self._workflow_hash = blake2b(digest_size=8, usedforsecurity=False)
         self._jobs: Dict[str, Dict[str, Any]] = dict()
         self._log_add_jobs = ProgressLogger(_logger, "added %s jobs to workflow")
@@ -390,7 +389,6 @@ rm -f '{failedjobfile}'
 
         # write batch system scripts
         self._workflow_writer(
-            batchsyscfg=self._batch_system_cfg,
             workflowname=f"awghr_{workflow_ID}",
             batchdir=batchdir,
             account=self._account,

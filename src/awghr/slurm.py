@@ -35,22 +35,32 @@ class SlurmWorkflowWriter:
     BATCHQ_SUBMIT_STATE = "sbatch --parsable --kill-on-invalid-dep=yes"
     BATCHQ_SUBMIT_STATE_DEPEND = "afterany"
 
-    def __init__(self):
+    def __init__(self, batchsyscfg):
+
+        # store location of job scratch directory
+        self.jobfs = batchsyscfg["jobfs"]
 
         # run `scontrol show config` and parse its output
         retn = subprocess.run(
             ["scontrol", "show", "config"], capture_output=True, check=True
         )
-        self._slurm_cfg = dict()
+        slurm_cfg = dict()
         for line in retn.stdout.decode("utf-8").splitlines():
             if "=" in line:
                 key, val = line.split("=", maxsplit=1)
-                self._slurm_cfg[key.strip()] = val.strip()
+                slurm_cfg[key.strip()] = val.strip()
+
+        # store maximum size of Slurm job array
+        try:
+            self.max_array_size = int(slurm_cfg["MaxArraySize"])
+        except KeyError:  # pragma: no cover
+            raise BatchSystemException(
+                "could not determine maximum size of Slurm job array"
+            )
 
     def __call__(
         self,
         *,
-        batchsyscfg,
         workflowname,
         batchdir,
         account,
@@ -60,14 +70,6 @@ class SlurmWorkflowWriter:
         statefile,
         ctrlscripts,
     ):
-
-        # get maximum size of Slurm job array
-        try:
-            max_array_size = int(self._slurm_cfg["MaxArraySize"])
-        except KeyError:  # pragma: no cover
-            raise BatchSystemException(
-                "could not determine maximum size of Slurm job array"
-            )
 
         # bundle jobs by order, dependencies, and resources
         job_bundles = dict()
@@ -88,13 +90,13 @@ class SlurmWorkflowWriter:
 
             # try to create evenly sized job arrays
             array_size = math.floor(
-                len(job_bundle) / math.ceil(len(job_bundle) / max_array_size)
+                len(job_bundle) / math.ceil(len(job_bundle) / self.max_array_size)
             )
-            assert array_size <= max_array_size
+            assert array_size <= self.max_array_size
 
             # create jobs arrays
-            for idx in range(0, len(job_bundle), max_array_size):
-                job_array = job_bundle[idx : idx + max_array_size]
+            for idx in range(0, len(job_bundle), self.max_array_size):
+                job_array = job_bundle[idx : idx + self.max_array_size]
                 job_array_ID = f"{job_bundle_ID}_{idx}"
                 job_array_key = (job_bundle_order, job_array_ID)
                 job_arrays[job_array_key] = job_array
@@ -143,9 +145,8 @@ function fail() {
 """
 
                 # change to job scratch directory
-                jobfs = batchsyscfg["jobfs"]
-                f += f'test -d "{jobfs}" || mkdir -p "{jobfs}" || fail \'Could not make scratch directory {jobfs}\''
-                f += f'cd "{jobfs}"'
+                f += f'test -d "{self.jobfs}" || mkdir -p "{self.jobfs}" || fail \'Could not make scratch directory {self.jobfs}\''
+                f += f'cd "{self.jobfs}"'
 
                 # select which job in job array to run
                 f += "case ${SLURM_ARRAY_TASK_ID} in"
