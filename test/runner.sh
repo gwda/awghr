@@ -9,6 +9,8 @@ case "${batch_system}" in
         sed -i '/^MaxArraySize/d' /usr/local/etc/slurm.conf
         echo "MaxArraySize = 7" >> /usr/local/etc/slurm.conf
         scontrol reconfigure
+        rm -rf /tmp/slurm-scratch/
+        mkdir -p /tmp/slurm-scratch/
         ;;
 esac
 
@@ -26,8 +28,8 @@ export COVERAGE_RCFILE="/tmp/test/coverage.cfg"
 export COVERAGE_FILE="/tmp/.coverage"
 coverage erase
 
-scratchbasedir="/tmp/scratch"
-rm -rf "${scratchbasedir}"
+testworkbasedir="/tmp/workdirs"
+rm -rf "${testworkbasedir}"
 
 export BATCH_SUBMISSION=yes
 TESTS=`cat /tmp/test/.single-test.txt`
@@ -51,14 +53,14 @@ fi
 
 for TEST in ${TESTS}; do
     echo "===== $0: test: ${TEST}"
-    scratchdir="/tmp/scratch/${TEST}"
-    mkdir -p "${scratchdir}"
-    cp "/tmp/test/awghr.cfg" "${scratchdir}/.awghr.cfg"
+    testworkdir="${testworkbasedir}/${TEST}"
+    mkdir -p "${testworkdir}"
+    cp "/tmp/test/awghr.cfg" "${testworkdir}/.awghr.cfg"
     (
         exec > >(trap "" INT TERM; sed "s/^/${TEST}: /")
         exec 2> >(trap "" INT TERM; sed "s/^/${TEST} ERROR: /" >&2)
-        cd "${scratchdir}"
-        export HOME="${scratchdir}"
+        cd "${testworkdir}"
+        export HOME="${testworkdir}"
         coverage run -a "/tmp/test/test_${TEST}.py"
     )
     status=$?
