@@ -3,7 +3,7 @@ from configparser import ConfigParser
 from pathlib import Path
 from shutil import which
 from socket import getfqdn
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from .slurm import SlurmWorkflowWriter
 from .util import ConfigException
@@ -12,17 +12,19 @@ from .util import ConfigException
 # - name of batch system
 # - characteristic executable used to identify batch system
 # - function which writes workflow specific to batch system
-_batch_systems: List[Tuple[str, str, Optional[Callable]]] = [
-    ("slurm", "sbatch", SlurmWorkflowWriter)
-]
+_batch_systems: List[Tuple[str, str, Any]] = [("slurm", "sbatch", SlurmWorkflowWriter)]
 
-# Known configuration keys and their default values
+# Configuration keys and their default values
 _keys: Dict[str, Any] = {
     "account": None,
     "basedir": Path.cwd(),
     "dated?": True,
-    "slurm:jobfs": None,
 }
+
+# Import configuration keys from known batch systems
+for batch_system, batch_exec, workflow_writer in _batch_systems:
+    for key in workflow_writer.KEYS:
+        _keys[f"{batch_system}:{key}"] = workflow_writer.KEYS[key]
 
 # Override host name for tests in test_config.py
 _override_host = None

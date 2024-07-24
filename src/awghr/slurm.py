@@ -2,6 +2,7 @@ import logging
 import math
 import subprocess
 from pathlib import Path
+from typing import Any, Dict
 
 from .util import BatchSystemException, FileLineWriter, ProgressLogger, job_dir_from_ID
 
@@ -10,6 +11,11 @@ _logger = logging.getLogger(__name__)
 
 # Write Slurm workflow
 class SlurmWorkflowWriter:
+
+    # Slurm-specific configuration keys
+    KEYS: Dict[str, Any] = {
+        "jobfs": None,
+    }
 
     # Job script header; should define the format() fields:
     # - jobname: name of job
