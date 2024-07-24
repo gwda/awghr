@@ -11,6 +11,27 @@ _logger = logging.getLogger(__name__)
 # write Slurm workflow
 class SlurmWorkflowWriter:
 
+    # Job script header; should define the format() fields:
+    # - jobname: name of job
+    # - account: account to which job is charged
+    # - time_min: requested wall time in minutes
+    # - mem_MiB: requested memory in MiB
+    # - disk_MiB: requested job scratch space in MiB
+    # - threads: requested number of threads
+    # - stdout: redirect job standard output to this file
+    # - stderr: redirect job standard error to this file
+    BATCHQ_HEADER = """
+#SBATCH --job-name={jobname}
+#SBATCH --account={account}
+#SBATCH --time={time_min}:00
+#SBATCH --mem={mem_MiB}M
+#SBATCH --tmp={disk_MiB}M
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task={threads}
+#SBATCH --output={stdout}
+#SBATCH --error={stderr}
+"""
+
     # Command to submit a job array, and the type
     # of dependency to use for prerequisite array jobs.
     # - Slurm's `--kill-on-invalid-dep=yes` option will kill jobs with
@@ -118,19 +139,17 @@ class SlurmWorkflowWriter:
             with FileLineWriter(jobarray_script_file) as f:
                 f += "#!/bin/bash"
 
-                # write SBATCH entries
-                for sbatch_entry_key, sbatch_entry_val in {
-                    "job-name": workflowname,
-                    "account": account,
-                    "time": f"{job['time_min']}:00",
-                    "mem": f"{job['mem_MiB']}M",
-                    "tmp": f"{job['disk_MiB']}M",
-                    "ntasks": 1,
-                    "cpus-per-task": job["threads"],
-                    "output": jobarraydir / "job_stdout_%a",
-                    "error": jobarraydir / "job_stderr_%a",
-                }.items():
-                    f += f"#SBATCH --{sbatch_entry_key}={sbatch_entry_val}"
+                # write job script header
+                f += self.BATCHQ_HEADER.format(
+                    jobname=workflowname,
+                    account=account,
+                    time_min=job["time_min"],
+                    mem_MiB=job["mem_MiB"],
+                    disk_MiB=job["disk_MiB"],
+                    threads=job["threads"],
+                    stdout=jobarraydir / "job_stdout_%a",
+                    stderr=jobarraydir / "job_stderr_%a",
+                )
 
                 # exit on any errors
                 f += "set -e"
@@ -226,16 +245,17 @@ function fail() {
         with FileLineWriter(state_job_script_file) as f:
             f += "#!/bin/bash"
 
-            # write SBATCH entries
-            for sbatch_entry_key, sbatch_entry_val in {
-                "job-name": f"{workflowname}_state",
-                "account": account,
-                "time": "15:00",
-                "mem": "10M",
-                "output": batchdir / "submit_state_job_stdout",
-                "error": batchdir / "submit_state_job_stderr",
-            }.items():
-                f += f"#SBATCH --{sbatch_entry_key}={sbatch_entry_val}"
+            # write job script header
+            f += self.BATCHQ_HEADER.format(
+                jobname=f"{workflowname}_state",
+                account=account,
+                time_min=15,
+                mem_MiB=10,
+                disk_MiB=0,
+                threads=1,
+                stdout=batchdir / "submit_state_job_stdout",
+                stderr=batchdir / "submit_state_job_stderr",
+            )
 
             # exit on any errors
             f += "set -e"
@@ -262,16 +282,17 @@ fi
         with FileLineWriter(all_jobs_script_file) as f:
             f += "#!/bin/bash"
 
-            # write SBATCH entries
-            for sbatch_entry_key, sbatch_entry_val in {
-                "job-name": workflowname,
-                "account": account,
-                "time": "15:00",
-                "mem": "10M",
-                "output": batchdir / "submit_all_jobs_stdout",
-                "error": batchdir / "submit_all_jobs_stderr",
-            }.items():
-                f += f"#SBATCH --{sbatch_entry_key}={sbatch_entry_val}"
+            # write job script header
+            f += self.BATCHQ_HEADER.format(
+                jobname=workflowname,
+                account=account,
+                time_min=15,
+                mem_MiB=10,
+                disk_MiB=0,
+                threads=1,
+                stdout=batchdir / "submit_all_jobs_stdout",
+                stderr=batchdir / "submit_all_jobs_stderr",
+            )
 
             # exit on any errors
             f += "set -e"
