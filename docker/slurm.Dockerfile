@@ -132,7 +132,7 @@ if ! systemctl restart slurmctld slurmd; then
    echo "ERROR: could not start Slurm" >&2
    exit 1
 fi
-trap 'status=\$?; systemctl stop slurmctld slurmd; exit \${status}' 0 INT TERM
+trap 'status=\$?; systemctl stop slurmctld slurmd; exit \${status}' EXIT INT TERM
 if ! scontrol update nodename=localhost state=idle; then
    echo "ERROR: could not run scontrol" >&2
    exit 1

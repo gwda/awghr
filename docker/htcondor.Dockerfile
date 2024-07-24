@@ -52,7 +52,7 @@ if ! systemctl restart condor; then
    echo "ERROR: could not start HTCondor" >&2
    exit 1
 fi
-trap 'status=\$?; systemctl stop condor; exit \${status}' 0 INT TERM
+trap 'status=\$?; systemctl stop condor; exit \${status}' EXIT INT TERM
 while ! pidof condor_collector >/dev/null; do
    sleep 0.5
 done
