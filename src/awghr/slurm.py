@@ -38,6 +38,9 @@ class SlurmWorkflowWriter(BatchQWorkflowWriter):
     BATCHQ_SUBMIT_ARG_DEPEND = "--dependency="
 
     BATCHQ_SUBMIT_ARG_ARRAY = "--array="
+
+    BATCHQ_SUBMIT_ARRAY_INDEX_REPL = "%a"
+
     # - Slurm's `--kill-on-invalid-dep=yes` option will kill jobs with
     #   an unsatisfied dependency (because a prerequisite job failed),
     #   so it's safe to use `afterok` for prerequisite jobs here

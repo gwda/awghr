@@ -44,6 +44,9 @@ class BatchQWorkflowWriter:
     # Argument used to submit job array indexes
     BATCHQ_SUBMIT_ARG_ARRAY: str
 
+    # Pattern that will be replaced by job array index in submit files
+    BATCHQ_SUBMIT_ARRAY_INDEX_REPL: str
+
     # Command to submit a job array, and the type
     # of dependency to use for prerequisite array jobs.
     BATCHQ_SUBMIT_ARRAY: str
@@ -145,8 +148,10 @@ class BatchQWorkflowWriter:
                     mem_MiB=job["mem_MiB"],
                     disk_MiB=job["disk_MiB"],
                     threads=job["threads"],
-                    stdout=jobarraydir / "job_stdout_%a",
-                    stderr=jobarraydir / "job_stderr_%a",
+                    stdout=jobarraydir
+                    / f"job_stdout_{self.BATCHQ_SUBMIT_ARRAY_INDEX_REPL}",
+                    stderr=jobarraydir
+                    / f"job_stderr_{self.BATCHQ_SUBMIT_ARRAY_INDEX_REPL}",
                 )
 
                 # Exit on any errors
