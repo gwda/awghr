@@ -21,11 +21,6 @@ _keys: Dict[str, Any] = {
     "dated?": True,
 }
 
-# Import configuration keys from known batch systems
-for batch_system, batch_exec, workflow_writer in _batch_systems:
-    for key in workflow_writer.KEYS:
-        _keys[f"{batch_system}:{key}"] = workflow_writer.KEYS[key]
-
 # Override host name for tests in test_config.py
 _override_host = None
 
@@ -40,11 +35,14 @@ def read_config(src: Optional[str] = None, tags: Optional[List[str]] = None):
     )
 
     # Determine batch system
+    batch_keys = dict()
     for batch_system, batch_exec, workflow_writer in _batch_systems:
         if which(batch_exec) is not None:
             if "batch_system" not in cfg:
                 cfg["batch_system"] = batch_system
                 cfg["workflow_writer"] = workflow_writer
+                if workflow_writer is not None:
+                    batch_keys = workflow_writer.KEYS
             else:
                 raise ConfigException(
                     f"Both '{cfg['batch_system']}' and '{batch_system}' batch systems appear to be present"
@@ -128,8 +126,7 @@ def read_config(src: Optional[str] = None, tags: Optional[List[str]] = None):
 
                 # Check for valid key
                 if key not in _keys and (
-                    batch_system_section is None
-                    or f"{batch_system_section}:{key}" not in _keys
+                    batch_system_section is None or key not in batch_keys
                 ):
                     raise ConfigException(f"Unknown section key '[{section}].{key}'")
 
@@ -165,18 +162,17 @@ def read_config(src: Optional[str] = None, tags: Optional[List[str]] = None):
 
     # Check all keys are present
     for key in _keys:
-        if key.startswith(cfg["batch_system"] + ":"):
-            batch_system_key = key.split(":", maxsplit=1)[1]
-            if batch_system_key not in batch_system_cfg:
-                batch_system_cfg[batch_system_key] = _keys[key]
-                if batch_system_cfg[batch_system_key] is None:
-                    raise ConfigException(
-                        f"{cfg['batch_system']}-specific configuration key '{batch_system_key}' is undefined"
-                    )
-        elif key not in cfg:
+        if key not in cfg:
             cfg[key] = _keys[key]
             if cfg[key] is None:
                 raise ConfigException(f"Configuration key '{key}' is undefined")
+    for key in batch_keys:
+        if key not in batch_system_cfg:
+            batch_system_cfg[key] = batch_keys[key]
+            if batch_system_cfg[key] is None:
+                raise ConfigException(
+                    f"{cfg['batch_system']}-specific configuration key '{key}' is undefined"
+                )
 
     # Store batch system-specific configuration
     cfg["batch_system_cfg"] = batch_system_cfg

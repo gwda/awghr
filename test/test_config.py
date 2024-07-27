@@ -238,13 +238,15 @@ account = noacct
 
 @test
 def check_batch_system_keys():
+    class DummyWorkflowWriter:
+        KEYS = {"test": "def"}
+
     try:
         _batch_systems = awghr.config._batch_systems
-        _keys = awghr.config._keys
-        awghr.config._batch_systems = [("dummy", "true", None)]
-        awghr.config._keys = {"dummy:test": "def"}
+        awghr.config._batch_systems = [("dummy", "true", DummyWorkflowWriter)]
         src = """
 [DEFAULT]
+account = acct
 
 [check_batch_system_keys]
 match batch = dummy
@@ -254,31 +256,35 @@ test = abc
         assert cfg["batch_system_cfg"]["test"] == "abc"
     finally:
         awghr.config._batch_systems = _batch_systems
-        awghr.config._keys = _keys
 
     try:
         _batch_systems = awghr.config._batch_systems
-        _keys = awghr.config._keys
-        awghr.config._batch_systems = [("dummy", "true", None)]
-        awghr.config._keys = {"dummy:test": "def"}
-        cfg = read_config("")
+        awghr.config._batch_systems = [("dummy", "true", DummyWorkflowWriter)]
+        src = """
+[DEFAULT]
+account = acct
+"""
+        cfg = read_config(src)
         assert cfg["batch_system_cfg"]["test"] == "def"
     finally:
         awghr.config._batch_systems = _batch_systems
-        awghr.config._keys = _keys
+
+    class DummyWorkflowWriter2:
+        KEYS = {"test": None}
 
     try:
         _batch_systems = awghr.config._batch_systems
-        _keys = awghr.config._keys
-        awghr.config._batch_systems = [("dummy", "true", None)]
-        awghr.config._keys = {"dummy:test": None}
-        cfg = read_config("")
+        awghr.config._batch_systems = [("dummy", "true", DummyWorkflowWriter2)]
+        src = """
+[DEFAULT]
+account = acct
+"""
+        cfg = read_config(src)
         raise AssertionError("should have raised a ConfigException")
     except ConfigException:
         pass
     finally:
         awghr.config._batch_systems = _batch_systems
-        awghr.config._keys = _keys
 
 
 @test
