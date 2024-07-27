@@ -148,17 +148,21 @@ account = localhost
 
 @test
 def parsing_batch_target():
-    src = default_src
-    src += """
+    try:
+        _batch_systems = awghr.config._batch_systems
+        awghr.config._batch_systems = [("dummy", "true", None)]
+        src = """
 [DEFAULT]
 account = acct
 
 [parsing_batch_target]
-match batch = slurm
+match batch = dummy
 account = anybatch
 """
-    cfg = read_config(src)
-    assert cfg["account"] == "anybatch"
+        cfg = read_config(src)
+        assert cfg["account"] == "anybatch"
+    finally:
+        awghr.config._batch_systems = _batch_systems
 
     try:
         src = default_src
