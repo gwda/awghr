@@ -12,7 +12,9 @@ from .util import ConfigException
 # - name of batch system
 # - characteristic executable used to identify batch system
 # - function which writes workflow specific to batch system
-_batch_systems: List[Tuple[str, str, Any]] = [("slurm", "sbatch", SlurmWorkflowWriter)]
+_batch_systems: List[Tuple[str, str, Any]] = [
+    ("slurm", "scontrol", SlurmWorkflowWriter),
+]
 
 # Configuration keys and their default values
 _keys: Dict[str, Any] = {
