@@ -17,7 +17,7 @@ init:
 	@-rm -f $(INIT_TARGETS)
 	@$(MAKE) $(INIT_TARGETS)
 
-.initialised-dev: Makefile
+.initialised-dev: requirements-dev.txt Makefile
 	pip install -r requirements-dev.txt
 	pre-commit install
 	@date > $@
