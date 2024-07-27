@@ -1,4 +1,5 @@
+.coverage*
 /.initialised-*
 /dist
 /src/*.egg-info
-/test/.single-test.txt
+/test/.runnerrc

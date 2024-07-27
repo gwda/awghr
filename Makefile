@@ -35,10 +35,12 @@ pretty:
 CHECK_TARGETS = $(addprefix check-,$(BATCH_SYSTEMS))
 
 .PHONY: check
-check: build $(CHECK_TARGETS)
+check: $(CHECK_TARGETS)
+	coverage combine --rcfile=test/coverage.cfg --data-file=.coverage test/.coverage-*
+	coverage report --rcfile=test/coverage.cfg --data-file=.coverage
 
 .PHONY: .pre-check
-.pre-check:
+.pre-check: build
 	@for testpy in test/test_*.py; do \
 		test=`expr "X$${testpy}" : 'Xtest/test_\(.*\)\.py'`; \
 		if ! grep -qF "$${test}" test/list-of-tests.txt; then \
@@ -52,11 +54,7 @@ check: build $(CHECK_TARGETS)
 			exit 1; \
 		fi; \
 	done
-	@if test -f "test/test_coverage.py"; then \
-		echo "ERROR: 'coverage' is a special test target"; \
-		exit 1; \
-	fi
-	@if test "X$(TEST)" != X && test "X$(TEST)" != Xcoverage && ! test -f "test/test_$(TEST).py"; then \
+	@if test "X$(TEST)" != X && ! test -f "test/test_$(TEST).py"; then \
 		echo "ERROR: test test/test_$(TEST).py does not exist"; \
 		exit 1; \
 	fi
@@ -65,10 +63,16 @@ check: build $(CHECK_TARGETS)
 $(CHECK_TARGETS): check-%: .pre-check
 	-docker stop "awghr-testing-$*" >/dev/null
 	docker cp "dist/." "awghr-testing-$*:/tmp/dist" >/dev/null
-	@echo "$(TEST)" > "test/.single-test.txt"
+	@echo "TESTS=$(TEST)" > "test/.runnerrc"
+	@echo "export BATCH_SUBMISSION=$(BATCH_SUBMISSION)" >> "test/.runnerrc"
 	docker cp "test/." "awghr-testing-$*:/tmp/test" >/dev/null
 	docker start -ai "awghr-testing-$*"
+	docker cp "awghr-testing-$*:/tmp/.coverage-$*" "test/.coverage-$*" >/dev/null
 	-docker stop "awghr-testing-$*" >/dev/null
+
+.PHONY: check-coverage
+check-coverage:
+	$(MAKE) check BATCH_SUBMISSION=no
 
 DEBUG_CHECK_TARGETS = $(addprefix debug-,$(CHECK_TARGETS))
 

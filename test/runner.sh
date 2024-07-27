@@ -1,5 +1,7 @@
 set -e
 
+source /tmp/test/.runnerrc
+
 batch_system="$1"
 
 echo "===== $0: set up batch system: ${batch_system}"
@@ -25,30 +27,17 @@ pip install -r /tmp/test/requirements-test.txt
 pip install --force-reinstall /tmp/dist/*.whl
 
 export COVERAGE_RCFILE="/tmp/test/coverage.cfg"
-export COVERAGE_FILE="/tmp/.coverage"
+export COVERAGE_FILE="/tmp/.coverage-${batch_system}"
 coverage erase
 
 testworkbasedir="/tmp/workdirs"
 rm -rf "${testworkbasedir}"
 
-export BATCH_SUBMISSION=yes
-TESTS=`cat /tmp/test/.single-test.txt`
 if test "X${TESTS}" != X; then
-
-    if test "X${TESTS}" = Xcoverage; then
-        echo "===== $0: check test coverage only"
-        TESTS=`cat /tmp/test/list-of-tests.txt`
-        BATCH_SUBMISSION=no
-        report_coverage=yes
-    else
-        echo "===== $0: run single test"
-        report_coverage=no
-    fi
-
+    echo "===== $0: run single test"
 else
     echo "===== $0: run all tests"
     TESTS=`cat /tmp/test/list-of-tests.txt`
-    report_coverage=yes
 fi
 
 for TEST in ${TESTS}; do
@@ -72,9 +61,4 @@ for TEST in ${TESTS}; do
     fi
 done
 
-if test "${report_coverage}" = yes; then
-    echo "===== $0: report coverage"
-    coverage report
-fi
-
-echo "===== $0: SUCCESS"
+echo "===== $0: SUCCESS for ${batch_system}"
