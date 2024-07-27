@@ -35,6 +35,9 @@ class SlurmWorkflowWriter(BatchQWorkflowWriter):
     #   for a whole job array to finish before running its dependents
     BATCHQ_DEPEND_ARRAY_INDEX_SUFFIX = "{job_array_batchID}_{job_array_index}"
 
+    BATCHQ_SUBMIT_ARG_DEPEND = "--dependency="
+
+    BATCHQ_SUBMIT_ARG_ARRAY = "--array="
     # - Slurm's `--kill-on-invalid-dep=yes` option will kill jobs with
     #   an unsatisfied dependency (because a prerequisite job failed),
     #   so it's safe to use `afterok` for prerequisite jobs here
@@ -51,6 +54,10 @@ class SlurmWorkflowWriter(BatchQWorkflowWriter):
 
     BATCHQ_SUBMIT_STATE = "sbatch --parsable --kill-on-invalid-dep=yes"
     BATCHQ_SUBMIT_STATE_DEPEND = "afterany"
+
+    # - `sbatch --parsable` returns `<job_ID>[:<cluster_name>]`.
+    # `<cluster_name>` is not part of the job ID and must be removed.
+    BATCHQ_ID_REMOVE_SUFFIX = "%%:*"
 
     BATCHQ_SUBMIT_ALL = """
 sbatch --quiet '{script}'

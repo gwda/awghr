@@ -38,6 +38,12 @@ class BatchQWorkflowWriter:
     #   be a dependency
     BATCHQ_DEPEND_ARRAY_INDEX_SUFFIX: str
 
+    # Argument used to submit job dependencies
+    BATCHQ_SUBMIT_ARG_DEPEND: str
+
+    # Argument used to submit job array indexes
+    BATCHQ_SUBMIT_ARG_ARRAY: str
+
     # Command to submit a job array, and the type
     # of dependency to use for prerequisite array jobs.
     BATCHQ_SUBMIT_ARRAY: str
@@ -50,6 +56,11 @@ class BatchQWorkflowWriter:
     #   BATCHQ_SUBMIT_STATE_DEPEND should be e.g. `afterany`.
     BATCHQ_SUBMIT_STATE: str
     BATCHQ_SUBMIT_STATE_DEPEND: str
+
+    # Bash parameter expansion command to remove a suffix from the
+    # output of a submit command to get a batch system ID
+    # - For example, "%%.*" removes all output from the first period
+    BATCHQ_ID_REMOVE_SUFFIX: str
 
     # Command to submit job `script` that submits all jobs
     BATCHQ_SUBMIT_ALL: str
@@ -409,12 +420,12 @@ fi
 if test "X${{batchq_array_indexes}}" = X; then
     batchq_ID=COMPLETED
 else
-    batchq_dependency="--dependency=afterok:${{{self.BATCHQ_JOB_ID}}}"
+    batchq_dependency="{self.BATCHQ_SUBMIT_ARG_DEPEND}afterok:${{{self.BATCHQ_JOB_ID}{self.BATCHQ_ID_REMOVE_SUFFIX}}}"
     if test "X${{batchq_needs_IDs}}" != X; then
         batchq_dependency="${{batchq_dependency}},{self.BATCHQ_SUBMIT_ARRAY_DEPEND}${{batchq_needs_IDs}}"
     fi
-    batchq_ID=`{self.BATCHQ_SUBMIT_ARRAY} ${{batchq_dependency}} --array=${{batchq_array_indexes}} '{jobarray_script_file}'`
-    batchq_ID=`echo "${{batchq_ID}}" | sed 's/[^0-9[:space:]]/ /g' | awk '{{print $1}}'`
+    batchq_ID=`{self.BATCHQ_SUBMIT_ARRAY} ${{batchq_dependency}} {self.BATCHQ_SUBMIT_ARG_ARRAY}${{batchq_array_indexes}} '{jobarray_script_file}'`
+    batchq_ID=`echo "${{batchq_ID{self.BATCHQ_ID_REMOVE_SUFFIX}}}"`
     echo "info: submitted indexes ${{batchq_array_indexes}} of job array {job_array_ID}, batch ID ${{batchq_ID}}"
     batchq_all_IDs="${{batchq_all_IDs}}:${{batchq_ID}}"
 fi
@@ -427,12 +438,12 @@ echo "${{batchq_ID}}" > '{jobarray_batchqID_file}'
 
             # Submit final state job
             f += f"""
-batchq_dependency="--dependency=afterok:${{{self.BATCHQ_JOB_ID}}}"
+batchq_dependency="{self.BATCHQ_SUBMIT_ARG_DEPEND}afterok:${{{self.BATCHQ_JOB_ID}{self.BATCHQ_ID_REMOVE_SUFFIX}}}"
 if test "X${{batchq_all_IDs}}" != X; then
     batchq_dependency="${{batchq_dependency}},{self.BATCHQ_SUBMIT_STATE_DEPEND}${{batchq_all_IDs}}"
 fi
 batchq_ID=`{self.BATCHQ_SUBMIT_STATE} ${{batchq_dependency}} '{state_job_script_file}'`
-batchq_ID="${{batchq_ID/:*/}}"
+batchq_ID=`echo "${{batchq_ID{self.BATCHQ_ID_REMOVE_SUFFIX}}}"`
 echo "info: submitted state job, batch ID ${{batchq_ID}}"
     """
 
