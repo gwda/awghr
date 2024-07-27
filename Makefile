@@ -78,7 +78,7 @@ $(DEBUG_CHECK_TARGETS): debug-check-%:
 	docker run -it --hostname "$*-ubuntu-host" --rm --entrypoint /usr/local/bin/entrypoint "$${image}" /bin/bash; \
 	docker image rm "$${image}" >/dev/null
 
-DOCKER_IMAGES = htcondor slurm
+DOCKER_IMAGES = htcondor pbs slurm
 BUILD_DOCKER_TARGETS = $(addprefix docker-,$(DOCKER_IMAGES))
 
 .PHONY: docker
