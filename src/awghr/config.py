@@ -34,6 +34,11 @@ def read_config(src: Optional[str] = None, tags: Optional[List[str]] = None):
 
     cfg: Dict[str, Any] = dict()
 
+    # Names of batch systems
+    batch_system_names = set(
+        batch_system for batch_system, batch_exec, workflow_writer in _batch_systems
+    )
+
     # Determine batch system
     for batch_system, batch_exec, workflow_writer in _batch_systems:
         if which(batch_exec) is not None:
@@ -44,11 +49,9 @@ def read_config(src: Optional[str] = None, tags: Optional[List[str]] = None):
                 raise ConfigException(
                     f"Both '{cfg['batch_system']}' and '{batch_system}' batch systems appear to be present"
                 )
-
-    # Names of batch systems
-    batch_system_names = set(
-        batch_system for batch_system, batch_exec, workflow_writer in _batch_systems
-    )
+    if "batch_system" not in cfg:
+        batch_systems_str = "/".join(batch_system_names)
+        raise ConfigException(f"No known batch system ({batch_systems_str}) was found")
 
     # Read configuration
     parser = ConfigParser()

@@ -28,6 +28,19 @@ def multiple_batch_system():
 
 
 @test
+def no_batch_system():
+    try:
+        _batch_systems = awghr.config._batch_systems
+        awghr.config._batch_systems = [("dummy", "nonexistent", None)]
+        read_config("")
+        raise AssertionError("should have raised a ConfigException")
+    except ConfigException:
+        pass
+    finally:
+        awghr.config._batch_systems = _batch_systems
+
+
+@test
 def read_config_file():
     cfg = read_config()
     assert cfg["account"] == "default"
