@@ -9,17 +9,18 @@ WORKDIR /tmp
 # Install prerequisites
 ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
-RUN <<EOF
+RUN --mount=type=cache,target=/var/lib/apt/lists,sharing=locked --mount=type=cache,target=/var/cache/apt,sharing=locked <<EOF
 set -e
+rm -f /etc/apt/apt.conf.d/docker-clean
 apt-get update
 apt-get -y upgrade
 apt-get -y install \
     curl \
     less \
+    nano \
     python3.10 \
     python3.10-venv \
     ;
-apt-get -y clean
 update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 update-alternatives --set python /usr/bin/python3
 update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
@@ -27,11 +28,17 @@ update-alternatives --set python3 /usr/bin/python3.10
 EOF
 
 # Download and install HTCondor
-RUN <<EOF
+RUN --mount=type=cache,target=/var/lib/apt/lists,sharing=locked --mount=type=cache,target=/var/cache/apt,sharing=locked <<EOF
 set -e
 curl -fsSL https://get.htcondor.org | /bin/bash -s -- --no-dry-run --channel stable
 condor_off
-apt-get -y clean
+EOF
+
+# Install daemon-less systemctl
+RUN --mount=type=cache,target=/var/lib/apt/lists,sharing=locked --mount=type=cache,target=/var/cache/apt,sharing=locked <<EOF
+set -e
+apt-get -y remove systemd
+apt-get -y install systemctl
 EOF
 
 # Create additional HTCondor configuration
@@ -39,25 +46,17 @@ COPY <<EOF /etc/condor/config.d/01-local
 NUM_SLOTS = 2
 EOF
 
-# Install daemon-less systemctl
-RUN <<EOF
-set -e
-apt-get -y remove systemd
-apt-get -y install systemctl
-apt-get -y clean
-EOF
-
 # Create entrypoint
 COPY <<EOF /usr/local/bin/entrypoint
 #!/bin/bash
 set -e
 if ! systemctl restart condor; then
-   echo "ERROR: could not start HTCondor" >&2
-   exit 1
+    echo "ERROR: could not start HTCondor" >&2
+    exit 1
 fi
 trap 'status=\$?; systemctl stop condor; exit \${status}' EXIT INT TERM
 while ! pidof condor_collector >/dev/null; do
-   sleep 0.5
+    sleep 0.5
 done
 "\$@"
 EOF
@@ -84,8 +83,8 @@ RUN <<EOF
 set -e
 entrypoint /bin/bash condor.sh
 for n in 0 1 2; do
-  test "X`cat condor.err.${n}`" = "X"
-  test "X`cat condor.out.${n}`" = "Xcondor:${n}"
+    test "X`cat condor.err.${n}`" = "X"
+    test "X`cat condor.out.${n}`" = "Xcondor:${n}"
 done
 rm -rf /tmp/*
 EOF
