@@ -6,6 +6,11 @@ batch_system="$1"
 
 echo "===== $0: set up batch system: ${batch_system}"
 case "${batch_system}" in
+    pbs)
+        ( qdel `qselect` >/dev/null 2>&1 ) || true
+        rm -rf /tmp/pbs-scratch/
+        mkdir -p /tmp/pbs-scratch/
+        ;;
     slurm)
         scancel -u 0
         sed -i '/^MaxArraySize/d' /usr/local/etc/slurm.conf

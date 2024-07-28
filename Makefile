@@ -2,7 +2,7 @@ ifndef VIRTUAL_ENV
 $(error Missing virtual environment)
 endif
 
-BATCH_SYSTEMS = slurm
+BATCH_SYSTEMS = pbs slurm
 
 INIT_DOCKER_TARGETS = $(addprefix .initialised-docker-,$(BATCH_SYSTEMS))
 INIT_TARGETS = .initialised-dev $(INIT_DOCKER_TARGETS)

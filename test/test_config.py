@@ -7,6 +7,9 @@ default_src = """
 [DEFAULT SLURM]
 match batch = slurm
 jobfs = /tmp
+[DEFAULT PBS]
+match batch = pbs
+jobfs = /tmp
 """
 
 

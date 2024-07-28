@@ -5,6 +5,7 @@ from shutil import which
 from socket import getfqdn
 from typing import Any, Dict, List, Optional, Tuple
 
+from .pbs import PBSWorkflowWriter
 from .slurm import SlurmWorkflowWriter
 from .util import ConfigException
 
@@ -13,6 +14,7 @@ from .util import ConfigException
 # - characteristic executable used to identify batch system
 # - function which writes workflow specific to batch system
 _batch_systems: List[Tuple[str, str, Any]] = [
+    ("pbs", "qmgr", PBSWorkflowWriter),
     ("slurm", "scontrol", SlurmWorkflowWriter),
 ]
 
