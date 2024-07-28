@@ -29,11 +29,15 @@ class SlurmWorkflowWriter(BatchQWorkflowWriter):
 
     BATCHQ_ARRAY_INDEX = "SLURM_ARRAY_TASK_ID"
 
-    # - Slurm can run without `{job_array_index}`, since job arrays
+    BATCHQ_ARRAY_SINGLETON = "0"
+
+    BATCHQ_ARRAY_RANGE = "0-{n}"
+
+    # - Slurm can run without `{batch_index}`, since job arrays
     #   always contain jobs of the same dependency order, but the
     #   workflow will likely run slower, because it will have to wait
     #   for a whole job array to finish before running its dependents
-    BATCHQ_DEPEND_ARRAY_INDEX_SUFFIX = "{job_array_batchID}_{job_array_index}"
+    BATCHQ_DEPEND_ARRAY_INDEX_SUFFIX = "{batch_ID}_{batch_index}"
 
     BATCHQ_SUBMIT_ARG_DEPEND = "--dependency="
 
