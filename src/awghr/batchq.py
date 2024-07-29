@@ -1,6 +1,7 @@
 import logging
 import math
 from pathlib import Path
+from typing import Any, Dict
 
 from .util import FileLineWriter, ProgressLogger, job_dir_from_ID
 
@@ -9,6 +10,11 @@ _logger = logging.getLogger(__name__)
 
 # Generic workflow writer for PBS/Slurm/etc. style batch systems
 class BatchQWorkflowWriter:
+
+    # Configuration keys for generic workflow
+    KEYS: Dict[str, Any] = {
+        "jobfs": None,
+    }
 
     # Job script header; should define the format() fields:
     # - jobname: name of job

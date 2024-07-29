@@ -46,7 +46,13 @@ def read_config(src: Optional[str] = None, tags: Optional[List[str]] = None):
                 cfg["batch_system"] = batch_system
                 cfg["workflow_writer"] = workflow_writer
                 if workflow_writer is not None:
-                    batch_keys = workflow_writer.KEYS
+                    for cls in workflow_writer.mro():
+                        if hasattr(cls, "KEYS"):
+                            for batch_key, batch_key_val in getattr(
+                                cls, "KEYS"
+                            ).items():
+                                assert batch_key not in batch_keys
+                                batch_keys[batch_key] = batch_key_val
             else:
                 raise ConfigException(
                     f"Both '{cfg['batch_system']}' and '{batch_system}' batch systems appear to be present"

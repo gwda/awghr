@@ -9,9 +9,7 @@ from .util import BatchSystemException
 class SlurmWorkflowWriter(BatchQWorkflowWriter):
 
     # Slurm-specific configuration keys
-    KEYS: Dict[str, Any] = {
-        "jobfs": None,
-    }
+    KEYS: Dict[str, Any] = {}
 
     BATCHQ_HEADER = """
 #SBATCH --job-name={jobname}

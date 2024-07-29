@@ -9,9 +9,7 @@ from .util import BatchSystemException
 class PBSWorkflowWriter(BatchQWorkflowWriter):
 
     # PBS-specific configuration keys
-    KEYS: Dict[str, Any] = {
-        "jobfs": None,
-    }
+    KEYS: Dict[str, Any] = {}
 
     BATCHQ_HEADER = """
 #PBS -N {jobname}
