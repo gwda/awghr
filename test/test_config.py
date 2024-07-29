@@ -195,6 +195,42 @@ n_letters = abc
 
 
 @test
+def parsing_dir():
+    try:
+        _batch_systems = awghr.config._batch_systems
+        awghr.config._batch_systems = [("dummy", "true", None)]
+        _keys = awghr.config._keys
+        awghr.config._keys = {"srcdir": None, "destdir": Path.cwd()}
+        src = f"""
+[DEFAULT]
+srcdir = {Path.cwd()}
+"""
+        cfg = read_config(src)
+        assert cfg["srcdir"] == Path.cwd()
+        assert cfg["destdir"] == Path.cwd()
+    finally:
+        awghr.config._batch_systems = _batch_systems
+        awghr.config._keys = _keys
+
+    try:
+        _batch_systems = awghr.config._batch_systems
+        awghr.config._batch_systems = [("dummy", "true", None)]
+        _keys = awghr.config._keys
+        awghr.config._keys = {"srcdir": None}
+        src = """
+[DEFAULT]
+srcdir = /nonexistent
+"""
+        cfg = read_config(src)
+        raise AssertionError("should have raised a ConfigException")
+    except ConfigException:
+        pass
+    finally:
+        awghr.config._batch_systems = _batch_systems
+        awghr.config._keys = _keys
+
+
+@test
 def parsing_host_target():
     try:
         awghr.config._override_host = "a1.b.c.d"
@@ -368,27 +404,3 @@ account = acct
         pass
     finally:
         awghr.config._batch_systems = _batch_systems
-
-
-@test
-def check_batchdir():
-    src = default_src
-    src += f"""
-[DEFAULT]
-account = acct
-basedir = {Path.cwd()}
-"""
-    cfg = read_config(src)
-    assert cfg["basedir"] == Path.cwd()
-
-    try:
-        src = default_src
-        src += """
-[DEFAULT]
-account = acct
-basedir = /nonexistent
-"""
-        cfg = read_config(src)
-        raise AssertionError("should have raised a ConfigException")
-    except ConfigException:
-        pass
