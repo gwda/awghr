@@ -80,21 +80,25 @@ qdel `qselect -N '{jobname}'` || true
         # Store location of job scratch directory
         self.jobfs = batchsyscfg["jobfs"]
 
-        # Run `qmgr -c 'print server'` and parse its output
-        retn = subprocess.run(
-            ["qmgr", "-c", "print server"], capture_output=True, check=True
-        )
-        pbs_cfg = dict()
-        for line in retn.stdout.decode("utf-8").splitlines():
-            prefix = "set server "
-            if line.startswith(prefix):
-                key, val = line[len(prefix) :].split("=", maxsplit=1)
-                pbs_cfg[key.strip()] = val.strip()
-
         # Store maximum size of PBS job array
-        try:
-            self.max_array_size = int(pbs_cfg["max_array_size"])
-        except KeyError:  # pragma: no cover
-            raise BatchSystemException(
-                "could not determine maximum size of PBS job array"
+        if batchsyscfg["n_arraymax"] > 0:
+            self.max_array_size = batchsyscfg["n_arraymax"]
+        else:
+            # Run `qmgr -c 'print server'` and parse its output
+            retn = subprocess.run(
+                ["qmgr", "-c", "print server"], capture_output=True, check=True
             )
+            pbs_cfg = dict()
+            for line in retn.stdout.decode("utf-8").splitlines():
+                prefix = "set server "
+                if line.startswith(prefix):
+                    key, val = line[len(prefix) :].split("=", maxsplit=1)
+                    pbs_cfg[key.strip()] = val.strip()
+
+            # Get maximum size of PBS job array
+            try:
+                self.max_array_size = int(pbs_cfg["max_array_size"])
+            except KeyError:  # pragma: no cover
+                raise BatchSystemException(
+                    "could not determine maximum size of PBS job array"
+                )

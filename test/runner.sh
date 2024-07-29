@@ -13,9 +13,6 @@ case "${batch_system}" in
         ;;
     slurm)
         scancel -u 0
-        sed -i '/^MaxArraySize/d' /usr/local/etc/slurm.conf
-        echo "MaxArraySize = 7" >> /usr/local/etc/slurm.conf
-        scontrol reconfigure
         rm -rf /tmp/slurm-scratch/
         mkdir -p /tmp/slurm-scratch/
         ;;

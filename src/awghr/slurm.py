@@ -81,20 +81,24 @@ scancel --name='{jobname}'
         # Store location of job scratch directory
         self.jobfs = batchsyscfg["jobfs"]
 
-        # Run `scontrol show config` and parse its output
-        retn = subprocess.run(
-            ["scontrol", "show", "config"], capture_output=True, check=True
-        )
-        slurm_cfg = dict()
-        for line in retn.stdout.decode("utf-8").splitlines():
-            if "=" in line:
-                key, val = line.split("=", maxsplit=1)
-                slurm_cfg[key.strip()] = val.strip()
-
         # Store maximum size of Slurm job array
-        try:
-            self.max_array_size = int(slurm_cfg["MaxArraySize"])
-        except KeyError:  # pragma: no cover
-            raise BatchSystemException(
-                "could not determine maximum size of Slurm job array"
+        if batchsyscfg["n_arraymax"] > 0:
+            self.max_array_size = batchsyscfg["n_arraymax"]
+        else:
+            # Run `scontrol show config` and parse its output
+            retn = subprocess.run(
+                ["scontrol", "show", "config"], capture_output=True, check=True
             )
+            slurm_cfg = dict()
+            for line in retn.stdout.decode("utf-8").splitlines():
+                if "=" in line:
+                    key, val = line.split("=", maxsplit=1)
+                    slurm_cfg[key.strip()] = val.strip()
+
+            # Get maximum size of Slurm job array
+            try:
+                self.max_array_size = int(slurm_cfg["MaxArraySize"])
+            except KeyError:  # pragma: no cover
+                raise BatchSystemException(
+                    "could not determine maximum size of Slurm job array"
+                )

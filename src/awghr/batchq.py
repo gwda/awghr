@@ -14,6 +14,7 @@ class BatchQWorkflowWriter:
     # Configuration keys for generic workflow
     KEYS: Dict[str, Any] = {
         "jobfs": None,
+        "n_arraymax": 0,
     }
 
     # Job script header; should define the format() fields:
