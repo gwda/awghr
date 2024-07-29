@@ -145,6 +145,15 @@ def read_config(src: Optional[str] = None, tags: Optional[List[str]] = None):
                             f"Section key value '[{section}].{key}'='{val}' is not a valid boolean"
                         )
 
+                elif key.startswith("n_"):
+                    try:
+                        val = parser.getint(section, key)
+                    except ValueError:
+                        val = parser[section][key]
+                        raise ConfigException(
+                            f"Section key value '[{section}].{key}'='{val}' is not a valid integer"
+                        )
+
                 elif key.endswith("dir"):
                     val = Path(parser[section][key])
                     try:

@@ -157,6 +157,44 @@ why? = because
 
 
 @test
+def parsing_int():
+    try:
+        _batch_systems = awghr.config._batch_systems
+        awghr.config._batch_systems = [("dummy", "true", None)]
+        _keys = awghr.config._keys
+        awghr.config._keys = {"n_letters": None, "n_words": None, "n_pages": 3}
+        src = """
+[DEFAULT]
+n_letters = 6
+n_words = 23
+"""
+        cfg = read_config(src)
+        assert cfg["n_letters"] == 6
+        assert cfg["n_words"] == 23
+        assert cfg["n_pages"] == 3
+    finally:
+        awghr.config._batch_systems = _batch_systems
+        awghr.config._keys = _keys
+
+    try:
+        _batch_systems = awghr.config._batch_systems
+        awghr.config._batch_systems = [("dummy", "true", None)]
+        _keys = awghr.config._keys
+        awghr.config._keys = {"n_letters": None}
+        src = """
+[DEFAULT]
+n_letters = abc
+"""
+        cfg = read_config(src)
+        raise AssertionError("should have raised a ConfigException")
+    except ConfigException:
+        pass
+    finally:
+        awghr.config._batch_systems = _batch_systems
+        awghr.config._keys = _keys
+
+
+@test
 def parsing_host_target():
     try:
         awghr.config._override_host = "a1.b.c.d"
