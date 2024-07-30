@@ -23,7 +23,13 @@ infile.write_text("XYZ")
 for i in range(10):
     w.add_job(
         args=dict(infile=str(infile), index=i),
-        cmds=[["bash", "-c", "echo `cat {infile}`{index} > out_{index}.txt"]],
+        cmds=[
+            [
+                "bash",
+                "-c",
+                "echo $HOME; echo $TESTVAR >&2; echo `cat {infile}`{index} > out_{index}.txt",
+            ]
+        ],
         time=1 * w.MIN,
         mem=10 * w.MiB,
         disk=10 * w.MiB,
@@ -61,3 +67,11 @@ for i in range(10):
     logger.info("check that output file '%s' is present and correct", outfile)
     assert outfile.is_file()
     outfile.read_text() == f"XYZ{i}"
+
+logger.info("check that job standard output/error printed what was expected")
+joblistfile = list(workdir.glob("workflow_jobs_*.txt"))[0]
+for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
+    stdout = (jobdir / "job_stdout").read_text().strip()
+    stderr = (jobdir / "job_stderr").read_text().strip()
+    assert stdout == str(workdir.parent)
+    assert stderr == "abc"

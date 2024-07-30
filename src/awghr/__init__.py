@@ -2,6 +2,7 @@ import json
 import logging
 import math
 import os
+import re
 import stat
 import sys
 from datetime import datetime
@@ -108,6 +109,19 @@ class Workflow:
         else:
             workdirname = self._name
         self._workdir = basedir / workdirname
+
+        # Process environment variables
+        self._env = dict()
+        envvars = cfg["envvars"].split()
+        for env in envvars:
+            if "=" not in env:
+                for var in os.environ:
+                    if re.fullmatch(env, var) is not None:
+                        self._env[var] = os.environ[var]
+        for env in envvars:
+            if "=" in env:
+                var, val = env.split("=", maxsplit=1)
+                self._env[var] = val
 
         # Log details
         _logger.info("workflow name: %s", self._name)
@@ -333,6 +347,8 @@ class Workflow:
             job["infiles"].append(job_script_file)
             with FileLineWriter(job_script_file) as f:
                 f += "set -e"
+                for var in self._env:
+                    f += f"export {var}='{self._env[var]}'"
                 for cmd in job["cmds"]:
                     quotedargs = [arg.replace("'", "'\"'\"'") for arg in cmd[1:]]
                     f += "./{} '{}'".format(Path(cmd[0]).name, "' '".join(quotedargs))

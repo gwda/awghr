@@ -23,6 +23,7 @@ _keys: Dict[str, Any] = {
     "account": None,
     "basedir": Path.cwd(),
     "dated?": True,
+    "envvars": "",
 }
 
 # Override host name for tests in test_config.py
