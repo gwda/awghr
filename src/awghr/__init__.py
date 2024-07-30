@@ -325,29 +325,26 @@ class Workflow:
 
             # Write JSON representation of arguments
             job_args_file = job["dir"] / "job_args.json"
-            with job_args_file.open("w") as f:
-                print(job["args_json"], file=f)
+            with FileLineWriter(job_args_file) as f:
+                f += job["args_json"]
 
             # Write job script
             job_script_file = job["dir"] / "job_script.sh"
             job["infiles"].append(job_script_file)
-            with job_script_file.open("w") as f:
-                print("set -e", file=f)
+            with FileLineWriter(job_script_file) as f:
+                f += "set -e"
                 for cmd in job["cmds"]:
                     quotedargs = [arg.replace("'", "'\"'\"'") for arg in cmd[1:]]
-                    print(
-                        "./{} '{}'".format(Path(cmd[0]).name, "' '".join(quotedargs)),
-                        file=f,
-                    )
+                    f += "./{} '{}'".format(Path(cmd[0]).name, "' '".join(quotedargs))
 
             log_make_jobs.update()
         log_make_jobs.finish()
 
         # Write list of all job directories
         all_jobs_file = self._workdir / f"workflow_jobs_{workflow_ID}.txt"
-        with all_jobs_file.open("w") as f:
+        with FileLineWriter(all_jobs_file) as f:
             for job in self._jobs.values():
-                print(job["dir"], file=f)
+                f += job["dir"]
 
         # Name of file containing directories of any failed jobs
         failedjobfile = self._workdir / f"workflow_failed_jobs_{workflow_ID}.txt"

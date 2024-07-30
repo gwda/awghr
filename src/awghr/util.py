@@ -53,5 +53,5 @@ class FileLineWriter:
         del self._file
 
     def __iadd__(self, line: str):
-        print(line.strip(), file=self._file)
+        print(str(line).strip(), file=self._file)
         return self
