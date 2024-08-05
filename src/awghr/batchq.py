@@ -253,11 +253,12 @@ batchq_job_index="$1"
 
                     # Copy output files out of job scratch directory
                     for outfile in job["outfiles"]:
-                        f += f"test -r '{outfile.name}' || fail 'Missing output file {outfile.name}'"
+                        f += f"test -r './{outfile.name}' || fail 'Missing output file {outfile.name}'"
                         f += f"cp './{outfile.name}' '{outfile}'"
                         if job["outfinal"]:
                             outfinaldir_file = outfinaldir / outfile.name
-                            f += f"ln '{outfile}' '{outfinaldir_file}'"
+                            f += f"test ! -r '{outfinaldir_file}' || fail 'Output file {outfile.name} already exists in {outfinaldir}'"
+                            f += f"ln -f '{outfile}' '{outfinaldir_file}'"
 
                     # Create file indicating job has completed successfully
                     job_completed_file = job["dir"] / "job_completed"
