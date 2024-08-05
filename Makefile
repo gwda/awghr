@@ -4,28 +4,14 @@ endif
 
 BATCH_SYSTEMS = pbs slurm
 
-INIT_DOCKER_TARGETS = $(addprefix .initialised-docker-,$(BATCH_SYSTEMS))
-INIT_TARGETS = .initialised-dev $(INIT_DOCKER_TARGETS)
-
 .PHONY: build
-build: $(INIT_TARGETS)
+build: .initialised-dev
 	-rm -f dist/*.tar.* dist/*.whl
 	python -m build
-
-.PHONY: init
-init:
-	@-rm -f $(INIT_TARGETS)
-	@$(MAKE) $(INIT_TARGETS)
 
 .initialised-dev: requirements-dev.txt Makefile
 	pip install -r requirements-dev.txt
 	pre-commit install
-	@date > $@
-
-$(INIT_DOCKER_TARGETS): .initialised-docker-%: Makefile
-	-docker stop awghr-testing-$* >/dev/null
-	-docker rm awghr-testing-$* >/dev/null
-	docker create -it --hostname "$*-ubuntu-host" --name "awghr-testing-$*" "kwwette/testing-batch-system:$*" /bin/bash /tmp/test/runner.sh "$*" >/dev/null
 	@date > $@
 
 .PHONY: pretty
@@ -60,7 +46,7 @@ check: $(CHECK_TARGETS)
 	fi
 
 .PHONY: $(CHECK_TARGETS)
-$(CHECK_TARGETS): check-%: .pre-check
+$(CHECK_TARGETS): check-%: .pre-check .initialised-docker-%
 	-docker stop "awghr-testing-$*" >/dev/null
 	docker cp "dist/." "awghr-testing-$*:/tmp/dist" >/dev/null
 	@echo "TESTS=$(TEST)" > "test/.runnerrc"
@@ -69,6 +55,14 @@ $(CHECK_TARGETS): check-%: .pre-check
 	docker start -ai "awghr-testing-$*"
 	docker cp "awghr-testing-$*:/tmp/.coverage-$*" "test/.coverage-$*" >/dev/null
 	-docker stop "awghr-testing-$*" >/dev/null
+
+INIT_DOCKER_TARGETS = $(addprefix .initialised-docker-,$(BATCH_SYSTEMS))
+
+$(INIT_DOCKER_TARGETS): .initialised-docker-%: Makefile
+	-docker stop awghr-testing-$* >/dev/null
+	-docker rm awghr-testing-$* >/dev/null
+	docker create -it --hostname "$*-ubuntu-host" --name "awghr-testing-$*" "kwwette/testing-batch-system:$*" /bin/bash /tmp/test/runner.sh "$*" >/dev/null
+	@date > $@
 
 .PHONY: check-coverage
 check-coverage:
