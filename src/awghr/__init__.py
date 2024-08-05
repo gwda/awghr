@@ -132,7 +132,7 @@ class Workflow:
         self,
         *,
         args: Dict[str, Any],
-        cmds: List[List[str]],
+        cmds: List[List[Any]],
         time: Unit,
         mem: Unit,
         disk: Unit,
@@ -147,7 +147,7 @@ class Workflow:
         Args:
             args (Dict[str, Any]):
                 Arguments and their values which uniquely identify the job.
-            cmds (List[List[str]]):
+            cmds (List[List[Any]]):
                 A list of commands and their arguments to execute.
                 May contain `{format}` strings which will be filled by:
                 * the dictionary supplied in `args`;
@@ -265,7 +265,7 @@ class Workflow:
         cmdargs = dict(args)
         cmdargs["_in"] = [p.name for p in job["infiles"]]
         cmdargs["_out"] = [p.name for p in job["outfiles"]]
-        job["cmds"] = [[arg.format(**cmdargs) for arg in cmd] for cmd in cmds]
+        job["cmds"] = [[str(arg).format(**cmdargs) for arg in cmd] for cmd in cmds]
 
         # Determine full path to executables
         for cmd in job["cmds"]:
