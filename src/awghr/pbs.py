@@ -28,7 +28,7 @@ class PBSWorkflowWriter(BatchQWorkflowWriter):
 
     # - PBS insists that job arrays must have more than one subjob ...
     #   which we can get around by using a step larger than the range
-    BATCHQ_ARRAY_SINGLETON = "0-1%2"
+    BATCHQ_ARRAY_SINGLETON = "0-1:2"
 
     BATCHQ_ARRAY_RANGE = "0-{n}"
 
