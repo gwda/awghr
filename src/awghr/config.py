@@ -127,9 +127,12 @@ def read_config(
                     if tags is None:
                         use_section = False
 
-                    # `match` must be in `tags`
-                    elif match not in tags:
-                        use_section = False
+                    # `match` must be in `tags` (ignoring case)
+                    else:
+                        tags_lower = {tag.lower() for tag in tags}
+                        if match.lower() not in tags_lower:
+                            use_section = False
+
                 else:
                     raise ConfigException(f"Unknown section target '{target}'")
 
