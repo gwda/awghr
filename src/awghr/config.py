@@ -180,7 +180,7 @@ def read_config(
                 elif key.endswith("dir"):
                     val = Path(parser[section][key])
                     try:
-                        val = val.resolve(strict=True)
+                        val = val.expanduser().resolve(strict=True)
                     except (FileNotFoundError, RuntimeError):
                         raise ConfigException(
                             f"Section key value '[{section}].{key}'='{val}' is not a directory"
