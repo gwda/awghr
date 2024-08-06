@@ -112,13 +112,12 @@ class Workflow:
 
         # Process environment variables
         self._env = dict()
-        envvars = cfg["envvars"].split()
-        for env in envvars:
+        for env in cfg["envlist"]:
             if "=" not in env:
                 for var in os.environ:
                     if re.fullmatch(env, var) is not None:
                         self._env[var] = os.environ[var]
-        for env in envvars:
+        for env in cfg["envlist"]:
             if "=" in env:
                 var, val = env.split("=", maxsplit=1)
                 self._env[var] = val

@@ -23,7 +23,7 @@ _keys: Dict[str, Any] = {
     "account": None,
     "basedir": Path.cwd(),
     "dated?": True,
-    "envvars": "",
+    "envlist": "",
 }
 
 # Override host name for tests in test_config.py
@@ -33,6 +33,7 @@ _override_host = None
 def read_config(src: Optional[str] = None, tags: Optional[List[str]] = None):
 
     cfg: Dict[str, Any] = dict()
+    batch_system_cfg: Dict[str, Any] = dict()
 
     # Names of batch systems
     batch_system_names = set(
@@ -71,7 +72,6 @@ def read_config(src: Optional[str] = None, tags: Optional[List[str]] = None):
         parser.read_string(src)
 
     # Parse sections
-    batch_system_cfg = dict()
     for section in parser:
         use_section = True
         batch_system_section = None
@@ -141,7 +141,13 @@ def read_config(src: Optional[str] = None, tags: Optional[List[str]] = None):
                 ):
                     raise ConfigException(f"Unknown section key '[{section}].{key}'")
 
-                # Parse value of key
+                # Decide which dictionary to add key to
+                if key in _keys:
+                    key_cfg = cfg
+                else:
+                    key_cfg = batch_system_cfg
+
+                # Parse value of key and assign to dictionary
                 val: Any
                 if key.endswith("?"):
                     try:
@@ -151,6 +157,7 @@ def read_config(src: Optional[str] = None, tags: Optional[List[str]] = None):
                         raise ConfigException(
                             f"Section key value '[{section}].{key}'='{val}' is not a valid boolean"
                         )
+                    key_cfg[key] = val
 
                 elif key.startswith("n_"):
                     try:
@@ -160,6 +167,7 @@ def read_config(src: Optional[str] = None, tags: Optional[List[str]] = None):
                         raise ConfigException(
                             f"Section key value '[{section}].{key}'='{val}' is not a valid integer"
                         )
+                    key_cfg[key] = val
 
                 elif key.endswith("dir"):
                     val = Path(parser[section][key])
@@ -169,16 +177,19 @@ def read_config(src: Optional[str] = None, tags: Optional[List[str]] = None):
                         raise ConfigException(
                             f"Section key value '[{section}].{key}'='{val}' is not a directory"
                         )
+                    key_cfg[key] = val
+
+                elif key.endswith("list"):
+                    val = parser[section][key].split()
+                    vals = key_cfg.get(key, list())
+                    for v in val:
+                        if v not in vals:
+                            vals.append(v)
+                    key_cfg[key] = vals
 
                 else:
                     val = parser[section][key]
-
-                # Assign value to common/batch system-specific configuration
-                if val is not None:
-                    if key in _keys:
-                        cfg[key] = val
-                    else:
-                        batch_system_cfg[key] = val
+                    key_cfg[key] = val
 
     # Check all keys are present
     for key in _keys:

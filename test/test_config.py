@@ -231,6 +231,42 @@ srcdir = /nonexistent
 
 
 @test
+def parsing_list():
+    try:
+        _batch_systems = awghr.config._batch_systems
+        awghr.config._batch_systems = [("dummy", "true", None)]
+        _keys = awghr.config._keys
+        awghr.config._keys = {"mylist": None}
+        src = """
+[DEFAULT]
+mylist = a
+"""
+        cfg = read_config(src)
+        assert cfg["mylist"] == ["a"]
+        src = """
+[DEFAULT]
+mylist = a
+[more items]
+mylist = b c
+"""
+        cfg = read_config(src)
+        assert cfg["mylist"] == ["a", "b", "c"]
+        src = """
+[DEFAULT]
+mylist = a
+[more items]
+mylist = b c
+[even more items]
+mylist = e d
+"""
+        cfg = read_config(src)
+        assert cfg["mylist"] == ["a", "b", "c", "e", "d"]
+    finally:
+        awghr.config._batch_systems = _batch_systems
+        awghr.config._keys = _keys
+
+
+@test
 def parsing_host_target():
     try:
         awghr.config._override_host = "a1.b.c.d"
