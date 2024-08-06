@@ -347,8 +347,18 @@ class Workflow:
             job["infiles"].append(job_script_file)
             with FileLineWriter(job_script_file) as f:
                 f += "set -e"
+
+                # Write job environment
+                job_env = {
+                    k: v
+                    for k, v in job.items()
+                    if k in {"time_min", "mem_MiB", "disk_MiB", "threads"}
+                }
                 for var in self._env:
-                    f += f"export {var}='{self._env[var]}'"
+                    val = self._env[var].format(**job_env)
+                    f += f"export {var}='{val}'"
+
+                # Write job commands
                 for cmd in job["cmds"]:
                     quotedargs = [arg.replace("'", "'\"'\"'") for arg in cmd[1:]]
                     f += "./{} '{}'".format(Path(cmd[0]).name, "' '".join(quotedargs))

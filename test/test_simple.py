@@ -27,7 +27,10 @@ for i in range(10):
             [
                 "bash",
                 "-c",
-                "echo $HOME; echo $TESTVAR >&2; echo `cat {infile}`{index} > out_{index}.txt",
+                "if [ $MYTHREADS -ne 1 ]; then echo 'MYTHREADS!=1' >&2; exit 1; fi; "
+                + "echo $HOME; "
+                + "echo $TESTVAR >&2; "
+                + "echo `cat {infile}`{index} > out_{index}.txt",
             ]
         ],
         time=1 * w.MIN,
