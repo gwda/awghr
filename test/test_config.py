@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import awghr.config
-from awghr.config import ConfigException, _batch_systems, read_config
+from awghr.config import ConfigException, _batch_systems, read_config, show_config
 
 default_src = """
 [DEFAULT SLURM]
@@ -14,7 +14,7 @@ jobfs = /tmp
 
 
 def test(f):
-    print(f"----- {__file__}: unit test {f.__name__}")
+    print(f"----- {__file__}: unit test {f.__name__}", flush=True)
     f()
 
 
@@ -440,3 +440,8 @@ account = acct
         pass
     finally:
         awghr.config._batch_systems = _batch_systems
+
+
+@test
+def show():
+    show_config()

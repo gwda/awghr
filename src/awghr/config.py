@@ -1,3 +1,4 @@
+import argparse
 import os
 from configparser import ConfigParser
 from pathlib import Path
@@ -30,7 +31,11 @@ _keys: Dict[str, Any] = {
 _override_host = None
 
 
-def read_config(src: Optional[str] = None, tags: Optional[List[str]] = None):
+def read_config(
+    src: Optional[str] = None,
+    tags: Optional[List[str]] = None,
+    select_batch_system: Optional[str] = None,
+):
 
     cfg: Dict[str, Any] = dict()
     batch_system_cfg: Dict[str, Any] = dict()
@@ -43,7 +48,7 @@ def read_config(src: Optional[str] = None, tags: Optional[List[str]] = None):
     # Determine batch system
     batch_keys = dict()
     for batch_system, batch_exec, workflow_writer in _batch_systems:
-        if which(batch_exec) is not None:
+        if which(batch_exec) is not None or batch_system == select_batch_system:
             if "batch_system" not in cfg:
                 cfg["batch_system"] = batch_system
                 cfg["workflow_writer"] = workflow_writer
@@ -209,3 +214,31 @@ def read_config(src: Optional[str] = None, tags: Optional[List[str]] = None):
     cfg["batch_system_cfg"] = batch_system_cfg
 
     return cfg
+
+
+def show_config():
+
+    # Build command-line argument parser
+    parser = argparse.ArgumentParser(
+        prog="awghr_config", description="show configuration"
+    )
+    parser.add_argument("--tags", nargs="+", help="assume these tags")
+    parser.add_argument(
+        "--batch", type=str, default=None, help="assume this batch system"
+    )
+
+    # Parse command line
+    args = parser.parse_args()
+
+    # Read configuration
+    cfg = read_config(tags=args.tags, select_batch_system=args.batch)
+
+    # Show general configuration
+    print("General configuration:")
+    for key in sorted(_keys.keys()):
+        print(f"    {key}: {cfg[key]}")
+
+    # Show batch system configuration
+    print(f"Batch system configuration for: {cfg['batch_system']}")
+    for key in sorted(cfg["batch_system_cfg"].keys()):
+        print(f"    {key}: {cfg['batch_system_cfg'][key]}")
