@@ -8,6 +8,7 @@ import sys
 from datetime import datetime
 from hashlib import blake2b
 from pathlib import Path
+from shlex import quote
 from shutil import which
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -360,12 +361,13 @@ class Workflow:
                 # Write job environment
                 for var in self._env:
                     val = self._env[var].format(**job["resources"])
-                    f += f"export {var}='{val}'"
+                    f += "export {}={}".format(var, quote(val))
 
                 # Write job commands
                 for cmd in job["cmds"]:
-                    quotedargs = [arg.replace("'", "'\"'\"'") for arg in cmd[1:]]
-                    f += "./{} '{}'".format(Path(cmd[0]).name, "' '".join(quotedargs))
+                    quotedargs = [quote(arg) for arg in cmd]
+                    quotedargs[0] = quote("./" + Path(cmd[0]).name)
+                    f += " ".join(quotedargs)
 
             log_make_jobs.update()
         log_make_jobs.finish()
