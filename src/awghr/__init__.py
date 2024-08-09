@@ -152,6 +152,10 @@ class Workflow:
                 * the dictionary supplied in `args`;
                 * `_in[n]`: the `n`th input file supplied in `inputs`;
                 * `_out[n]`: the `n`th output file supplied in `outputs`.
+                * `_time_min`: requested wall time in minutes.
+                * `_mem_MiB`: requested memory in MiB.
+                * `_disk_MiB`: requested temporary disk space in MiB.
+                * `_threads`: requested number of threads.
             time (Unit):
                 Requested wall time of the job.
                 Use the pre-defined constants: `w.MIN`, `w.HOUR`, `w.DAY`.
@@ -214,6 +218,9 @@ class Workflow:
         job["mem_MiB"] = int(math.ceil(mem.to(self.MiB).magnitude))
         job["disk_MiB"] = int(math.ceil(disk.to(self.MiB).magnitude))
         job["threads"] = threads
+        job["resources"] = {
+            f"_{k}": job[k] for k in {"time_min", "mem_MiB", "disk_MiB", "threads"}
+        }
 
         # Create job directory
         jobdir = job_dir_from_ID(self._workdir / "jobs", job_ID)
@@ -264,7 +271,10 @@ class Workflow:
         cmdargs = dict(args)
         cmdargs["_in"] = [p.name for p in job["infiles"]]
         cmdargs["_out"] = [p.name for p in job["outfiles"]]
-        job["cmds"] = [[str(arg).format(**cmdargs) for arg in cmd] for cmd in cmds]
+        job["cmds"] = [
+            [str(arg).format(**cmdargs, **job["resources"]) for arg in cmd]
+            for cmd in cmds
+        ]
 
         # Determine full path to executables
         for cmd in job["cmds"]:
@@ -348,13 +358,8 @@ class Workflow:
                 f += "set -e"
 
                 # Write job environment
-                job_env = {
-                    k: v
-                    for k, v in job.items()
-                    if k in {"time_min", "mem_MiB", "disk_MiB", "threads"}
-                }
                 for var in self._env:
-                    val = self._env[var].format(**job_env)
+                    val = self._env[var].format(**job["resources"])
                     f += f"export {var}='{val}'"
 
                 # Write job commands
