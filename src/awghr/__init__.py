@@ -190,13 +190,19 @@ class Workflow:
                 * `_threads`: requested number of threads.
             time (Unit):
                 Requested wall time of the job.
-                Use the pre-defined constants: `w.MIN`, `w.HOUR`, `w.DAY`.
+                Use the pre-defined constants:
+                * `Workflow.MIN`: 1 minute.
+                * `Workflow.HOUR`: 60 minutes.
+                * `Workflow.DAY`: 1440 minutes.
             mem (Unit):
                 Requested memory of the job.
-                Use the pre-defined constants: `w.ZB` (zero), `w.MiB`, `w.GiB`.
+                Use the pre-defined constants:
+                * `Workflow.ZB`: zero bytes.
+                * `Workflow.MiB`: 2^20 bytes.
+                * `Workflow.GiB`: 2^30 bytes.
             disk (Unit):
                 Requested temporary disk space of the job.
-                Use the pre-defined constants: `w.ZB` (zero), `w.MiB`, `w.GiB`.
+                Use the same pre-defined constants as for `mem`.
             threads (int):
                 Requested number of threads of the job.
                 Default is 1.
