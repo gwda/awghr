@@ -22,7 +22,7 @@ infile.write_text("XYZ")
 # Add 10 independent jobs
 for i in range(10):
     w.add_job(
-        args=dict(infile=str(infile), index=i),
+        args=dict(index=i),
         cmds=[
             [
                 "bash",
@@ -30,7 +30,7 @@ for i in range(10):
                 "if [ $MYTHREADS -ne 1 ]; then echo 'MYTHREADS!=1' >&2; exit 1; fi; "
                 + "echo $HOME; "
                 + "echo $TESTVAR >&2; "
-                + "echo `cat {infile}`{index} > out_{index}.txt",
+                + "echo `cat {_in[0]}`{index} > out_{index}.txt",
             ]
         ],
         time=1 * w.MIN,
