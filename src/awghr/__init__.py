@@ -318,6 +318,10 @@ class Workflow:
                 job["outfiles"].append(jobdir / outp.format(**args, _id=job_ID))
         job["outfinal"] = final
 
+        # Reolve all input and output file paths
+        for key in ("infiles", "outfiles"):
+            job[key] = [path.resolve() for path in job[key]]
+
         # Format and store commands
         cmdargs = dict(args)
         cmdargs["_in"] = [p.name for p in job["infiles"]]
@@ -333,7 +337,7 @@ class Workflow:
             if execpath is None:
                 msg = f"executable '{cmd[0]}' cannot be found"
                 raise ValueError(msg)
-            cmd[0] = execpath
+            cmd[0] = Path(execpath)
 
         # Add job to workflow
         self._jobs[job_ID] = job
@@ -416,8 +420,11 @@ class Workflow:
 
                 # Write job commands
                 for cmd in job["cmds"]:
-                    quotedargs = [quote(arg) for arg in cmd]
-                    quotedargs[0] = quote("./" + Path(cmd[0]).name)
+                    quotedargs = [quote(str(arg)) for arg in cmd]
+                    if cmd[0].resolve() in job["infiles"]:
+                        quotedargs[0] = "./" + cmd[0].name
+                    else:
+                        quotedargs[0] = str(cmd[0])
                     f += " ".join(quotedargs)
 
             log_make_jobs.update()

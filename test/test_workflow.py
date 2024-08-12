@@ -26,10 +26,11 @@ except ValueError:
 # Add job
 job_args = dict(
     args=dict(index=0),
-    cmds=[["true"]],
+    cmds=[["/usr/bin/true"]],
     time=1 * w.MIN,
     mem=10 * w.MiB,
     disk=10 * w.MiB,
+    inputs=[Path("/usr/bin/true")],
     outputs=["out_{index}.txt"],
 )
 w.add_job(**job_args)

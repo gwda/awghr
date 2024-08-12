@@ -1,6 +1,5 @@
 import logging
 import math
-from pathlib import Path
 from typing import Any, Dict
 
 from .util import FileLineWriter, ProgressLogger, job_dir_from_ID
@@ -242,11 +241,6 @@ batchq_job_index="$1"
                     for infile in job["infiles"]:
                         f += f"test -f '{infile}' || fail 'Missing input file {infile.name}'"
                         f += f"cp '{infile}' './{infile.name}'"
-
-                    # Soft-link required executables into job scratch directory
-                    for exc in [Path(cmd[0]) for cmd in job["cmds"]]:
-                        f += f"test -f '{exc}' || fail 'Missing executable {exc.name}'"
-                        f += f"ln -sf '{exc}' './{exc.name}'"
 
                     # Run job script
                     f += "source ./job_script.sh"
