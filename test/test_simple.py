@@ -52,6 +52,7 @@ subprocess.run([workdir / "wait", "-n", "1", workdir / "queue"], check=True)
 logger.info("check for files")
 assert len(list(workdir.glob("workflow_jobs_*.txt"))) == 1
 assert len(list(workdir.glob("workflow_state_*.txt"))) == 1
+assert len(list(workdir.glob(".workflow_submitted_*.txt"))) == 1
 
 logger.info("check state")
 statefile = list(workdir.glob("workflow_state_*.txt"))[0]
@@ -59,6 +60,8 @@ state = statefile.read_text().strip()
 assert state == "SUCCESS"
 
 logger.info("check that state is re-created")
+submittedfile = list(workdir.glob(".workflow_submitted_*.txt"))[0]
+submittedfile.unlink()
 statefile.unlink()
 subprocess.run([workdir / "submit"], check=True)
 subprocess.run([workdir / "wait"], check=True)

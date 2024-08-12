@@ -435,6 +435,9 @@ class Workflow:
         # Name of file which workflow will write final state to
         statefile = self._workdir / f"workflow_state_{workflow_ID}.txt"
 
+        # Name of file indicating workflow has been submitted
+        submittedfile = self._workdir / f".workflow_submitted_{workflow_ID}.txt"
+
         # Write top-level submit/queue/cancel control script stubs
         ctrlscripts = dict()
         for ctrlscript in ("submit", "queue", "cancel"):
@@ -456,8 +459,13 @@ if test -f '{statefile}'; then
     state=`cat '{statefile}'`
     if test "X${{state}}" = XSUCCESS; then
         echo "info: workflow {workflow_ID} has already been successfully run"
-        exit 0
+        exit 1
     fi
+    rm -f '{submittedfile}'
+fi
+if test -f '{submittedfile}'; then
+    echo "info: workflow {workflow_ID} has already been submitted"
+    exit 1
 fi
 rm -f '{statefile}'
 rm -f '{failedjobfile}'
@@ -481,6 +489,7 @@ rm -f '{failedjobfile}'
 
         # Write codas to top-level control scripts
         with FileLineWriter(ctrlscripts["submit"], append=True) as f:
+            f += f"date > '{submittedfile}'"
             f += f"echo 'info: submitted all jobs in workflow {workflow_ID}'"
         with FileLineWriter(ctrlscripts["cancel"], append=True) as f:
             f += f"echo 'info: cancelled all jobs in workflow {workflow_ID}'"
