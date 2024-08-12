@@ -40,6 +40,20 @@ try:
 except ValueError:
     pass
 
+# Try to add a job with argument names beginning with an underscore
+try:
+    w.add_job(
+        args=dict(_not_allowed=True),
+        cmds=[["true"]],
+        time=1 * w.MIN,
+        mem=10 * w.MiB,
+        disk=10 * w.MiB,
+        outputs=["dummy.txt"],
+    )
+    raise AssertionError("should have raised a ValueError")
+except ValueError:
+    pass
+
 # Try to add a job with non-existent executable
 try:
     w.add_job(

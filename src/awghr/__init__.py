@@ -178,6 +178,7 @@ class Workflow:
         Args:
             args (Dict[str, Any]):
                 Arguments and their values which uniquely identify the job.
+                Argument names cannot begin with an underscore.
             cmds (List[List[Any]]):
                 A list of commands and their arguments to execute.
                 May contain `{format}` strings which will be filled by:
@@ -229,6 +230,14 @@ class Workflow:
         Returns:
             str: a unique string representing the job.
         """
+
+        # Check argument names
+        underscore_args = [arg for arg in args.keys() if arg.startswith("_")]
+        if underscore_args:
+            msg = "argument names ('{}') cannot begin with an underscore".format(
+                ", ".join(underscore_args)
+            )
+            raise ValueError(msg)
 
         # Generate JSON representation of arguments
         args_json = json.dumps(args, sort_keys=True)
