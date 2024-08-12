@@ -240,12 +240,12 @@ batchq_job_index="$1"
 
                     # Copy input files into job scratch directory
                     for infile in job["infiles"]:
-                        f += f"test -r '{infile}' || fail 'Missing input file {infile.name}'"
+                        f += f"test -f '{infile}' || fail 'Missing input file {infile.name}'"
                         f += f"cp '{infile}' './{infile.name}'"
 
                     # Soft-link required executables into job scratch directory
                     for exc in [Path(cmd[0]) for cmd in job["cmds"]]:
-                        f += f"test -r '{exc}' || fail 'Missing executable {exc.name}'"
+                        f += f"test -f '{exc}' || fail 'Missing executable {exc.name}'"
                         f += f"ln -sf '{exc}' './{exc.name}'"
 
                     # Run job script
@@ -253,7 +253,7 @@ batchq_job_index="$1"
 
                     # Copy output files out of job scratch directory
                     for outfile in job["outfiles"]:
-                        f += f"test -r './{outfile.name}' || fail 'Missing output file {outfile.name}'"
+                        f += f"test -f './{outfile.name}' || fail 'Missing output file {outfile.name}'"
                         f += f"cp './{outfile.name}' '{outfile}'"
                         if job["outfinal"]:
                             outfinaldir_file = outfinaldir / outfile.name
@@ -435,7 +435,7 @@ function job_array_needs_ID_idx() {{
                     needs_jobarray_index_file = needs_jobarraydir / "job_array_indexes"
                     f += f"""
 if test ! -f '{needs_job_completed_file}'; then
-    test -r '{needs_jobarray_batchqID_file}' || fail 'Dependent job array {needs_job_array_ID} has not been submitted'
+    test -f '{needs_jobarray_batchqID_file}' || fail 'Dependent job array {needs_job_array_ID} has not been submitted'
     batchq_ID=`cat '{needs_jobarray_batchqID_file}'`
     job_array_needs_ID_idx "${{batchq_ID}}" '{needs_jobarray_index_file}' '{needs_job_array_idx}'
     batchq_needs_IDs="${{batchq_needs_IDs}}:${{batchq_needs_ID_idx}}"
