@@ -243,10 +243,10 @@ batchq_job_index="$1"
                         f += f"test -r '{infile}' || fail 'Missing input file {infile.name}'"
                         f += f"cp '{infile}' './{infile.name}'"
 
-                    # Copy required executables into job scratch directory
+                    # Soft-link required executables into job scratch directory
                     for exc in [Path(cmd[0]) for cmd in job["cmds"]]:
                         f += f"test -r '{exc}' || fail 'Missing executable {exc.name}'"
-                        f += f"cp '{exc}' './{exc.name}'"
+                        f += f"ln -sf '{exc}' './{exc.name}'"
 
                     # Run job script
                     f += "source ./job_script.sh"
