@@ -418,6 +418,10 @@ class Workflow:
                     val = self._env[var].format(**job["resources"])
                     f += "export {}={}".format(var, quote(val))
 
+                # Ensure job directory is searched first for commands
+                f += 'export PATH="${PWD}:${PATH}"'
+                f += "hash -r"
+
                 # Write job commands
                 for cmd in job["cmds"]:
                     quotedargs = [quote(str(arg)) for arg in cmd]
