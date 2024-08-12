@@ -22,8 +22,12 @@ CHECK_TARGETS = $(addprefix check-,$(BATCH_SYSTEMS))
 
 .PHONY: check
 check: $(CHECK_TARGETS)
+
+ifndef TEST
+check:
 	coverage combine --rcfile=test/coverage.cfg --data-file=.coverage test/.coverage-*
 	coverage report --rcfile=test/coverage.cfg --data-file=.coverage
+endif
 
 .PHONY: .pre-check
 .pre-check: build
