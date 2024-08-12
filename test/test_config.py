@@ -23,7 +23,8 @@ def multiple_batch_system():
     try:
         _batch_systems.append(("dummy", "bash", None))
         read_config("")
-        raise AssertionError("should have raised a ConfigException")
+        msg = "should have raised a ConfigException"
+        raise AssertionError(msg)
     except ConfigException:
         pass
     finally:
@@ -36,7 +37,8 @@ def no_batch_system():
         _batch_systems = awghr.config._batch_systems
         awghr.config._batch_systems = [("dummy", "nonexistent", None)]
         read_config("")
-        raise AssertionError("should have raised a ConfigException")
+        msg = "should have raised a ConfigException"
+        raise AssertionError(msg)
     except ConfigException:
         pass
     finally:
@@ -70,7 +72,8 @@ account = acct
 """
     try:
         read_config(src)
-        raise AssertionError("should have raised a ConfigException")
+        msg = "should have raised a ConfigException"
+        raise AssertionError(msg)
     except ConfigException:
         pass
 
@@ -85,7 +88,8 @@ dated? = why
 """
     try:
         read_config(src)
-        raise AssertionError("should have raised a ConfigException")
+        msg = "should have raised a ConfigException"
+        raise AssertionError(msg)
     except ConfigException:
         pass
 
@@ -99,7 +103,8 @@ def missing_required_key():
 """
     try:
         read_config(src)
-        raise AssertionError("should have raised a ConfigException")
+        msg = "should have raised a ConfigException"
+        raise AssertionError(msg)
     except ConfigException:
         pass
 
@@ -113,7 +118,8 @@ dummy = xyz
 """
     try:
         read_config(src)
-        raise AssertionError("should have raised a ConfigException")
+        msg = "should have raised a ConfigException"
+        raise AssertionError(msg)
     except ConfigException:
         pass
 
@@ -148,7 +154,8 @@ why not? = no
 why? = because
 """
         cfg = read_config(src)
-        raise AssertionError("should have raised a ConfigException")
+        msg = "should have raised a ConfigException"
+        raise AssertionError(msg)
     except ConfigException:
         pass
     finally:
@@ -186,7 +193,8 @@ n_words = 23
 n_letters = abc
 """
         cfg = read_config(src)
-        raise AssertionError("should have raised a ConfigException")
+        msg = "should have raised a ConfigException"
+        raise AssertionError(msg)
     except ConfigException:
         pass
     finally:
@@ -222,7 +230,8 @@ srcdir = {Path.cwd()}
 srcdir = /nonexistent
 """
         cfg = read_config(src)
-        raise AssertionError("should have raised a ConfigException")
+        msg = "should have raised a ConfigException"
+        raise AssertionError(msg)
     except ConfigException:
         pass
     finally:
@@ -326,7 +335,8 @@ match batch = nonexistent
 account = anybatch
 """
         cfg = read_config(src)
-        raise AssertionError("should have raised a ConfigException")
+        msg = "should have raised a ConfigException"
+        raise AssertionError(msg)
     except ConfigException:
         pass
 
@@ -435,7 +445,8 @@ account = acct
 account = acct
 """
         cfg = read_config(src)
-        raise AssertionError("should have raised a ConfigException")
+        msg = "should have raised a ConfigException"
+        raise AssertionError(msg)
     except ConfigException:
         pass
     finally:

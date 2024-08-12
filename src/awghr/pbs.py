@@ -99,6 +99,5 @@ qdel `qselect -N '{jobname}'` || true
             try:
                 self.max_array_size = int(pbs_cfg["max_array_size"])
             except KeyError:  # pragma: no cover
-                raise BatchSystemException(
-                    "could not determine maximum size of PBS job array"
-                )
+                msg = "could not determine maximum size of PBS job array"
+                raise BatchSystemException(msg)

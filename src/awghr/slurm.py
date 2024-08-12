@@ -99,6 +99,5 @@ scancel --name='{jobname}'
             try:
                 self.max_array_size = int(slurm_cfg["MaxArraySize"])
             except KeyError:  # pragma: no cover
-                raise BatchSystemException(
-                    "could not determine maximum size of Slurm job array"
-                )
+                msg = "could not determine maximum size of Slurm job array"
+                raise BatchSystemException(msg)

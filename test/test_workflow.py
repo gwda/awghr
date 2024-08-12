@@ -18,7 +18,8 @@ w = Workflow(name="add_job", dated=False)
 # Try creating a workflow with a non-existent base directory
 try:
     Workflow(name="dummy", basedir=Path("/nonexistent"))
-    raise AssertionError("should have raised a ValueError")
+    msg = "should have raised a ValueError"
+    raise AssertionError(msg)
 except ValueError:
     pass
 
@@ -36,7 +37,8 @@ w.add_job(**job_args)
 # Try to add a duplicate job
 try:
     w.add_job(**job_args)
-    raise AssertionError("should have raised a ValueError")
+    msg = "should have raised a ValueError"
+    raise AssertionError(msg)
 except ValueError:
     pass
 
@@ -50,7 +52,8 @@ try:
         disk=10 * w.MiB,
         outputs=["dummy.txt"],
     )
-    raise AssertionError("should have raised a ValueError")
+    msg = "should have raised a ValueError"
+    raise AssertionError(msg)
 except ValueError:
     pass
 
@@ -64,7 +67,8 @@ try:
         disk=10 * w.MiB,
         outputs=["dummy.txt"],
     )
-    raise AssertionError("should have raised a ValueError")
+    msg = "should have raised a ValueError"
+    raise AssertionError(msg)
 except ValueError:
     pass
 
@@ -79,7 +83,8 @@ try:
         inputs=[Path("./dummy.txt"), Path("./dummy.txt")],
         outputs=["dummy.txt"],
     )
-    raise AssertionError("should have raised a ValueError")
+    msg = "should have raised a ValueError"
+    raise AssertionError(msg)
 except ValueError:
     pass
 
@@ -94,7 +99,8 @@ try:
         inputs=[Path("./non-existent.txt")],
         outputs=["dummy.txt"],
     )
-    raise AssertionError("should have raised a ValueError")
+    msg = "should have raised a ValueError"
+    raise AssertionError(msg)
 except ValueError:
     pass
 
@@ -109,7 +115,8 @@ try:
         inputs=[("non-existent-job", "dummy")],
         outputs=["dummy.txt"],
     )
-    raise AssertionError("should have raised a ValueError")
+    msg = "should have raised a ValueError"
+    raise AssertionError(msg)
 except ValueError:
     pass
 
@@ -123,7 +130,8 @@ try:
         disk=10 * w.MiB,
         outputs=["dummy.txt", "dummy.txt"],
     )
-    raise AssertionError("should have raised a ValueError")
+    msg = "should have raised a ValueError"
+    raise AssertionError(msg)
 except ValueError:
     pass
 
@@ -138,7 +146,8 @@ bad_job = w.add_job(
 )
 try:
     w.write()
-    raise AssertionError("should have raised a ValueError")
+    msg = "should have raised a ValueError"
+    raise AssertionError(msg)
 except ValueError:
     pass
 finally:
@@ -150,7 +159,8 @@ existing_outfile.parent.mkdir(parents=True, exist_ok=True)
 existing_outfile.write_text("already here!")
 try:
     w.write()
-    raise AssertionError("should have raised a ValueError")
+    msg = "should have raised a ValueError"
+    raise AssertionError(msg)
 except ValueError:
     pass
 finally:

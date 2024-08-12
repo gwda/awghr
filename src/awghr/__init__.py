@@ -125,7 +125,8 @@ class Workflow:
         try:
             basedir = basedir.resolve(strict=True)
         except (FileNotFoundError, RuntimeError):
-            raise ValueError(f"Base directory '{basedir}' is not a directory")
+            msg = f"Base directory '{basedir}' is not a directory"
+            raise ValueError(msg)
 
         # Initialise internal variables
         self._name = name
@@ -252,7 +253,8 @@ class Workflow:
 
         # Create job
         if job_ID in self._jobs:
-            raise ValueError(f"job with arguments {args} already exists in workflow")
+            msg = f"job with arguments {args} already exists in workflow"
+            raise ValueError(msg)
         job: Dict[str, Any] = dict()
         job["ID"] = job_ID
 
@@ -280,18 +282,19 @@ class Workflow:
         needs_hash = blake2b(digest_size=8, usedforsecurity=False)
         if inputs is not None:
             if len(inputs) != len(set(inputs)):
-                raise ValueError("'inputs' is not a unique list")
+                msg = "'inputs' is not a unique list"
+                raise ValueError(msg)
             for inp in inputs:
                 if isinstance(inp, Path):
                     if not inp.is_file():
-                        raise ValueError(f"external input file '{inp}' does not exist")
+                        msg = f"external input file '{inp}' does not exist"
+                        raise ValueError(msg)
                     job["infiles"].append(inp)
                 else:
                     inp_job_ID, inp_filename = inp
                     if inp_job_ID not in self._jobs:
-                        raise ValueError(
-                            f"job for input file '{inp_filename}' does not exist"
-                        )
+                        msg = f"job for input file '{inp_filename}' does not exist"
+                        raise ValueError(msg)
                     inp_file = self._jobs[inp_job_ID]["dir"] / inp_filename.format(
                         **self._jobs[inp_job_ID]["args"], _id=inp_job_ID
                     )
@@ -309,7 +312,8 @@ class Workflow:
         job["outfiles"] = []
         if outputs is not None:
             if len(outputs) != len(set(outputs)):
-                raise ValueError("'outputs' is not a unique list")
+                msg = "'outputs' is not a unique list"
+                raise ValueError(msg)
             for outp in outputs:
                 job["outfiles"].append(jobdir / outp.format(**args, _id=job_ID))
         job["outfinal"] = final
@@ -327,7 +331,8 @@ class Workflow:
         for cmd in job["cmds"]:
             execpath = which(cmd[0])
             if execpath is None:
-                raise ValueError(f"executable '{cmd[0]}' cannot be found")
+                msg = f"executable '{cmd[0]}' cannot be found"
+                raise ValueError(msg)
             cmd[0] = execpath
 
         # Add job to workflow
@@ -373,9 +378,10 @@ class Workflow:
         for job in [job for job in self._jobs.values() if job["outfinal"]]:
             for out_file in job["outfiles"]:
                 if out_file.name in out_final_files:
-                    raise ValueError(
+                    msg = (
                         f"final output file '{out_file.name}' is not unique to workflow"
                     )
+                    raise ValueError(msg)
                 out_final_files.add(out_file.name)
 
         # Make directory for final output files, and check any existing files
@@ -383,9 +389,8 @@ class Workflow:
         outfinaldir.mkdir(parents=True, exist_ok=True)
         for outfinaldir_file in outfinaldir.iterdir():
             if outfinaldir_file.name in out_final_files:
-                raise ValueError(
-                    f"final output file '{outfinaldir_file.name}' already exists in '{outfinaldir}'"
-                )
+                msg = f"final output file '{outfinaldir_file.name}' already exists in '{outfinaldir}'"
+                raise ValueError(msg)
 
         log_make_jobs = ProgressLogger(_logger, "wrote %s job directories in workflow")
         for job in self._jobs.values():
