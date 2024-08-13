@@ -487,14 +487,9 @@ batchq_ID=`echo "${{batchq_ID{self.BATCHQ_ID_REMOVE_SUFFIX}}}"`
 echo "info: submitted state job, batch ID ${{batchq_ID}}"
     """
 
-        # Write commands to top-level submit script
-        with FileLineWriter(ctrlscripts["submit"], append=True) as f:
-            f += self.BATCHQ_SUBMIT_ALL.format(script=all_jobs_script_file)
-
-        # Write commands to top-level queue script
-        with FileLineWriter(ctrlscripts["queue"], append=True) as f:
-            f += self.BATCHQ_QUEUE.format(jobname=workflowname)
-
-        # Write commands to top-level cancel script
-        with FileLineWriter(ctrlscripts["cancel"], append=True) as f:
-            f += self.BATCHQ_CANCEL.format(jobname=workflowname)
+        # Write commands to top-level control scripts
+        ctrlscripts["submit"] += self.BATCHQ_SUBMIT_ALL.format(
+            script=all_jobs_script_file
+        )
+        ctrlscripts["queue"] += self.BATCHQ_QUEUE.format(jobname=workflowname)
+        ctrlscripts["cancel"] += self.BATCHQ_CANCEL.format(jobname=workflowname)

@@ -3,8 +3,8 @@ import logging
 import math
 import os
 import re
-import stat
 import sys
+from contextlib import ExitStack
 from datetime import datetime
 from hashlib import blake2b
 from pathlib import Path
@@ -445,23 +445,35 @@ class Workflow:
         # Name of file indicating workflow has been submitted
         submittedfile = self._workdir / f".workflow_submitted_{workflow_ID}.txt"
 
-        # Write top-level submit/queue/cancel control script stubs
-        ctrlscripts = dict()
-        for ctrlscript in ("submit", "queue", "cancel"):
-            ctrlscripts[ctrlscript] = self._workdir / ctrlscript
-            with FileLineWriter(ctrlscripts[ctrlscript]) as f:
-                f += """
+        # Create top-level control scripts
+        with ExitStack() as stack:
+            ctrlscripts = {
+                ctrlscript: stack.enter_context(
+                    FileLineWriter(self._workdir / ctrlscript, executable=True)
+                )
+                for ctrlscript in ("submit", "queue", "cancel", "wait")
+            }
+
+            # Write preambles to top-level control scripts
+            for ctrlscript in ("submit", "queue", "cancel", "wait"):
+                ctrlscripts[
+                    ctrlscript
+                ] += """
 #!/bin/bash
 set -e
+"""
+            for ctrlscript in ("submit", "queue", "cancel"):
+                ctrlscripts[
+                    ctrlscript
+                ] += """
 if test "X$1" != X; then
     echo "usage: $0" >&2
     exit 1
 fi
 """
-
-        # Write preambles to top-level control scripts
-        with FileLineWriter(ctrlscripts["submit"], append=True) as f:
-            f += f"""
+            ctrlscripts[
+                "submit"
+            ] += f"""
 if test -f '{statefile}'; then
     state=`cat '{statefile}'`
     if test "X${{state}}" = XSUCCESS; then
@@ -478,35 +490,39 @@ rm -f '{statefile}'
 rm -f '{failedjobfile}'
 """
 
-        # Make batch system script directory
-        batchdir = self._workdir / "batch" / workflow_ID
-        batchdir.mkdir(parents=True, exist_ok=False)
+            # Make batch system script directory
+            batchdir = self._workdir / "batch" / workflow_ID
+            batchdir.mkdir(parents=True, exist_ok=True)
 
-        # Write batch system scripts
-        self._workflow_writer(
-            workflowname=f"awghr_{workflow_ID}",
-            batchdir=batchdir,
-            account=self._account,
-            jobs=self._jobs,
-            outfinaldir=outfinaldir,
-            failedjobfile=failedjobfile,
-            statefile=statefile,
-            ctrlscripts=ctrlscripts,
-        )
+            # Write batch system scripts
+            self._workflow_writer(
+                workflowname=f"awghr_{workflow_ID}",
+                batchdir=batchdir,
+                account=self._account,
+                jobs=self._jobs,
+                outfinaldir=outfinaldir,
+                failedjobfile=failedjobfile,
+                statefile=statefile,
+                ctrlscripts=ctrlscripts,
+            )
 
-        # Write codas to top-level control scripts
-        with FileLineWriter(ctrlscripts["submit"], append=True) as f:
-            f += f"date > '{submittedfile}'"
-            f += f"echo 'info: submitted all jobs in workflow {workflow_ID}'"
-        with FileLineWriter(ctrlscripts["cancel"], append=True) as f:
-            f += f"echo 'info: cancelled all jobs in workflow {workflow_ID}'"
+            # Write codas to top-level control scripts
+            ctrlscripts[
+                "submit"
+            ] += f"""
+date > '{submittedfile}'
+echo 'info: submitted all jobs in workflow {workflow_ID}'
+"""
+            ctrlscripts[
+                "cancel"
+            ] += f"""
+echo 'info: cancelled all jobs in workflow {workflow_ID}'
+"""
 
-        # Write top-level wait script
-        ctrlscripts["wait"] = self._workdir / "wait"
-        with FileLineWriter(ctrlscripts["wait"]) as f:
-            f += f"""
-#!/bin/bash
-set -e
+            # Write top-level wait script
+            ctrlscripts[
+                "wait"
+            ] += f"""
 sleepfor=5.0
 case "$1" in
     -h|--help)
@@ -524,10 +540,6 @@ until test -f '{statefile}'; do
 done
 echo "workflow state: `cat '{statefile}'`"
 """
-
-        # Make top-level control scripts executable
-        for ctrlscriptpath in ctrlscripts.values():
-            os.chmod(ctrlscriptpath, stat.S_IRUSR | stat.S_IXUSR)
 
         # Log completion
         _logger.info("workflow has been written")

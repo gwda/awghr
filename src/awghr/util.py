@@ -1,3 +1,5 @@
+import os
+import stat
 from pathlib import Path
 
 
@@ -41,16 +43,19 @@ class ProgressLogger:
 # Convenience class for writing lines to a text file
 class FileLineWriter:
 
-    def __init__(self, filepath: Path, *, append: bool = False):
+    def __init__(self, filepath: Path, *, executable: bool = False):
         self._filepath = filepath
-        self._mode = "a" if append else "w"
+        self._finalmode = (stat.S_IRUSR | stat.S_IXUSR) if executable else stat.S_IRUSR
 
     def __enter__(self):
-        self._file = self._filepath.open(self._mode)
+        if self._filepath.is_file():
+            os.chmod(self._filepath, stat.S_IRUSR | stat.S_IWUSR)
+        self._file = self._filepath.open("w")
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         del self._file
+        os.chmod(self._filepath, self._finalmode)
 
     def __iadd__(self, line: str):
         print(str(line).strip(), file=self._file)
