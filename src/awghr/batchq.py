@@ -148,7 +148,7 @@ class BatchQWorkflowWriter:
 
             # Make job array directory
             jobarraydir = job_dir_from_ID(batchdir / "job_arrays", job_array_ID)
-            jobarraydir.mkdir(parents=True, exist_ok=False)
+            jobarraydir.mkdir(parents=True, exist_ok=True)
 
             # Use first job in array for retrieving resources
             job = job_array[0]

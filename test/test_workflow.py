@@ -154,4 +154,8 @@ except ValueError:
 finally:
     del w._jobs[bad_job]
 
+# Write workflow
+w.write()
+
+# Test that workflow can be rewritten
 w.write()
