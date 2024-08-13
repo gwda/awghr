@@ -438,12 +438,15 @@ class Workflow:
 
         # Name of file containing directories of any failed jobs
         failedjobfile = self._workdir / f"workflow_failed_jobs_{workflow_ID}.txt"
+        failedjobfile.unlink(missing_ok=True)
 
         # Name of file which workflow will write final state to
         statefile = self._workdir / f"workflow_state_{workflow_ID}.txt"
+        statefile.unlink(missing_ok=True)
 
         # Name of file indicating workflow has been submitted
         submittedfile = self._workdir / f".workflow_submitted_{workflow_ID}.txt"
+        submittedfile.unlink(missing_ok=True)
 
         # Create top-level control scripts
         with ExitStack() as stack:
