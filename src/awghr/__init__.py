@@ -388,13 +388,9 @@ class Workflow:
                     raise ValueError(msg)
                 out_final_files.add(out_file.name)
 
-        # Make directory for final output files, and check any existing files
+        # Make directory for final output files
         outfinaldir = self._workdir / "outputs"
         outfinaldir.mkdir(parents=True, exist_ok=True)
-        for outfinaldir_file in outfinaldir.iterdir():
-            if outfinaldir_file.name in out_final_files:
-                msg = f"final output file '{outfinaldir_file.name}' already exists in '{outfinaldir}'"
-                raise ValueError(msg)
 
         log_make_jobs = ProgressLogger(_logger, "wrote %s job directories in workflow")
         for job in self._jobs.values():

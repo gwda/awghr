@@ -154,17 +154,4 @@ except ValueError:
 finally:
     del w._jobs[bad_job]
 
-# Try to write workflow when a final output file already exists
-existing_outfile = Path(".") / "add_job" / "outputs" / "out_0.txt"
-existing_outfile.parent.mkdir(parents=True, exist_ok=True)
-existing_outfile.write_text("already here!")
-try:
-    w.write()
-    msg = "should have raised a ValueError"
-    raise AssertionError(msg)
-except ValueError:
-    pass
-finally:
-    existing_outfile.unlink()
-
 w.write()
