@@ -10,11 +10,11 @@ def cli(*argv: str):
     parser = argparse.ArgumentParser(
         description="yet another high-throughput workflow manager"
     )
-    subparsers = parser.add_subparsers(required=True)
+    subparsers = parser.add_subparsers(required=True, help="sub-commands")
 
     # Add show configuration sub-command
     parser_show_config = subparsers.add_parser(
-        "show-config", description="show configuration"
+        "config", description="show configuration", help="show configuration"
     )
     parser_show_config.add_argument("--tags", nargs="+", help="assume these tags")
     parser_show_config.add_argument(

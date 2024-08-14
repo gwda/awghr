@@ -456,4 +456,4 @@ account = acct
 
 @test
 def show():
-    cli("show-config")
+    cli("config")
