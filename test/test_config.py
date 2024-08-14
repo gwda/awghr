@@ -1,7 +1,8 @@
 from pathlib import Path
 
 import awghr.config
-from awghr.config import ConfigException, _batch_systems, read_config, show_config
+from awghr.cli import cli
+from awghr.config import ConfigException, _batch_systems, read_config
 
 default_src = """
 [DEFAULT SLURM]
@@ -455,4 +456,4 @@ account = acct
 
 @test
 def show():
-    show_config()
+    cli("show-config")

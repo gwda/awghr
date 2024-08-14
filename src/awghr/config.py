@@ -1,4 +1,3 @@
-import argparse
 import os
 from configparser import ConfigParser
 from pathlib import Path
@@ -217,19 +216,7 @@ def read_config(
     return cfg
 
 
-def show_config():
-
-    # Build command-line argument parser
-    parser = argparse.ArgumentParser(
-        prog="awghr_config", description="show configuration"
-    )
-    parser.add_argument("--tags", nargs="+", help="assume these tags")
-    parser.add_argument(
-        "--batch", type=str, default=None, help="assume this batch system"
-    )
-
-    # Parse command line
-    args = parser.parse_args()
+def show_config(args):
 
     # Read configuration
     cfg = read_config(tags=args.tags, select_batch_system=args.batch)

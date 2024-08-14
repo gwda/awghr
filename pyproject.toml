@@ -17,4 +17,4 @@ dependencies = [
 ]
 
 [project.scripts]
-awghr_show_config = "awghr.config:show_config"
+awghr = "awghr.cli:cli"
