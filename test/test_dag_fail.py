@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 from awghr import Workflow
+from awghr.cli import cli
 
 # Set up logging
 logging.basicConfig(
@@ -155,6 +156,15 @@ while True:
     state = statefile.read_text().strip()
     assert state == expected_state
 
+    logger.info("test command line interface")
+    print("-----", flush=True)
+    cli("jobs", "-d", str(workdir), "-e")
+    print("-----", flush=True)
+    tmpstatefile = statefile.replace(statefile.with_suffix(".tmp"))
+    cli("jobs", "-d", str(workdir), "-e")
+    tmpstatefile.replace(statefile)
+    print("-----", flush=True)
+
     # Successively remove fail files so that jobs can pass
     if len(fail_files) == 0:
         break
@@ -171,3 +181,8 @@ for i in range(3):
         for k in range(3):
             assert digits[line] == f"{i}{j}{k}"
             line += 1
+
+logger.info("test command line interface")
+print("-----", flush=True)
+cli("jobs", "-d", str(workdir), "-e")
+print("-----", flush=True)

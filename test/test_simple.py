@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 from awghr import Workflow
+from awghr.cli import cli
 
 # Set up logging
 logging.basicConfig(
@@ -75,3 +76,22 @@ for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
     stderr = (jobdir / "job_stderr").read_text().strip()
     assert stdout == str(workdir.parent)
     assert stderr == "abc"
+
+logger.info("test command line interface")
+print("-----", flush=True)
+cli("jobs", "-d", str(workdir), "-aoe")
+print("-----", flush=True)
+cli("-d", str(workdir), "-f", "index < 5", "-al")
+print("-----", flush=True)
+try:
+    cli("jobs", "-d", str(workdir), "-f", "index == len([1,2,3])", "-al")
+    msg = "should have raised a NameError"
+    raise AssertionError(msg)
+except NameError:
+    pass
+try:
+    cli("jobs")
+    msg = "should have raised a FileNotFoundError"
+    raise AssertionError(msg)
+except FileNotFoundError:
+    pass
