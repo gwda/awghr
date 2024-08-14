@@ -54,7 +54,6 @@ $(CHECK_TARGETS): check-%: .pre-check .initialised-docker-%
 	-docker stop "awghr-testing-$*" >/dev/null
 	docker cp "dist/." "awghr-testing-$*:/tmp/dist" >/dev/null
 	@echo "TESTS=$(TEST)" > "test/.runnerrc"
-	@echo "export BATCH_SUBMISSION=$(BATCH_SUBMISSION)" >> "test/.runnerrc"
 	docker cp "test/." "awghr-testing-$*:/tmp/test" >/dev/null
 	docker start -ai "awghr-testing-$*"
 	docker cp "awghr-testing-$*:/tmp/.coverage-$*" "test/.coverage-$*" >/dev/null
@@ -67,10 +66,6 @@ $(INIT_DOCKER_TARGETS): .initialised-docker-%: Makefile
 	-docker rm awghr-testing-$* >/dev/null
 	docker create -it --hostname "$*-ubuntu-host" --name "awghr-testing-$*" "kwwette/testing-batch-system:$*" /bin/bash /tmp/test/runner.sh "$*" >/dev/null
 	@date > $@
-
-.PHONY: check-coverage
-check-coverage:
-	$(MAKE) check BATCH_SUBMISSION=no
 
 DEBUG_CHECK_TARGETS = $(addprefix debug-,$(CHECK_TARGETS))
 

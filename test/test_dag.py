@@ -1,5 +1,4 @@
 import logging
-import os
 import subprocess
 import sys
 
@@ -109,9 +108,6 @@ while len(jobs) > 1:
 
 
 workdir = w.write()
-
-if os.environ["BATCH_SUBMISSION"] == "no":
-    sys.exit(0)
 
 logger.info("submit workflow and wait for it to finish")
 subprocess.run([workdir / "submit"], check=True)
