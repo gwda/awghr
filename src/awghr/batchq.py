@@ -108,6 +108,7 @@ class BatchQWorkflowWriter:
         outfinaldir,
         failedjobfile,
         statefile,
+        submittedfile,
         ctrlscripts,
     ):
 
@@ -305,6 +306,9 @@ fi
 """
             # Write state
             f += f"echo \"${{state}}\" > '{statefile}'"
+
+            # Remove file indicating workflow has been submitted
+            f += f"rm -f '{submittedfile}'"
 
         # Write script to submit all jobs
         all_jobs_script_file = batchdir / "submit_all_jobs.sh"

@@ -506,6 +506,7 @@ rm -f '{failedjobfile}'
                 outfinaldir=outfinaldir,
                 failedjobfile=failedjobfile,
                 statefile=statefile,
+                submittedfile=submittedfile,
                 ctrlscripts=ctrlscripts,
             )
 
