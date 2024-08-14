@@ -1,5 +1,7 @@
 .coverage*
 /.initialised-*
+/_venv
 /dist
 /src/*.egg-info
 /test/.runnerrc
+__pycache__
