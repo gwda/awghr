@@ -145,14 +145,14 @@ def cli(*argv: str):
         "-a",
         "--all-jobs",
         action="store_true",
-        help="show all jobs (default: show failed jobs)",
+        help="show all jobs (default: show incomplete jobs)",
     )
     parser_show_jobs.add_argument(
         "-f",
         "--filter-by",
         type=str,
         default=None,
-        help="evaluate to filter jobs by its arguments",
+        help="evaluate to filter jobs by their arguments",
     )
     parser_show_jobs.add_argument(
         "-o", "--output", action="store_true", help="show standard output"
