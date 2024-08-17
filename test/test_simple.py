@@ -79,10 +79,16 @@ for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
 
 logger.info("test command line interface")
 print("-----", flush=True)
-cli("jobs", "-d", str(workdir), "-aoe")
+cli("jobs", "-d", str(workdir), "-aoe", "-n", "1")
 print("-----", flush=True)
 cli("-d", str(workdir), "-f", "index < 5", "-al")
 print("-----", flush=True)
+try:
+    cli("jobs", "-d", str(workdir), "-n", "0")
+    msg = "should have exited"
+    raise AssertionError(msg)
+except SystemExit:
+    pass
 try:
     cli("jobs", "-d", str(workdir), "-f", "index == len([1,2,3])", "-al")
     msg = "should have raised a NameError"

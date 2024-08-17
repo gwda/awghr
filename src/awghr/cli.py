@@ -6,6 +6,14 @@ from pathlib import Path
 from .config import show_config
 
 
+def positive_int(value):
+    value = int(value)
+    if value <= 0:
+        msg = f"'{value}' is not a positive integer"
+        raise argparse.ArgumentTypeError(msg)
+    return value
+
+
 def show_jobs(args):
 
     # Get list of jobs
@@ -94,7 +102,10 @@ def show_jobs(args):
             job_stdout = job / "job_stdout"
             if job_stdout.is_file():
                 with job_stdout.open() as f:
-                    for line in f.readlines():
+                    lines = f.readlines()
+                    if args.last_n_lines is not None:
+                        lines = lines[-args.last_n_lines :]
+                    for line in lines:
                         print("JOB {}\tOUT {}".format(job_prefix, line.rstrip()))
 
         # Show standard error
@@ -102,7 +113,10 @@ def show_jobs(args):
             job_stderr = job / "job_stderr"
             if job_stderr.is_file():
                 with job_stderr.open() as f:
-                    for line in f.readlines():
+                    lines = f.readlines()
+                    if args.last_n_lines is not None:
+                        lines = lines[-args.last_n_lines :]
+                    for line in lines:
                         print("JOB {}\tERR {}".format(job_prefix, line.rstrip()))
 
         # Show files in job directory
@@ -145,6 +159,12 @@ def cli(*argv: str):
     )
     parser_show_jobs.add_argument(
         "-e", "--error", action="store_true", help="show standard error"
+    )
+    parser_show_jobs.add_argument(
+        "-n",
+        "--last-n-lines",
+        type=positive_int,
+        help="show the last <n> lines of standard output/error",
     )
     parser_show_jobs.add_argument(
         "-l", "--files", action="store_true", help="show files in job directory"
