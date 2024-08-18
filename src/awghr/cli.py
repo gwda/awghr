@@ -2,17 +2,48 @@ import argparse
 import json
 import re
 import sys
+from collections import deque
 from pathlib import Path
 
 from .config import show_config
 
 
-def positive_int(value):
+def nonnegative_int(value):
     value = int(value)
-    if value <= 0:
-        msg = f"'{value}' is not a positive integer"
+    if value < 0:
+        msg = f"'{value}' is not a nonnegative integer"
         raise argparse.ArgumentTypeError(msg)
     return value
+
+
+def read_stdouterr(stdfile, grep_regex, last_n_lines):
+
+    # Store lines in deque
+    lines = deque()
+    max_lines = False
+
+    # Open standard output/error file
+    with stdfile.open() as f:
+
+        # Read lines
+        for line in f:
+            line = line.rstrip()
+
+            # Discard lines not matching regex
+            if grep_regex is not None and re.search(grep_regex, line) is None:
+                continue
+
+            # Add lines to deque, keeping only the `last_n_lines`
+            # lines (provided `last_n_lines` > 0)
+            if max_lines:
+                lines.popleft()
+                lines.append(line)
+            else:
+                lines.append(line)
+                if len(lines) == last_n_lines:
+                    max_lines = True
+
+    return lines
 
 
 def show_jobs(args):
@@ -102,37 +133,19 @@ def show_jobs(args):
         if args.output:
             job_stdout = job / "job_stdout"
             if job_stdout.is_file():
-                with job_stdout.open() as f:
-                    if args.grep_regex is not None:
-                        lines = [
-                            line
-                            for line in f
-                            if re.search(args.grep_regex, line) is not None
-                        ]
-                    else:
-                        lines = f.readlines()
-                    if args.last_n_lines is not None:
-                        lines = lines[-args.last_n_lines :]
-                    for line in lines:
-                        print("JOB {}\tOUT {}".format(job_prefix, line.rstrip()))
+                for line in read_stdouterr(
+                    job_stdout, args.grep_regex, args.last_n_lines
+                ):
+                    print("JOB {}\tOUT {}".format(job_prefix, line.rstrip()))
 
         # Show standard error
         if args.error:
             job_stderr = job / "job_stderr"
             if job_stderr.is_file():
-                with job_stderr.open() as f:
-                    if args.grep_regex is not None:
-                        lines = [
-                            line
-                            for line in f
-                            if re.search(args.grep_regex, line) is not None
-                        ]
-                    else:
-                        lines = f.readlines()
-                    if args.last_n_lines is not None:
-                        lines = lines[-args.last_n_lines :]
-                    for line in lines:
-                        print("JOB {}\tERR {}".format(job_prefix, line.rstrip()))
+                for line in read_stdouterr(
+                    job_stderr, args.grep_regex, args.last_n_lines
+                ):
+                    print("JOB {}\tERR {}".format(job_prefix, line.rstrip()))
 
         # Show files in job directory
         if args.files:
@@ -184,8 +197,9 @@ def cli(*argv: str):
     parser_show_jobs.add_argument(
         "-n",
         "--last-n-lines",
-        type=positive_int,
-        help="show the last <n> lines of standard output/error",
+        type=nonnegative_int,
+        default=10,
+        help="show the last <n> lines of standard output/error (default: 10; if zero, show all lines)",
     )
     parser_show_jobs.add_argument(
         "-l", "--files", action="store_true", help="show files in job directory"

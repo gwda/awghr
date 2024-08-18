@@ -29,7 +29,10 @@ for i in range(10):
                 "-c",
                 "if [ $MYTHREADS -ne 1 ]; then echo 'MYTHREADS!=1' >&2; exit 1; fi; "
                 + "echo $HOME; "
-                + "echo $TESTVAR >&2; "
+                + "echo ${{TESTVAR}}1 >&2; "
+                + "echo ${{TESTVAR}}2 >&2; "
+                + "echo ${{TESTVAR}}3 >&2; "
+                + "echo xyz >&2; "
                 + "echo `cat {_in[0]}`{index} > out_{index}.txt",
             ]
         ],
@@ -75,16 +78,16 @@ for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
     stdout = (jobdir / "job_stdout").read_text().strip()
     stderr = (jobdir / "job_stderr").read_text().strip()
     assert stdout == str(workdir.parent)
-    assert stderr == "abc"
+    assert stderr == "\n".join(["abc1", "abc2", "abc3", "xyz"])
 
 logger.info("test command line interface")
 print("-----", flush=True)
-cli("jobs", "-d", str(workdir), "-aoe", "-n", "1", "-g", ".")
+cli("jobs", "-d", str(workdir), "-ae", "-n", "1", "-g", "a")
 print("-----", flush=True)
-cli("-d", str(workdir), "-f", "index < 5", "-al")
+cli("-d", str(workdir), "-f", "index < 5", "-aol")
 print("-----", flush=True)
 try:
-    cli("jobs", "-d", str(workdir), "-n", "0")
+    cli("jobs", "-d", str(workdir), "-n", "-1")
     msg = "should have exited"
     raise AssertionError(msg)
 except SystemExit:
