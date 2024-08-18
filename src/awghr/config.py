@@ -36,8 +36,8 @@ def read_config(
     select_batch_system: Optional[str] = None,
 ):
 
-    cfg: Dict[str, Any] = dict()
-    batch_system_cfg: Dict[str, Any] = dict()
+    cfg: Dict[str, Any] = {}
+    batch_system_cfg: Dict[str, Any] = {}
 
     # Names of batch systems
     batch_system_names = set(
@@ -45,7 +45,7 @@ def read_config(
     )
 
     # Determine batch system
-    batch_keys = dict()
+    batch_keys = {}
     for batch_system, batch_exec, workflow_writer in _batch_systems:
         if which(batch_exec) is not None or batch_system == select_batch_system:
             if "batch_system" not in cfg:
@@ -186,7 +186,7 @@ def read_config(
 
                 elif key.endswith("list"):
                     val = parser[section][key].split()
-                    vals = key_cfg.get(key, list())
+                    vals = key_cfg.get(key, [])
                     for v in val:
                         if v not in vals:
                             vals.append(v)

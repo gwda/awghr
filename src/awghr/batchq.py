@@ -113,18 +113,18 @@ class BatchQWorkflowWriter:
     ):
 
         # Bundle jobs by order, dependencies, and resources
-        job_bundles = dict()
+        job_bundles = {}
         for job in jobs.values():
             job_bundle_ID = (
                 "{needs_ID}_{time_min}_{mem_MiB}_{disk_MiB}_{threads}".format(**job)
             )
             job_bundle_key = (job["order"], job_bundle_ID)
             if job_bundle_key not in job_bundles:
-                job_bundles[job_bundle_key] = list()
+                job_bundles[job_bundle_key] = []
             job_bundles[job_bundle_key].append(job)
 
         # Split job groups into array of maximum size
-        job_arrays = dict()
+        job_arrays = {}
         for job_bundle_key in job_bundles:
             job_bundle_order, job_bundle_ID = job_bundle_key
             job_bundle = job_bundles[job_bundle_key]
@@ -144,7 +144,7 @@ class BatchQWorkflowWriter:
 
         # Write job arrays
         log_make_job_arrays = ProgressLogger(_logger, "wrote %s job arrays in workflow")
-        job_ID_to_job_array_ID_index = dict()
+        job_ID_to_job_array_ID_index = {}
         for (_, job_array_ID), job_array in sorted(job_arrays.items()):
 
             # Make job array directory

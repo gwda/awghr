@@ -98,7 +98,7 @@ def show_jobs(args):
         return
 
     # Cache job arguments
-    job_args_cache = dict()
+    job_args_cache = {}
     for job in jobs:
         with (job / "job_args.json").open() as f:
             job_args_cache[job] = json.load(f)
@@ -204,7 +204,7 @@ def cli(*argv: str):
         "--grep-regex",
         type=re.compile,
         action="append",
-        default=list(),
+        default=[],
         help="filter lines of standard output/error through regular expressions",
     )
     parser_show_jobs.add_argument(

@@ -133,7 +133,7 @@ class Workflow:
         self._account = account
         self._workflow_writer = cfg["workflow_writer"](cfg["batch_system_cfg"])
         self._workflow_hash = blake2b(digest_size=8, usedforsecurity=False)
-        self._jobs: Dict[str, Dict[str, Any]] = dict()
+        self._jobs: Dict[str, Dict[str, Any]] = {}
         self._log_add_jobs = ProgressLogger(_logger, "added %s jobs to workflow")
 
         # Add workflow directory to base directory
@@ -144,7 +144,7 @@ class Workflow:
         self._workdir = basedir / workdirname
 
         # Process environment variables
-        self._env = dict()
+        self._env = {}
         for env in cfg["envlist"]:
             if "=" not in env:
                 for var in os.environ:
@@ -255,7 +255,7 @@ class Workflow:
         if job_ID in self._jobs:
             msg = f"job with arguments {args} already exists in workflow"
             raise ValueError(msg)
-        job: Dict[str, Any] = dict()
+        job: Dict[str, Any] = {}
         job["ID"] = job_ID
 
         # Store job arguments

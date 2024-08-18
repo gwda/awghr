@@ -88,7 +88,7 @@ qdel `qselect -N '{jobname}'` || true
             retn = subprocess.run(
                 ["qmgr", "-c", "print server"], capture_output=True, check=True
             )
-            pbs_cfg = dict()
+            pbs_cfg = {}
             for line in retn.stdout.decode("utf-8").splitlines():
                 prefix = "set server "
                 if line.startswith(prefix):

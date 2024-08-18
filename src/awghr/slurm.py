@@ -90,7 +90,7 @@ scancel --name='{jobname}'
             retn = subprocess.run(
                 ["scontrol", "show", "config"], capture_output=True, check=True
             )
-            slurm_cfg = dict()
+            slurm_cfg = {}
             for line in retn.stdout.decode("utf-8").splitlines():
                 if "=" in line:
                     key, val = line.split("=", maxsplit=1)
