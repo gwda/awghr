@@ -30,7 +30,12 @@ def read_stdouterr(stdfile, grep_regex, last_n_lines):
             line = line.rstrip()
 
             # Discard lines not matching regex
-            if grep_regex is not None and re.search(grep_regex, line) is None:
+            discard_line = False
+            for rx in grep_regex:
+                if re.search(rx, line) is None:
+                    discard_line = True
+                    break
+            if discard_line:
                 continue
 
             # Add lines to deque, keeping only the `last_n_lines`
@@ -192,7 +197,9 @@ def cli(*argv: str):
         "-g",
         "--grep-regex",
         type=re.compile,
-        help="filter lines of standard output/error through a regular expression",
+        action="append",
+        default=list(),
+        help="filter lines of standard output/error through regular expressions",
     )
     parser_show_jobs.add_argument(
         "-n",
