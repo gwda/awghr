@@ -79,7 +79,7 @@ for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
 
 logger.info("test command line interface")
 print("-----", flush=True)
-cli("jobs", "-d", str(workdir), "-aoe", "-n", "1")
+cli("jobs", "-d", str(workdir), "-aoe", "-n", "1", "-g", ".")
 print("-----", flush=True)
 cli("-d", str(workdir), "-f", "index < 5", "-al")
 print("-----", flush=True)

@@ -1,5 +1,6 @@
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -102,7 +103,14 @@ def show_jobs(args):
             job_stdout = job / "job_stdout"
             if job_stdout.is_file():
                 with job_stdout.open() as f:
-                    lines = f.readlines()
+                    if args.grep_regex is not None:
+                        lines = [
+                            line
+                            for line in f
+                            if re.search(args.grep_regex, line) is not None
+                        ]
+                    else:
+                        lines = f.readlines()
                     if args.last_n_lines is not None:
                         lines = lines[-args.last_n_lines :]
                     for line in lines:
@@ -113,7 +121,14 @@ def show_jobs(args):
             job_stderr = job / "job_stderr"
             if job_stderr.is_file():
                 with job_stderr.open() as f:
-                    lines = f.readlines()
+                    if args.grep_regex is not None:
+                        lines = [
+                            line
+                            for line in f
+                            if re.search(args.grep_regex, line) is not None
+                        ]
+                    else:
+                        lines = f.readlines()
                     if args.last_n_lines is not None:
                         lines = lines[-args.last_n_lines :]
                     for line in lines:
@@ -159,6 +174,12 @@ def cli(*argv: str):
     )
     parser_show_jobs.add_argument(
         "-e", "--error", action="store_true", help="show standard error"
+    )
+    parser_show_jobs.add_argument(
+        "-g",
+        "--grep-regex",
+        type=re.compile,
+        help="filter lines of standard output/error through a regular expression",
     )
     parser_show_jobs.add_argument(
         "-n",
