@@ -107,7 +107,7 @@ class BatchQWorkflowWriter:
         jobs,
         outfinaldir,
         failedjobfile,
-        statefile,
+        workstatefile,
         submittedfile,
         ctrlscripts,
     ):
@@ -219,16 +219,30 @@ batchq_job_index="$1"
                     # Print comment used to extract job indexes and directories
                     f += f"# JOB {idx} {job['dir']}"
 
-                    # Check that all prerequisite jobs have completed successfully
+                    # Set trap to write job state file
+                    job_state_file = job["dir"] / "job_state"
+                    f += f"""
+function trap_state() {{
+    local status=$?
+    if test ${{status}} -eq 0; then
+        echo SUCCESS > '{job_state_file}'
+    else
+        echo FAILED > '{job_state_file}'
+    fi
+    exit ${{status}}
+}}
+trap trap_state EXIT
+echo RUNNING > '{job_state_file}'
+"""
+
+                    # Check that all prerequisite jobs were successfully
                     for needs_job_ID in job["needs"]:
 
-                        # Path to file indicating job has completed successfully
-                        needs_job_completed_file = (
-                            jobs[needs_job_ID]["dir"] / "job_completed"
-                        )
+                        # Path to file indicating job state
+                        needs_job_state_file = jobs[needs_job_ID]["dir"] / "job_state"
 
-                        # Test that file exists
-                        f += f"test -f '{needs_job_completed_file}'"
+                        # Test that job was successful
+                        f += f"test X`cat '{needs_job_state_file}' 2>/dev/null` = XSUCCESS"
 
                     # Hard-link standard output/error files from job array back to job directory
                     for stdouterr in ("job_stdout", "job_stderr"):
@@ -252,12 +266,8 @@ batchq_job_index="$1"
                         f += f"cp './{outfile.name}' '{outfile}'"
                         if job["outfinal"]:
                             outfinaldir_file = outfinaldir / outfile.name
-                            f += f"test ! -r '{outfinaldir_file}' || fail 'Output file {outfile.name} already exists in {outfinaldir}'"
+                            f += f"test ! -f '{outfinaldir_file}' || fail 'Output file {outfile.name} already exists in {outfinaldir}'"
                             f += f"ln -f '{outfile}' '{outfinaldir_file}'"
-
-                    # Create file indicating job has completed successfully
-                    job_completed_file = job["dir"] / "job_completed"
-                    f += f"date > '{job_completed_file}'"
 
                     f += ";;"
 
@@ -272,8 +282,8 @@ batchq_job_index="$1"
         log_make_job_arrays.finish()
 
         # Write script to check all jobs have succeeded
-        state_job_script_file = batchdir / "submit_state_job.sh"
-        with FileLineWriter(state_job_script_file) as f:
+        workstate_script_file = batchdir / "submit_workstate.sh"
+        with FileLineWriter(workstate_script_file) as f:
             f += "#!/bin/bash"
 
             # Write job script header
@@ -284,28 +294,28 @@ batchq_job_index="$1"
                 mem_MiB=10,
                 disk_MiB=0,
                 threads=1,
-                stdout=batchdir / "submit_state_job_stdout",
-                stderr=batchdir / "submit_state_job_stderr",
+                stdout=batchdir / "submit_workstate_stdout",
+                stderr=batchdir / "submit_workstate_stderr",
             )
 
             # Exit on any errors
             f += "set -e"
 
             # Default to success
-            f += "state=SUCCESS"
+            f += "workstate=SUCCESS"
 
             # Check all jobs
             for _, job_array in job_arrays.items():
                 for job in job_array:
-                    job_completed_file = job["dir"] / "job_completed"
+                    job_state_file = job["dir"] / "job_state"
                     f += f"""
-if test ! -r '{job_completed_file}'; then
+if test X`cat '{job_state_file}' 2>/dev/null` != XSUCCESS; then
     echo '{job['dir']}' >> '{failedjobfile}'
-    state=FAILED
+    workstate=FAILED
 fi
 """
-            # Write state
-            f += f"echo \"${{state}}\" > '{statefile}'"
+            # Write workflow state
+            f += f"echo \"${{workstate}}\" > '{workstatefile}'"
 
             # Remove file indicating workflow has been submitted
             f += f"rm -f '{submittedfile}'"
@@ -331,12 +341,12 @@ fi
             # Exit on any errors
             f += "set -e"
 
-            # If errors are encountered, write to the state file
+            # Set trap to write the workflow state if errors are encountered
             f += f"""
 function trap_state() {{
     local status=$?
     if test ${{status}} -ne 0; then
-        echo FAILED > '{statefile}'
+        echo FAILED > '{workstatefile}'
     fi
     exit ${{status}}
 }}
@@ -359,8 +369,8 @@ function job_array_indexes() {
     batchq_array_indexes=
     batchq_array_count=0
     while read idx jobdir; do
-        jobcompleted="${jobdir}/job_completed"
-        if test ! -r "${jobcompleted}"; then
+        jobstate="${jobdir}/job_state"
+        if test X`cat "${jobstate}" 2>/dev/null` != XSUCCESS; then
             batchq_array_indexes="${batchq_array_indexes} ${idx}"
             : $((++batchq_array_count))
         fi
@@ -411,10 +421,8 @@ function job_array_needs_ID_idx() {{
                     # Check that prerequisite job has been written
                     assert needs_job_ID in all_jobs_ID_written
 
-                    # Path to file indicating job has completed successfully
-                    needs_job_completed_file = (
-                        jobs[needs_job_ID]["dir"] / "job_completed"
-                    )
+                    # Path to file indicating job state
+                    needs_job_state_file = jobs[needs_job_ID]["dir"] / "job_state"
 
                     # Map individual needed job ID to needed job array ID and index
                     needs_job_array_ID, needs_job_array_idx = (
@@ -432,7 +440,7 @@ function job_array_needs_ID_idx() {{
                     )
                     needs_jobarray_index_file = needs_jobarraydir / "job_array_indexes"
                     f += f"""
-if test ! -f '{needs_job_completed_file}'; then
+if test X`cat '{needs_job_state_file}' 2>/dev/null` != XSUCCESS; then
     test -f '{needs_jobarray_batchqID_file}' || fail 'Dependent job array {needs_job_array_ID} has not been submitted'
     batchq_ID=`cat '{needs_jobarray_batchqID_file}'`
     job_array_needs_ID_idx "${{batchq_ID}}" '{needs_jobarray_index_file}' '{needs_job_array_idx}'
@@ -461,7 +469,7 @@ fi
                 jobarray_batchqID_file = jobarraydir / "job_array_batchqID"
                 f += f"""
 if test ${{batchq_array_count}} -eq 0; then
-    batchq_ID=COMPLETED
+    batchq_ID=DONE
 else
     batchq_dependency="{self.BATCHQ_SUBMIT_ARG_DEPEND}afterok:${{{self.BATCHQ_JOB_ID}{self.BATCHQ_ID_REMOVE_SUFFIX}}}"
     if test "X${{batchq_needs_IDs}}" != X; then
@@ -486,7 +494,7 @@ batchq_dependency="{self.BATCHQ_SUBMIT_ARG_DEPEND}afterok:${{{self.BATCHQ_JOB_ID
 if test "X${{batchq_all_IDs}}" != X; then
     batchq_dependency="${{batchq_dependency}},{self.BATCHQ_SUBMIT_STATE_DEPEND}${{batchq_all_IDs}}"
 fi
-batchq_ID=`{self.BATCHQ_SUBMIT_STATE} ${{batchq_dependency}} '{state_job_script_file}'`
+batchq_ID=`{self.BATCHQ_SUBMIT_STATE} ${{batchq_dependency}} '{workstate_script_file}'`
 batchq_ID=`echo "${{batchq_ID{self.BATCHQ_ID_REMOVE_SUFFIX}}}"`
 echo "info: submitted state job, batch ID ${{batchq_ID}}"
     """

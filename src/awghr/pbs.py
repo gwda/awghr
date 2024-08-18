@@ -49,9 +49,9 @@ class PBSWorkflowWriter(BatchQWorkflowWriter):
     #   (because a prerequisite job failed), so must use `afterok` for
     #   prerequisite jobs here. This still works because dependent jobs will be
     #   run even if a prerequisite job fails (because of `afterany`) but will
-    #   immediately fail if the `job_completed` files for their prerequisites do
-    #   not exist. So the workflow will still fail gracefully, but slower,
-    #   because all jobs will have to be run.
+    #   immediately fail if the `job_state` files for their prerequisites do not
+    #   indicate SUCCESS. So the workflow will still fail gracefully, but
+    #   slower, because all jobs will have to be run.
     BATCHQ_SUBMIT_ARRAY = "qsub"
     BATCHQ_SUBMIT_ARRAY_DEPEND = "afterany"
 

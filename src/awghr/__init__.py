@@ -441,8 +441,8 @@ class Workflow:
         failedjobfile.unlink(missing_ok=True)
 
         # Name of file which workflow will write final state to
-        statefile = self._workdir / f"workflow_state_{workflow_ID}.txt"
-        statefile.unlink(missing_ok=True)
+        workstatefile = self._workdir / f"workflow_state_{workflow_ID}.txt"
+        workstatefile.unlink(missing_ok=True)
 
         # Name of file indicating workflow has been submitted
         submittedfile = self._workdir / f".workflow_submitted_{workflow_ID}.txt"
@@ -477,8 +477,8 @@ fi
             ctrlscripts[
                 "submit"
             ] += f"""
-if test -f '{statefile}'; then
-    state=`cat '{statefile}'`
+if test -f '{workstatefile}'; then
+    state=`cat '{workstatefile}'`
     if test "X${{state}}" = XSUCCESS; then
         echo "info: workflow {workflow_ID} has already been successfully run"
         exit 1
@@ -489,7 +489,7 @@ if test -f '{submittedfile}'; then
     echo "info: workflow {workflow_ID} has already been submitted"
     exit 1
 fi
-rm -f '{statefile}'
+rm -f '{workstatefile}'
 rm -f '{failedjobfile}'
 """
 
@@ -505,7 +505,7 @@ rm -f '{failedjobfile}'
                 jobs=self._jobs,
                 outfinaldir=outfinaldir,
                 failedjobfile=failedjobfile,
-                statefile=statefile,
+                workstatefile=workstatefile,
                 submittedfile=submittedfile,
                 ctrlscripts=ctrlscripts,
             )
@@ -514,7 +514,7 @@ rm -f '{failedjobfile}'
             ctrlscripts[
                 "submit"
             ] += f"""
-date > '{submittedfile}'
+echo SUBMITTED > '{submittedfile}'
 echo 'info: submitted all jobs in workflow {workflow_ID}'
 """
             ctrlscripts[
@@ -538,11 +538,11 @@ case "$1" in
         sleepfor="$1"
         shift
 esac
-until test -f '{statefile}'; do
+until test -f '{workstatefile}'; do
     "$@"
     sleep ${{sleepfor}}
 done
-echo "workflow state: `cat '{statefile}'`"
+echo "workflow state: `cat '{workstatefile}'`"
 """
 
         # Log completion

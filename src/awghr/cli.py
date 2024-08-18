@@ -53,39 +53,46 @@ def read_stdouterr(stdfile, grep_regex, last_n_lines):
 
 def show_jobs(args):
 
-    # Get list of jobs
-    jobs = []
-    workflow_jobs = list(args.workflow_dir.glob("workflow_jobs_*.txt"))
-    if len(workflow_jobs) == 0:
+    # Check for workflows
+    workflow_job_list_files = list(args.workflow_dir.glob("workflow_jobs_*.txt"))
+    if len(workflow_job_list_files) == 0:
         msg = f"'{args.workflow_dir}' is not a workflow directory"
         raise FileNotFoundError(msg)
 
+    # Get list of jobs and their states
+    jobs = []
+    job_state = {}
     if args.all_jobs:
 
-        # Get list of all jobs
-        for job_list in workflow_jobs:
-            jobs.extend(map(Path, job_list.read_text().split()))
+        # Get all jobs
+        for job_list in workflow_job_list_files:
+            with job_list.open() as f:
+                jobs.extend([Path(job.strip()) for job in f])
+
+        # Get job states
+        for job in jobs:
+            job_state_file = job / "job_state"
+            if job_state_file.is_file():
+                job_state[job] = job_state_file.read_text().strip()
+            else:
+                job_state[job] = "PENDING"
 
     else:
 
-        # Check workflow states
-        for job_list in workflow_jobs:
-            job_state = job_list.parent / job_list.name.replace("_jobs_", "_state_")
-            if job_state.is_file():
+        # Get failed jobs
+        for workflow_job_list_file in workflow_job_list_files:
+            workflow_failed_job_list_file = (
+                workflow_job_list_file.parent
+                / workflow_job_list_file.name.replace("_jobs_", "_failed_jobs_")
+            )
+            if workflow_failed_job_list_file.is_file():
+                for job_list in workflow_job_list_files:
+                    with job_list.open() as f:
+                        jobs.extend([Path(job.strip()) for job in f])
 
-                # Workflow has completed; get list of all failed jobs
-                failed_job_list = job_list.parent / job_list.name.replace(
-                    "_jobs_", "_failed_jobs_"
-                )
-                if failed_job_list.is_file():
-                    jobs.extend(map(Path, failed_job_list.read_text().split()))
-
-            else:
-
-                # Workflow has not completed; need to check for job completed file
-                for job in map(Path, job_list.read_text().split()):
-                    if not (job / "job_completed").is_file():
-                        jobs.append(job)
+        # Set job states
+        for job in jobs:
+            job_state[job] = "FAILED"
 
     if len(jobs) == 0:
         return
@@ -131,8 +138,7 @@ def show_jobs(args):
         job_prefix = ",".join([f"{k}={v}" for k, v in job_args])
 
         # Show job state
-        job_state = "complete" if (job / "job_completed").is_file() else "incomplete"
-        print("JOB {}\tSTATE {}".format(job_prefix, job_state))
+        print("JOB {}\tSTATE {}".format(job_prefix, job_state[job]))
 
         # Show standard output
         if args.output:

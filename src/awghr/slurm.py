@@ -49,11 +49,12 @@ class SlurmWorkflowWriter(BatchQWorkflowWriter):
     # - Slurm can also be run without this option, i.e.:
     #     BATCHQ_SUBMIT_ARRAY = "sbatch --parsable"
     #     BATCHQ_SUBMIT_ARRAY_DEPEND = "afterany"
-    #   This still works because dependent jobs will be run even if
-    #   a prerequisite job fails (because of `afterany`) but will
-    #   immediately fail if the `job_completed` files for their
-    #   prerequisites do not exist. So the workflow will still fail
-    #   gracefully, but slower, because all jobs will have to be run.
+    #   This still works because dependent jobs will be run even if a
+    #   prerequisite job fails (because of `afterany`) but will
+    #   immediately fail if the `job_state` files for their
+    #   prerequisites do not indicate SUCCESS. So the workflow will
+    #   still fail gracefully, but slower, because all jobs will have
+    #   to be run.
     BATCHQ_SUBMIT_ARRAY = "sbatch --parsable --kill-on-invalid-dep=yes"
     BATCHQ_SUBMIT_ARRAY_DEPEND = "afterok"
 
