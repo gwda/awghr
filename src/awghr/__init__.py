@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from pint import Unit, UnitRegistry
 
 from .config import read_config
-from .util import FileLineWriter, ProgressLogger, job_dir_from_ID
+from .util import FileLineWriter, ProgressLogger, WorkflowException, job_dir_from_ID
 
 __author__ = "Karl Wette"
 __version__ = "0.1"
@@ -126,7 +126,7 @@ class Workflow:
             basedir = basedir.resolve(strict=True)
         except (FileNotFoundError, RuntimeError):
             msg = f"Base directory '{basedir}' is not a directory"
-            raise ValueError(msg)
+            raise WorkflowException(msg)
 
         # Initialise internal variables
         self._name = name
@@ -238,7 +238,7 @@ class Workflow:
             msg = "argument names ('{}') cannot begin with an underscore".format(
                 ", ".join(underscore_args)
             )
-            raise ValueError(msg)
+            raise WorkflowException(msg)
 
         # Generate JSON representation of arguments
         args_json = json.dumps(args, sort_keys=True)
@@ -254,7 +254,7 @@ class Workflow:
         # Create job
         if job_ID in self._jobs:
             msg = f"job with arguments {args} already exists in workflow"
-            raise ValueError(msg)
+            raise WorkflowException(msg)
         job: Dict[str, Any] = {}
         job["ID"] = job_ID
 
@@ -283,18 +283,18 @@ class Workflow:
         if inputs is not None:
             if len(inputs) != len(set(inputs)):
                 msg = "'inputs' is not a unique list"
-                raise ValueError(msg)
+                raise WorkflowException(msg)
             for inp in inputs:
                 if isinstance(inp, Path):
                     if not inp.is_file():
                         msg = f"external input file '{inp}' does not exist"
-                        raise ValueError(msg)
+                        raise WorkflowException(msg)
                     job["infiles"].append(inp)
                 else:
                     inp_job_ID, inp_filename = inp
                     if inp_job_ID not in self._jobs:
                         msg = f"job for input file '{inp_filename}' does not exist"
-                        raise ValueError(msg)
+                        raise WorkflowException(msg)
                     inp_file = self._jobs[inp_job_ID]["dir"] / inp_filename.format(
                         **self._jobs[inp_job_ID]["args"], _id=inp_job_ID
                     )
@@ -313,7 +313,7 @@ class Workflow:
         if outputs is not None:
             if len(outputs) != len(set(outputs)):
                 msg = "'outputs' is not a unique list"
-                raise ValueError(msg)
+                raise WorkflowException(msg)
             for outp in outputs:
                 job["outfiles"].append(jobdir / outp.format(**args, _id=job_ID))
         job["outfinal"] = final
@@ -336,7 +336,7 @@ class Workflow:
             execpath = which(cmd[0])
             if execpath is None:
                 msg = f"executable '{cmd[0]}' cannot be found"
-                raise ValueError(msg)
+                raise WorkflowException(msg)
             cmd[0] = Path(execpath)
 
         # Add job to workflow
@@ -385,7 +385,7 @@ class Workflow:
                     msg = (
                         f"final output file '{out_file.name}' is not unique to workflow"
                     )
-                    raise ValueError(msg)
+                    raise WorkflowException(msg)
                 out_final_files.add(out_file.name)
 
         # Make directory for final output files

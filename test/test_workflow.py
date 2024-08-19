@@ -2,7 +2,7 @@ import logging
 import sys
 from pathlib import Path
 
-from awghr import Workflow
+from awghr import Workflow, WorkflowException
 
 # Set up logging
 logging.basicConfig(
@@ -18,9 +18,9 @@ w = Workflow(name="add_job", dated=False)
 # Try creating a workflow with a non-existent base directory
 try:
     Workflow(name="dummy", basedir=Path("/nonexistent"))
-    msg = "should have raised a ValueError"
+    msg = "should have raised a WorkflowException"
     raise AssertionError(msg)
-except ValueError:
+except WorkflowException:
     pass
 
 # Add job
@@ -38,9 +38,9 @@ w.add_job(**job_args)
 # Try to add a duplicate job
 try:
     w.add_job(**job_args)
-    msg = "should have raised a ValueError"
+    msg = "should have raised a WorkflowException"
     raise AssertionError(msg)
-except ValueError:
+except WorkflowException:
     pass
 
 # Try to add a job with argument names beginning with an underscore
@@ -53,9 +53,9 @@ try:
         disk=10 * w.MiB,
         outputs=["dummy.txt"],
     )
-    msg = "should have raised a ValueError"
+    msg = "should have raised a WorkflowException"
     raise AssertionError(msg)
-except ValueError:
+except WorkflowException:
     pass
 
 # Try to add a job with non-existent executable
@@ -68,9 +68,9 @@ try:
         disk=10 * w.MiB,
         outputs=["dummy.txt"],
     )
-    msg = "should have raised a ValueError"
+    msg = "should have raised a WorkflowException"
     raise AssertionError(msg)
-except ValueError:
+except WorkflowException:
     pass
 
 # Try to add a job with non-unique inputs
@@ -84,9 +84,9 @@ try:
         inputs=[Path("./dummy.txt"), Path("./dummy.txt")],
         outputs=["dummy.txt"],
     )
-    msg = "should have raised a ValueError"
+    msg = "should have raised a WorkflowException"
     raise AssertionError(msg)
-except ValueError:
+except WorkflowException:
     pass
 
 # Try to add a job with non-existent inputs
@@ -100,9 +100,9 @@ try:
         inputs=[Path("./non-existent.txt")],
         outputs=["dummy.txt"],
     )
-    msg = "should have raised a ValueError"
+    msg = "should have raised a WorkflowException"
     raise AssertionError(msg)
-except ValueError:
+except WorkflowException:
     pass
 
 # Try to add a job with non-existent dependency
@@ -116,9 +116,9 @@ try:
         inputs=[("non-existent-job", "dummy")],
         outputs=["dummy.txt"],
     )
-    msg = "should have raised a ValueError"
+    msg = "should have raised a WorkflowException"
     raise AssertionError(msg)
-except ValueError:
+except WorkflowException:
     pass
 
 # Try to add a job with non-unique outputs
@@ -131,9 +131,9 @@ try:
         disk=10 * w.MiB,
         outputs=["dummy.txt", "dummy.txt"],
     )
-    msg = "should have raised a ValueError"
+    msg = "should have raised a WorkflowException"
     raise AssertionError(msg)
-except ValueError:
+except WorkflowException:
     pass
 
 # Try to add a job with non-workflow-unique final output file
@@ -147,9 +147,9 @@ bad_job = w.add_job(
 )
 try:
     w.write()
-    msg = "should have raised a ValueError"
+    msg = "should have raised a WorkflowException"
     raise AssertionError(msg)
-except ValueError:
+except WorkflowException:
     pass
 finally:
     del w._jobs[bad_job]

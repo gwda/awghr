@@ -3,6 +3,10 @@ import stat
 from pathlib import Path
 
 
+class WorkflowException(Exception):
+    """Raise for workflow generation errors"""
+
+
 class ConfigException(Exception):
     """Raise for configuration errors"""
 
