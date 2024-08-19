@@ -220,29 +220,29 @@ batchq_job_index="$1"
                     f += f"# JOB {idx} {job['dir']}"
 
                     # Set trap to write job state file
-                    job_state_file = job["dir"] / "job_state"
+                    jobstate_file = job["dir"] / "job_state"
                     f += f"""
 function trap_state() {{
     local status=$?
     if test ${{status}} -eq 0; then
-        echo SUCCESS > '{job_state_file}'
+        echo SUCCESS > '{jobstate_file}'
     else
-        echo FAILED > '{job_state_file}'
+        echo FAILED > '{jobstate_file}'
     fi
     exit ${{status}}
 }}
 trap trap_state EXIT
-echo RUNNING > '{job_state_file}'
+echo RUNNING > '{jobstate_file}'
 """
 
                     # Check that all prerequisite jobs were successfully
                     for needs_job_ID in job["needs"]:
 
                         # Path to file indicating job state
-                        needs_job_state_file = jobs[needs_job_ID]["dir"] / "job_state"
+                        needs_jobstate_file = jobs[needs_job_ID]["dir"] / "job_state"
 
                         # Test that job was successful
-                        f += f"test X`cat '{needs_job_state_file}' 2>/dev/null` = XSUCCESS"
+                        f += f"test X`cat '{needs_jobstate_file}' 2>/dev/null` = XSUCCESS"
 
                     # Hard-link standard output/error files from job array back to job directory
                     for stdouterr in ("job_stdout", "job_stderr"):
@@ -307,9 +307,9 @@ echo RUNNING > '{job_state_file}'
             # Check all jobs
             for _, job_array in job_arrays.items():
                 for job in job_array:
-                    job_state_file = job["dir"] / "job_state"
+                    jobstate_file = job["dir"] / "job_state"
                     f += f"""
-if test X`cat '{job_state_file}' 2>/dev/null` != XSUCCESS; then
+if test X`cat '{jobstate_file}' 2>/dev/null` != XSUCCESS; then
     echo '{job['dir']}' >> '{failedjobfile}'
     workstate=FAILED
 fi
@@ -422,7 +422,7 @@ function job_array_needs_ID_idx() {{
                     assert needs_job_ID in all_jobs_ID_written
 
                     # Path to file indicating job state
-                    needs_job_state_file = jobs[needs_job_ID]["dir"] / "job_state"
+                    needs_jobstate_file = jobs[needs_job_ID]["dir"] / "job_state"
 
                     # Map individual needed job ID to needed job array ID and index
                     needs_job_array_ID, needs_job_array_idx = (
@@ -440,7 +440,7 @@ function job_array_needs_ID_idx() {{
                     )
                     needs_jobarray_index_file = needs_jobarraydir / "job_array_indexes"
                     f += f"""
-if test X`cat '{needs_job_state_file}' 2>/dev/null` != XSUCCESS; then
+if test X`cat '{needs_jobstate_file}' 2>/dev/null` != XSUCCESS; then
     test -f '{needs_jobarray_batchqID_file}' || fail 'Dependent job array {needs_job_array_ID} has not been submitted'
     batchq_ID=`cat '{needs_jobarray_batchqID_file}'`
     job_array_needs_ID_idx "${{batchq_ID}}" '{needs_jobarray_index_file}' '{needs_job_array_idx}'
