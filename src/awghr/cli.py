@@ -3,6 +3,7 @@ import json
 import re
 import sys
 from collections import deque
+from datetime import datetime
 from pathlib import Path
 
 from .config import show_config
@@ -73,7 +74,14 @@ def show_jobs(args):
         for job in jobs:
             job_state_file = job / "job_state"
             if job_state_file.is_file():
-                job_state[job] = job_state_file.read_text().strip()
+                job_state_last_modified = datetime.fromtimestamp(
+                    job_state_file.stat().st_mtime
+                )
+                job_state[job] = (
+                    job_state_file.read_text().strip()
+                    + " "
+                    + job_state_last_modified.strftime("%c")
+                )
             else:
                 job_state[job] = "PENDING"
 
