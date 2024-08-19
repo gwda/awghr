@@ -365,7 +365,25 @@ class Workflow:
         self._log_add_jobs.finish()
 
         # Generate workflow ID as hash of all job JSON representations
-        workflow_ID = self._workflow_hash.hexdigest()
+        self._workflow_ID = self._workflow_hash.hexdigest()
+
+        # Name of file indicating workflow has been submitted
+        submittedfile = self._workdir / f".workflow_submitted_{self._workflow_ID}.txt"
+
+        # Check that workflow has not been submitted
+        if submittedfile.is_file():
+            msg = f"workflow {self._workflow_ID} has already been submitted"
+            raise WorkflowException(msg)
+
+        # Name of file which workflow will write final state to
+        # - Remove any existing file
+        workstatefile = self._workdir / f"workflow_state_{self._workflow_ID}.txt"
+        workstatefile.unlink(missing_ok=True)
+
+        # Name of file containing directories of any failed jobs
+        # - Remove any existing file
+        failedjobfile = self._workdir / f"workflow_failed_jobs_{self._workflow_ID}.txt"
+        failedjobfile.unlink(missing_ok=True)
 
         # Determine intermediate jobs, which are required as dependencies
         intermediate_jobs = set()
@@ -435,22 +453,10 @@ class Workflow:
         log_make_jobs.finish()
 
         # Write list of all job directories
-        all_jobs_file = self._workdir / f"workflow_jobs_{workflow_ID}.txt"
+        all_jobs_file = self._workdir / f"workflow_jobs_{self._workflow_ID}.txt"
         with FileLineWriter(all_jobs_file) as f:
             for job in self._jobs.values():
                 f += job["dir"]
-
-        # Name of file containing directories of any failed jobs
-        failedjobfile = self._workdir / f"workflow_failed_jobs_{workflow_ID}.txt"
-        failedjobfile.unlink(missing_ok=True)
-
-        # Name of file which workflow will write final state to
-        workstatefile = self._workdir / f"workflow_state_{workflow_ID}.txt"
-        workstatefile.unlink(missing_ok=True)
-
-        # Name of file indicating workflow has been submitted
-        submittedfile = self._workdir / f".workflow_submitted_{workflow_ID}.txt"
-        submittedfile.unlink(missing_ok=True)
 
         # Create top-level control scripts
         with ExitStack() as stack:
@@ -484,13 +490,13 @@ fi
 if test -f '{workstatefile}'; then
     state=`cat '{workstatefile}'`
     if test "X${{state}}" = XSUCCESS; then
-        echo "info: workflow {workflow_ID} has already been successfully run"
+        echo "info: workflow {self._workflow_ID} has already been successfully run"
         exit 1
     fi
     rm -f '{submittedfile}'
 fi
 if test -f '{submittedfile}'; then
-    echo "info: workflow {workflow_ID} has already been submitted"
+    echo "info: workflow {self._workflow_ID} has already been submitted"
     exit 1
 fi
 rm -f '{workstatefile}'
@@ -498,12 +504,12 @@ rm -f '{failedjobfile}'
 """
 
             # Make batch system script directory
-            batchdir = self._workdir / "batch" / workflow_ID
+            batchdir = self._workdir / "batch" / self._workflow_ID
             batchdir.mkdir(parents=True, exist_ok=True)
 
             # Write batch system scripts
             self._workflow_writer(
-                workflowname=f"awghr_{workflow_ID}",
+                workflowname=f"awghr_{self._workflow_ID}",
                 batchdir=batchdir,
                 account=self._account,
                 jobs=self._jobs,
@@ -519,12 +525,12 @@ rm -f '{failedjobfile}'
                 "submit"
             ] += f"""
 echo SUBMITTED > '{submittedfile}'
-echo 'info: submitted all jobs in workflow {workflow_ID}'
+echo 'info: submitted all jobs in workflow {self._workflow_ID}'
 """
             ctrlscripts[
                 "cancel"
             ] += f"""
-echo 'info: cancelled all jobs in workflow {workflow_ID}'
+echo 'info: cancelled all jobs in workflow {self._workflow_ID}'
 """
 
             # Write top-level wait script

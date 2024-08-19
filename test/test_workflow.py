@@ -159,3 +159,14 @@ w.write()
 
 # Test that workflow can be rewritten
 w.write()
+
+# Test that workflow cannot be rewritten once submitted
+try:
+    submittedfile = w._workdir / f".workflow_submitted_{w._workflow_ID}.txt"
+    submittedfile.touch()
+    w.write()
+    raise AssertionError(msg)
+except WorkflowException:
+    pass
+finally:
+    submittedfile.unlink()
