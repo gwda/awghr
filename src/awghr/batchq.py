@@ -301,10 +301,13 @@ echo RUNNING > '{jobstate_file}'
             # Exit on any errors
             f += "set -e"
 
+            # Ensure list of directories of failed jobs does not exist
+            f += "rm -f '{failedjobfile}'"
+
             # Default to success
             f += "workstate=SUCCESS"
 
-            # Check all jobs
+            # Check all jobs; write directories of failed jobs to file
             for _, job_array in job_arrays.items():
                 for job in job_array:
                     jobstate_file = job["dir"] / "job_state"
