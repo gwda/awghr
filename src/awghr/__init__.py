@@ -398,6 +398,10 @@ class Workflow:
             # Make job directory
             job["dir"].mkdir(parents=True, exist_ok=True)
 
+            # Remove job state file
+            jobstate_file = job["dir"] / "job_state"
+            jobstate_file.unlink(missing_ok=True)
+
             # Write JSON representation of arguments
             job_args_file = job["dir"] / "job_args.json"
             with FileLineWriter(job_args_file) as f:
