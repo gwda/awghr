@@ -80,7 +80,7 @@ def show_jobs(args):
                 job_state[job] = (
                     job_state_file.read_text().strip()
                     + " "
-                    + job_state_last_modified.strftime("%c")
+                    + job_state_last_modified.strftime("%a, %d %b %Y %H:%M:%S %Z")
                 )
             else:
                 job_state[job] = "PENDING"
