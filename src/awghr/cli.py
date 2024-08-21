@@ -12,6 +12,10 @@ from .config import show_config
 from .util import job_ID_from_dir
 
 
+def resolved_path(value):
+    return Path(value).resolve(strict=True)
+
+
 def nonnegative_int(value):
     value = int(value)
     if value < 0:
@@ -219,7 +223,7 @@ def cli(*argv: str):
         "-d",
         "--workflow-dir",
         metavar="DIR",
-        type=Path,
+        type=resolved_path,
         default=Path.cwd(),
         help="set workflow directory to DIR",
     )
