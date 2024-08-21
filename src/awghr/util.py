@@ -21,8 +21,13 @@ class BatchSystemException(Exception):
 #     └── subdirs 00/ to ff/ (max 256)
 #         └── subdirs of remaining job ID/
 #             └── job files
-def job_dir_from_ID(basedir: Path, job_ID):
+def job_dir_from_ID(basedir: Path, job_ID: str):
     return basedir / job_ID[0:2] / job_ID[2:4] / job_ID[4:]
+
+
+# Extract job ID from job directory
+def job_ID_from_dir(basedir: Path, job_dir: Path):
+    return "".join(job_dir.relative_to(basedir).parts)
 
 
 # Log progress at progressively longer intervals

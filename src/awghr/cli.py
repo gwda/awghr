@@ -9,6 +9,7 @@ from shlex import quote
 
 from . import _ureg
 from .config import show_config
+from .util import job_ID_from_dir
 
 
 def nonnegative_int(value):
@@ -145,21 +146,25 @@ def show_jobs(args):
         if n > 0:
             print("")
 
-        # Create job prefix
+        # Extract job ID from job directory
+        job_ID = job_ID_from_dir(args.workflow_dir / "jobs", job)
+
+        # Show job arguments
         # - Formatted so that it can be used as a filter to --filter
-        job_prefix_unquoted = " and ".join(
+        job_args_str_unquoted = " and ".join(
             ["{}=={}".format(k, repr(v)) for k, v in job_args]
         )
-        if '"' not in job_prefix_unquoted:
-            job_prefix_unquoted = job_prefix_unquoted.replace("'", '"')
-        job_prefix = quote(job_prefix_unquoted)
+        if '"' not in job_args_str_unquoted:
+            job_args_str_unquoted = job_args_str_unquoted.replace("'", '"')
+        job_args_str = quote(job_args_str_unquoted)
+        print("JOB {} ARGS {}".format(job_ID, job_args_str))
 
         # Show job state
-        print("JOB {}\tSTATE {}".format(job_prefix, job_state_cache[job]))
+        print("JOB {} STATE {}".format(job_ID, job_state_cache[job]))
 
         # Show job directory
         if args.job_dir:
-            print("JOB {}\tDIR {}".format(job_prefix, job))
+            print("JOB {} DIR {}".format(job_ID, job))
 
         # Show files in job directory
         if args.files:
@@ -167,9 +172,7 @@ def show_jobs(args):
                 job.iterdir(), key=lambda j: (not j.name.startswith("job_"), j)
             ):
                 f_size = _ureg.Quantity(f.stat().st_size, "byte").to_compact()
-                print(
-                    "JOB {}\tFILE {} SIZE {}".format(job_prefix, f, format(f_size, "~"))
-                )
+                print("JOB {} FILE {} SIZE {}".format(job_ID, f, format(f_size, "~")))
 
         # Show standard output
         if args.output:
@@ -178,7 +181,7 @@ def show_jobs(args):
                 for line in read_stdouterr(
                     job_stdout, args.grep_regex, args.last_n_lines
                 ):
-                    print("JOB {}\tOUT {}".format(job_prefix, line.rstrip()))
+                    print("JOB {} OUT {}".format(job_ID, line.rstrip()))
 
         # Show standard error
         if args.error:
@@ -187,7 +190,7 @@ def show_jobs(args):
                 for line in read_stdouterr(
                     job_stderr, args.grep_regex, args.last_n_lines
                 ):
-                    print("JOB {}\tERR {}".format(job_prefix, line.rstrip()))
+                    print("JOB {} ERR {}".format(job_ID, line.rstrip()))
 
 
 def cli(*argv: str):
