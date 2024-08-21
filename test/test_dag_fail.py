@@ -48,8 +48,8 @@ for level in range(3):
                 args=dict(stage="build", digit=digit),
                 cmds=[["bash", "-c", "echo {digit} > {_out[0]}"]],
                 time=1 * w.MIN,
-                mem=10 * w.MiB,
-                disk=10 * w.MiB,
+                mem=10 * w.MB,
+                disk=10 * w.MB,
                 outputs=["f-{_id}.txt"],
             )
             jobs.append(job_ID)
@@ -73,8 +73,8 @@ for level in range(3):
                         ]
                     ],
                     time=1 * w.MIN,
-                    mem=10 * w.MiB,
-                    disk=10 * w.MiB,
+                    mem=10 * w.MB,
+                    disk=10 * w.MB,
                     inputs=[(prev_job_ID, "f-{_id}.txt")],
                     outputs=["f-{_id}.txt"],
                 )
@@ -103,8 +103,8 @@ while len(jobs) > 1:
                     ]
                 ],
                 time=1 * w.MIN,
-                mem=10 * w.MiB,
-                disk=10 * w.MiB,
+                mem=10 * w.MB,
+                disk=10 * w.MB,
                 inputs=[(prev_job_ID_1, "f-{_id}.txt"), (prev_job_ID_2, "f-{_id}.txt")],
                 outputs=["f-{_id}.txt"],
             )
@@ -124,8 +124,8 @@ while len(jobs) > 1:
                     ]
                 ],
                 time=1 * w.MIN,
-                mem=10 * w.MiB,
-                disk=10 * w.MiB,
+                mem=10 * w.MB,
+                disk=10 * w.MB,
                 inputs=[(prev_job_ID, "f-{_id}.txt")],
                 outputs=["f-{_id}.txt"],
             )

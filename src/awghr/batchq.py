@@ -20,8 +20,8 @@ class BatchQWorkflowWriter:
     # - jobname: name of job
     # - account: account to which job is charged
     # - time_min: requested wall time in minutes
-    # - mem_MiB: requested memory in MiB
-    # - disk_MiB: requested job scratch space in MiB
+    # - mem_MB: requested memory in MB
+    # - disk_MB: requested job scratch space in MB
     # - threads: requested number of threads
     # - stdout: redirect job standard output to this file
     # - stderr: redirect job standard error to this file
@@ -115,8 +115,8 @@ class BatchQWorkflowWriter:
         # Bundle jobs by order, dependencies, and resources
         job_bundles = {}
         for job in jobs.values():
-            job_bundle_ID = (
-                "{needs_ID}_{time_min}_{mem_MiB}_{disk_MiB}_{threads}".format(**job)
+            job_bundle_ID = "{needs_ID}_{time_min}_{mem_MB}_{disk_MB}_{threads}".format(
+                **job
             )
             job_bundle_key = (job["order"], job_bundle_ID)
             if job_bundle_key not in job_bundles:
@@ -164,8 +164,8 @@ class BatchQWorkflowWriter:
                     jobname=workflowname,
                     account=account,
                     time_min=job["time_min"],
-                    mem_MiB=job["mem_MiB"],
-                    disk_MiB=job["disk_MiB"],
+                    mem_MB=job["mem_MB"],
+                    disk_MB=job["disk_MB"],
                     threads=job["threads"],
                     stdout=jobarraydir
                     / f"job_stdout_{self.BATCHQ_SUBMIT_ARRAY_INDEX_REPL}",
@@ -291,8 +291,8 @@ echo RUNNING > '{jobstate_file}'
                 jobname=f"{workflowname}_state",
                 account=account,
                 time_min=15,
-                mem_MiB=10,
-                disk_MiB=0,
+                mem_MB=10,
+                disk_MB=0,
                 threads=1,
                 stdout=batchdir / "submit_workstate_stdout",
                 stderr=batchdir / "submit_workstate_stderr",
@@ -334,8 +334,8 @@ fi
                 jobname=workflowname,
                 account=account,
                 time_min=15,
-                mem_MiB=10,
-                disk_MiB=0,
+                mem_MB=10,
+                disk_MB=0,
                 threads=1,
                 stdout=batchdir / "submit_all_jobs_stdout",
                 stderr=batchdir / "submit_all_jobs_stderr",

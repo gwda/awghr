@@ -37,8 +37,8 @@ for i in range(10):
             ]
         ],
         time=1 * w.MIN,
-        mem=10 * w.MiB,
-        disk=10 * w.MiB,
+        mem=10 * w.MB,
+        disk=10 * w.MB,
         inputs=[infile],
         outputs=["out_{index}.txt"],
     )

@@ -28,8 +28,8 @@ job_args = dict(
     args=dict(index=0),
     cmds=[["/usr/bin/true"]],
     time=1 * w.MIN,
-    mem=10 * w.MiB,
-    disk=10 * w.MiB,
+    mem=10 * w.MB,
+    disk=10 * w.MB,
     inputs=[Path("/usr/bin/true")],
     outputs=["out_{index}.txt"],
 )
@@ -49,8 +49,8 @@ try:
         args=dict(_not_allowed=True),
         cmds=[["true"]],
         time=1 * w.MIN,
-        mem=10 * w.MiB,
-        disk=10 * w.MiB,
+        mem=10 * w.MB,
+        disk=10 * w.MB,
         outputs=["dummy.txt"],
     )
     msg = "should have raised a WorkflowException"
@@ -64,8 +64,8 @@ try:
         args=dict(index=999),
         cmds=[["./does-not-exist"]],
         time=1 * w.MIN,
-        mem=10 * w.MiB,
-        disk=10 * w.MiB,
+        mem=10 * w.MB,
+        disk=10 * w.MB,
         outputs=["dummy.txt"],
     )
     msg = "should have raised a WorkflowException"
@@ -79,8 +79,8 @@ try:
         args=dict(index=999),
         cmds=[["true"]],
         time=1 * w.MIN,
-        mem=10 * w.MiB,
-        disk=10 * w.MiB,
+        mem=10 * w.MB,
+        disk=10 * w.MB,
         inputs=[Path("./dummy.txt"), Path("./dummy.txt")],
         outputs=["dummy.txt"],
     )
@@ -95,8 +95,8 @@ try:
         args=dict(index=999),
         cmds=[["true"]],
         time=1 * w.MIN,
-        mem=10 * w.MiB,
-        disk=10 * w.MiB,
+        mem=10 * w.MB,
+        disk=10 * w.MB,
         inputs=[Path("./non-existent.txt")],
         outputs=["dummy.txt"],
     )
@@ -111,8 +111,8 @@ try:
         args=dict(index=999),
         cmds=[["true"]],
         time=1 * w.MIN,
-        mem=10 * w.MiB,
-        disk=10 * w.MiB,
+        mem=10 * w.MB,
+        disk=10 * w.MB,
         inputs=[("non-existent-job", "dummy")],
         outputs=["dummy.txt"],
     )
@@ -127,8 +127,8 @@ try:
         args=dict(index=999),
         cmds=[["true"]],
         time=1 * w.MIN,
-        mem=10 * w.MiB,
-        disk=10 * w.MiB,
+        mem=10 * w.MB,
+        disk=10 * w.MB,
         outputs=["dummy.txt", "dummy.txt"],
     )
     msg = "should have raised a WorkflowException"
@@ -141,8 +141,8 @@ bad_job = w.add_job(
     args=dict(index=999),
     cmds=[["true"]],
     time=1 * w.MIN,
-    mem=10 * w.MiB,
-    disk=10 * w.MiB,
+    mem=10 * w.MB,
+    disk=10 * w.MB,
     outputs=["out_0.txt"],
 )
 try:

@@ -47,8 +47,8 @@ class Workflow:
         VAR=val             # - Set variable to the given value.
         ...                 #   May contain `{format}` strings which will be filled by:
                             #   * `_time_min`: requested wall time in minutes.
-                            #   * `_mem_MiB`: requested memory in MiB.
-                            #   * `_disk_MiB`: requested temporary disk space in MiB.
+                            #   * `_mem_MB`: requested memory in MB.
+                            #   * `_disk_MB`: requested temporary disk space in MB.
                             #   * `_threads`: requested number of threads.
 
     # Section headings are arbitrary
@@ -75,9 +75,8 @@ class Workflow:
     DAY = _ureg.Quantity(1.0, "day")
 
     # Useful units of size
-    ZB = _ureg.Quantity(0.0, "byte")
-    MiB = _ureg.Quantity(1.0, "mebibyte")
-    GiB = _ureg.Quantity(1.0, "gibibyte")
+    MB = _ureg.Quantity(1.0, "megabyte")
+    GB = _ureg.Quantity(1.0, "gigabyte")
 
     def __init__(
         self,
@@ -187,8 +186,8 @@ class Workflow:
                 * `_in[n]`: the `n`th input file supplied in `inputs`;
                 * `_out[n]`: the `n`th output file supplied in `outputs`.
                 * `_time_min`: requested wall time in minutes.
-                * `_mem_MiB`: requested memory in MiB.
-                * `_disk_MiB`: requested temporary disk space in MiB.
+                * `_mem_MB`: requested memory in MB.
+                * `_disk_MB`: requested temporary disk space in MB.
                 * `_threads`: requested number of threads.
             time (Unit):
                 Requested wall time of the job.
@@ -199,9 +198,8 @@ class Workflow:
             mem (Unit):
                 Requested memory of the job.
                 Use the pre-defined constants:
-                * `Workflow.ZB`: zero bytes.
-                * `Workflow.MiB`: 2^20 bytes.
-                * `Workflow.GiB`: 2^30 bytes.
+                * `Workflow.MB`: 10^6 bytes.
+                * `Workflow.GB`: 10^9 bytes.
             disk (Unit):
                 Requested temporary disk space of the job.
                 Use the same pre-defined constants as for `mem`.
@@ -264,11 +262,11 @@ class Workflow:
 
         # Normalise and store resource requests
         job["time_min"] = int(math.ceil(time.to(self.MIN).magnitude))
-        job["mem_MiB"] = int(math.ceil(mem.to(self.MiB).magnitude))
-        job["disk_MiB"] = int(math.ceil(disk.to(self.MiB).magnitude))
+        job["mem_MB"] = int(math.ceil(mem.to(self.MB).magnitude))
+        job["disk_MB"] = int(math.ceil(disk.to(self.MB).magnitude))
         job["threads"] = threads
         job["resources"] = {
-            f"_{k}": job[k] for k in {"time_min", "mem_MiB", "disk_MiB", "threads"}
+            f"_{k}": job[k] for k in {"time_min", "mem_MB", "disk_MB", "threads"}
         }
 
         # Create job directory

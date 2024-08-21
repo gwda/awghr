@@ -15,8 +15,8 @@ class SlurmWorkflowWriter(BatchQWorkflowWriter):
 #SBATCH --job-name={jobname}
 #SBATCH --account={account}
 #SBATCH --time={time_min}:00
-#SBATCH --mem={mem_MiB}M
-#SBATCH --tmp={disk_MiB}M
+#SBATCH --mem={mem_MB}M
+#SBATCH --tmp={disk_MB}M
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task={threads}
 #SBATCH --output={stdout}
