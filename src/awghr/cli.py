@@ -159,6 +159,9 @@ def show_jobs(args):
         # Extract job ID from job directory
         job_ID = job_ID_from_dir(args.workflow_dir / "jobs", job)
 
+        # Create prefix for all printed output
+        prefix = "JOB " + job_ID + " {:>5}"
+
         # Show job arguments
         # - Formatted so that it can be used as a filter to --filter
         job_args_str_unquoted = " and ".join(
@@ -167,14 +170,14 @@ def show_jobs(args):
         if '"' not in job_args_str_unquoted:
             job_args_str_unquoted = job_args_str_unquoted.replace("'", '"')
         job_args_str = quote(job_args_str_unquoted)
-        print("JOB {} ARGS {}".format(job_ID, job_args_str))
+        print(prefix.format("ARGS"), job_args_str)
 
         # Show job state
-        print("JOB {} STATE {}".format(job_ID, job_state_cache[job]))
+        print(prefix.format("STATE"), job_state_cache[job])
 
         # Show job directory
         if args.job_dir:
-            print("JOB {} DIR {}".format(job_ID, job))
+            print(prefix.format("DIR"), job)
 
         # Show files in job directory
         if args.files:
@@ -182,14 +185,14 @@ def show_jobs(args):
                 job.iterdir(), key=lambda j: (not j.name.startswith("job_"), j)
             ):
                 f_size = _ureg.Quantity(f.stat().st_size, "byte").to_compact()
-                print("JOB {} FILE {} SIZE {}".format(job_ID, f, format(f_size, "~")))
+                print(prefix.format("FILE"), f, "SIZE", format(f_size, "~"))
 
         # Show standard output
         if args.output:
             job_stdout = job / "job_stdout"
             if job_stdout.is_file():
                 show_stdouterr(
-                    "JOB {} OUT".format(job_ID),
+                    prefix.format("OUT"),
                     job_stdout,
                     args.grep_regex,
                     args.last_n_lines,
@@ -200,7 +203,7 @@ def show_jobs(args):
             job_stderr = job / "job_stderr"
             if job_stderr.is_file():
                 show_stdouterr(
-                    "JOB {} ERR".format(job_ID),
+                    prefix.format("ERR"),
                     job_stderr,
                     args.grep_regex,
                     args.last_n_lines,
