@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from shlex import quote
 
+from . import _ureg
 from .config import show_config
 
 
@@ -162,9 +163,13 @@ def show_jobs(args):
 
         # Show files in job directory
         if args.files:
-            for f in sorted(job.iterdir()):
-                if not f.name.startswith("job_"):
-                    print("JOB {}\tFILE {}".format(job_prefix, f))
+            for f in sorted(
+                job.iterdir(), key=lambda j: (not j.name.startswith("job_"), j)
+            ):
+                f_size = _ureg.Quantity(f.stat().st_size, "byte").to_compact()
+                print(
+                    "JOB {}\tFILE {} SIZE {}".format(job_prefix, f, format(f_size, "~"))
+                )
 
         # Show standard output
         if args.output:
