@@ -150,6 +150,12 @@ def show_jobs(args):
         # Show job state
         print("JOB {}\tSTATE {}".format(job_prefix, job_state_cache[job]))
 
+        # Show files in job directory
+        if args.files:
+            for f in sorted(job.iterdir()):
+                if not f.name.startswith("job_"):
+                    print("JOB {}\tFILE {}".format(job_prefix, f))
+
         # Show standard output
         if args.output:
             job_stdout = job / "job_stdout"
@@ -167,12 +173,6 @@ def show_jobs(args):
                     job_stderr, args.grep_regex, args.last_n_lines
                 ):
                     print("JOB {}\tERR {}".format(job_prefix, line.rstrip()))
-
-        # Show files in job directory
-        if args.files:
-            for f in sorted(job.iterdir()):
-                if not f.name.startswith("job_"):
-                    print("JOB {}\tFILE {}".format(job_prefix, f))
 
 
 def cli(*argv: str):
@@ -246,6 +246,9 @@ def cli(*argv: str):
         help="evaluate EXPR to filter jobs by their arguments",
     )
     parser_show_jobs.add_argument(
+        "-l", "--files", action="store_true", help="show files in job directory"
+    )
+    parser_show_jobs.add_argument(
         "-o", "--output", action="store_true", help="show standard output"
     )
     parser_show_jobs.add_argument(
@@ -269,9 +272,6 @@ def cli(*argv: str):
         type=nonnegative_int,
         default=10,
         help="show the last N lines of standard output/error (default: 10; if zero, show all lines)",
-    )
-    parser_show_jobs.add_argument(
-        "-l", "--files", action="store_true", help="show files in job directory"
     )
     parser_show_jobs.set_defaults(subcommand=show_jobs)
 
