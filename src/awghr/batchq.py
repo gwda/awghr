@@ -226,10 +226,14 @@ function trap_state() {{
     local status=$?
     if test ${{status}} -eq 0; then
         echo SUCCESS > '{jobstate_file}'
+        exit 0
+    elif test ${{status}} -eq 77; then
+        echo SUCCESS/SKIPPED > '{jobstate_file}'
+        exit 0
     else
         echo FAILED > '{jobstate_file}'
+        exit ${{status}}
     fi
-    exit ${{status}}
 }}
 trap trap_state EXIT
 echo RUNNING > '{jobstate_file}'
@@ -242,7 +246,8 @@ echo RUNNING > '{jobstate_file}'
                         needs_jobstate_file = jobs[needs_job_ID]["dir"] / "job_state"
 
                         # Test that job was successful
-                        f += f"test X`cat '{needs_jobstate_file}' 2>/dev/null` = XSUCCESS"
+                        f += f"jobstate=`cat '{needs_jobstate_file}' 2>/dev/null || true`"
+                        f += """test "X${jobstate}" = XSUCCESS"""
 
                     # Hard-link standard output/error files from job array back to job directory
                     for stdouterr in ("job_stdout", "job_stderr"):
@@ -307,12 +312,13 @@ echo RUNNING > '{jobstate_file}'
             # Default to success
             f += "workstate=SUCCESS"
 
-            # Check all jobs; write directories of failed jobs to file
+            # Check state of all jobs; write directories of failed jobs to file
             for _, job_array in job_arrays.items():
                 for job in job_array:
                     jobstate_file = job["dir"] / "job_state"
                     f += f"""
-if test X`cat '{jobstate_file}' 2>/dev/null` != XSUCCESS; then
+jobstate=`cat '{jobstate_file}' 2>/dev/null || true`
+if test "X${{jobstate%%/*}}" != XSUCCESS; then
     echo '{job['dir']}' >> '{failedjobfile}'
     workstate=FAILED
 fi
@@ -372,8 +378,8 @@ function job_array_indexes() {
     batchq_array_indexes=
     batchq_array_count=0
     while read idx jobdir; do
-        jobstate="${jobdir}/job_state"
-        if test X`cat "${jobstate}" 2>/dev/null` != XSUCCESS; then
+        jobstate=`cat "${jobdir}/job_state" 2>/dev/null || true`
+        if test "X${jobstate%%/*}" != XSUCCESS; then
             batchq_array_indexes="${batchq_array_indexes} ${idx}"
             : $((++batchq_array_count))
         fi
@@ -443,7 +449,8 @@ function job_array_needs_ID_idx() {{
                     )
                     needs_jobarray_index_file = needs_jobarraydir / "job_array_indexes"
                     f += f"""
-if test X`cat '{needs_jobstate_file}' 2>/dev/null` != XSUCCESS; then
+jobstate=`cat '{needs_jobstate_file}' 2>/dev/null || true`
+if test "X${{jobstate}}" != XSUCCESS; then
     test -f '{needs_jobarray_batchqID_file}' || fail 'Dependent job array {needs_job_array_ID} has not been submitted'
     batchq_ID=`cat '{needs_jobarray_batchqID_file}'`
     job_array_needs_ID_idx "${{batchq_ID}}" '{needs_jobarray_index_file}' '{needs_job_array_idx}'

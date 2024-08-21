@@ -3,5 +3,6 @@ cli_help
 config
 workflow
 simple
+skipped
 dag
 dag_fail

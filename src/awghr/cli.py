@@ -263,6 +263,14 @@ def cli(*argv: str):
         help="show only successful jobs",
     )
     parser_show_jobs.add_argument(
+        "-K",
+        "--skipped",
+        dest="state",
+        action="store_const",
+        const="SUCCESS/SKIPPED",
+        help="show only skipped jobs",
+    )
+    parser_show_jobs.add_argument(
         "-F",
         "--failed",
         dest="state",
