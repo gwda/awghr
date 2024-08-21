@@ -55,52 +55,54 @@ def read_stdouterr(stdfile, grep_regex, last_n_lines):
 def show_jobs(args):
 
     # Check for workflows
-    workflow_job_list_files = list(args.workflow_dir.glob("workflow_jobs_*.txt"))
-    if len(workflow_job_list_files) == 0:
+    job_lists = list(args.workflow_dir.glob("workflow_jobs_*.txt"))
+    if len(job_lists) == 0:
         msg = f"'{args.workflow_dir}' is not a workflow directory"
         raise FileNotFoundError(msg)
 
     # Get list of jobs and their states
     jobs = []
-    job_state = {}
-    if args.all_jobs:
+    job_state_cache = {}
+    for job_list in job_lists:
 
-        # Get all jobs
-        for job_list in workflow_job_list_files:
-            with job_list.open() as f:
-                jobs.extend([Path(job.strip()) for job in f])
-
-        # Get job states
-        for job in jobs:
-            job_state_file = job / "job_state"
-            if job_state_file.is_file():
-                job_state_last_modified = datetime.fromtimestamp(
-                    job_state_file.stat().st_mtime
-                )
-                job_state[job] = (
-                    job_state_file.read_text().strip()
-                    + " "
-                    + job_state_last_modified.strftime("%a, %d %b %Y %H:%M:%S %Z")
-                )
-            else:
-                job_state[job] = "PENDING"
-
-    else:
-
-        # Get failed jobs
-        for workflow_job_list_file in workflow_job_list_files:
-            workflow_failed_job_list_file = (
-                workflow_job_list_file.parent
-                / workflow_job_list_file.name.replace("_jobs_", "_failed_jobs_")
+        # If only showing failed jobs, use failed jobs list if possible
+        if args.state == "FAILED":
+            failed_job_list = job_list.parent / job_list.name.replace(
+                "_jobs_", "_failed_jobs_"
             )
-            if workflow_failed_job_list_file.is_file():
-                for job_list in workflow_job_list_files:
-                    with job_list.open() as f:
-                        jobs.extend([Path(job.strip()) for job in f])
+            if failed_job_list.is_file():
 
-        # Set job states
-        for job in jobs:
-            job_state[job] = "FAILED"
+                # Read list of failed jobs
+                with failed_job_list.open() as f:
+                    for job in [Path(line.strip()) for line in f]:
+                        jobs.append(job)
+                        job_state_cache[job] = "FAILED"
+
+                continue
+
+        # Read job state files
+        with job_list.open() as f:
+            for job in [Path(line.strip()) for line in f]:
+                job_state_file = job / "job_state"
+                if job_state_file.is_file():
+                    job_state = job_state_file.read_text().strip()
+                    if args.state == "ALL" or args.state == job_state:
+                        jobs.append(job)
+                        job_state_last_modified = datetime.fromtimestamp(
+                            job_state_file.stat().st_mtime
+                        )
+                        job_state_cache[job] = (
+                            job_state
+                            + " "
+                            + job_state_last_modified.strftime(
+                                "%a, %d %b %Y %H:%M:%S %Z"
+                            )
+                        )
+                else:
+                    job_state = "PENDING"
+                    if args.state == "ALL" or args.state == job_state:
+                        jobs.append(job)
+                        job_state_cache[job] = job_state
 
     if len(jobs) == 0:
         return
@@ -146,7 +148,7 @@ def show_jobs(args):
         job_prefix = ",".join([f"{k}={v}" for k, v in job_args])
 
         # Show job state
-        print("JOB {}\tSTATE {}".format(job_prefix, job_state[job]))
+        print("JOB {}\tSTATE {}".format(job_prefix, job_state_cache[job]))
 
         # Show standard output
         if args.output:
@@ -189,11 +191,46 @@ def cli(*argv: str):
         "-d", "--workflow-dir", type=Path, default=Path.cwd(), help="workflow directory"
     )
     parser_show_jobs.add_argument(
-        "-a",
+        "-A",
         "--all-jobs",
-        action="store_true",
-        help="show all jobs (default: show incomplete jobs)",
+        dest="state",
+        action="store_const",
+        const="ALL",
+        help="show all jobs",
     )
+    parser_show_jobs.add_argument(
+        "-P",
+        "--pending-jobs",
+        dest="state",
+        action="store_const",
+        const="PENDING",
+        help="show only pending jobs",
+    )
+    parser_show_jobs.add_argument(
+        "-R",
+        "--running-jobs",
+        dest="state",
+        action="store_const",
+        const="RUNNING",
+        help="show only running jobs",
+    )
+    parser_show_jobs.add_argument(
+        "-S",
+        "--success-jobs",
+        dest="state",
+        action="store_const",
+        const="SUCCESS",
+        help="show only successful jobs",
+    )
+    parser_show_jobs.add_argument(
+        "-F",
+        "--failed-jobs",
+        dest="state",
+        action="store_const",
+        const="FAILED",
+        help="show only failed jobs (default)",
+    )
+    parser_show_jobs.set_defaults(state="FAILED")
     parser_show_jobs.add_argument(
         "-f",
         "--filter-by",

@@ -47,7 +47,7 @@ workdir = w.write()
 
 logger.info("test command line interface")
 print("-----", flush=True)
-cli("-d", str(workdir), "-a")
+cli("-d", str(workdir), "-A")
 print("-----", flush=True)
 
 logger.info("submit workflow and wait for it to finish")
@@ -87,9 +87,9 @@ for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
 
 logger.info("test command line interface")
 print("-----", flush=True)
-cli("jobs", "-d", str(workdir), "-ae", "-n", "1", "-g", "a")
+cli("jobs", "-d", str(workdir), "-Ae", "-n", "1", "-g", "a")
 print("-----", flush=True)
-cli("-d", str(workdir), "-f", "index < 5", "-aol")
+cli("-d", str(workdir), "-f", "index < 5", "-Aol")
 print("-----", flush=True)
 try:
     cli("jobs", "-d", str(workdir), "-n", "-1")
@@ -98,7 +98,7 @@ try:
 except SystemExit:
     pass
 try:
-    cli("jobs", "-d", str(workdir), "-f", "index == len([1,2,3])", "-al")
+    cli("jobs", "-d", str(workdir), "-f", "index == len([1,2,3])", "-Al")
     msg = "should have raised a NameError"
     raise AssertionError(msg)
 except NameError:
