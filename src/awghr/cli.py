@@ -150,6 +150,10 @@ def show_jobs(args):
         # Show job state
         print("JOB {}\tSTATE {}".format(job_prefix, job_state_cache[job]))
 
+        # Show job directory
+        if args.job_dir:
+            print("JOB {}\tDIR {}".format(job_prefix, job))
+
         # Show files in job directory
         if args.files:
             for f in sorted(job.iterdir()):
@@ -244,6 +248,9 @@ def cli(*argv: str):
         type=str,
         default=None,
         help="evaluate EXPR to filter jobs by their arguments",
+    )
+    parser_show_jobs.add_argument(
+        "-j", "--job-dir", action="store_true", help="show the job directory"
     )
     parser_show_jobs.add_argument(
         "-l", "--files", action="store_true", help="show files in job directory"
