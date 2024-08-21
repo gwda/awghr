@@ -20,11 +20,11 @@ def nonnegative_int(value):
     return value
 
 
-def read_stdouterr(stdfile, grep_regex, last_n_lines):
+def show_stdouterr(prefix, stdfile, grep_regex, last_n_lines):
 
     # Store lines in deque
-    lines = deque()
-    max_lines = False
+    last_lines = deque()
+    max_last_lines = False
 
     # Open standard output/error file
     with stdfile.open() as f:
@@ -42,17 +42,23 @@ def read_stdouterr(stdfile, grep_regex, last_n_lines):
             if discard_line:
                 continue
 
-            # Add lines to deque, keeping only the `last_n_lines`
-            # lines (provided `last_n_lines` > 0)
-            if max_lines:
-                lines.popleft()
-                lines.append(line)
-            else:
-                lines.append(line)
-                if len(lines) == last_n_lines:
-                    max_lines = True
+            # If not showing last lines, print straight away
+            if last_n_lines == 0:
+                print(prefix, line)
+                continue
 
-    return lines
+            # Add lines to deque, keeping only the `last_n_lines` lines
+            if max_last_lines:
+                last_lines.popleft()
+                last_lines.append(line)
+            else:
+                last_lines.append(line)
+                if len(last_lines) == last_n_lines:
+                    max_last_lines = True
+
+    # Print any last lines
+    for line in last_lines:
+        print(prefix, line)
 
 
 def show_jobs(args):
@@ -178,19 +184,23 @@ def show_jobs(args):
         if args.output:
             job_stdout = job / "job_stdout"
             if job_stdout.is_file():
-                for line in read_stdouterr(
-                    job_stdout, args.grep_regex, args.last_n_lines
-                ):
-                    print("JOB {} OUT {}".format(job_ID, line.rstrip()))
+                show_stdouterr(
+                    "JOB {} OUT".format(job_ID),
+                    job_stdout,
+                    args.grep_regex,
+                    args.last_n_lines,
+                )
 
         # Show standard error
         if args.error:
             job_stderr = job / "job_stderr"
             if job_stderr.is_file():
-                for line in read_stdouterr(
-                    job_stderr, args.grep_regex, args.last_n_lines
-                ):
-                    print("JOB {} ERR {}".format(job_ID, line.rstrip()))
+                show_stdouterr(
+                    "JOB {} ERR".format(job_ID),
+                    job_stderr,
+                    args.grep_regex,
+                    args.last_n_lines,
+                )
 
 
 def cli(*argv: str):
