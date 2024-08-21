@@ -203,8 +203,8 @@ batchq_job_index="$1"
 """
 
                 # Change to job scratch directory
-                f += f'test -d "{self.jobfs}" || mkdir -p "{self.jobfs}" || fail \'Could not make scratch directory {self.jobfs}\''
-                f += f'cd "{self.jobfs}"'
+                f += f"""test -d "{self.jobfs}" || mkdir -p "{self.jobfs}" || fail 'Could not make scratch directory {self.jobfs}'"""
+                f += f'''cd "{self.jobfs}"'''
 
                 # Select which job in job array to run
                 f += "case ${batchq_job_index} in"
@@ -273,7 +273,7 @@ echo RUNNING > '{jobstate_file}'
 
                 # Handle an incorrect job array index
                 f += "(*)"
-                f += "fail \"Incorrect job array index '${batchq_job_index}'\""
+                f += '''fail "Incorrect job array index '${batchq_job_index}'"'''
 
                 # end: Select which job in job array to run
                 f += "esac"
@@ -318,7 +318,7 @@ if test X`cat '{jobstate_file}' 2>/dev/null` != XSUCCESS; then
 fi
 """
             # Write workflow state
-            f += f"echo \"${{workstate}}\" > '{workstatefile}'"
+            f += f"""echo "${{workstate}}" > '{workstatefile}'"""
 
             # Remove file indicating workflow has been submitted
             f += f"rm -f '{submittedfile}'"
