@@ -113,7 +113,7 @@ def show_jobs(args):
         with (job / "job_args.json").open() as f:
             job_args_cache[job] = json.load(f)
 
-    if args.filter_by:
+    if args.filter_expr:
 
         # Filter jobs
         filtered_jobs = []
@@ -121,10 +121,10 @@ def show_jobs(args):
             job_args = job_args_cache[job]
 
             # Compile filter
-            filter_code = compile(args.filter_by, "--filter-by", "eval")
+            filter_code = compile(args.filter_expr, "--filter", "eval")
             for name in filter_code.co_names:
                 if name not in job_args:
-                    msg = "--filter-by may only reference job arguments '{}'".format(
+                    msg = "--filter may only reference job arguments '{}'".format(
                         "', '".join(job_args.keys())
                     )
                     raise NameError(msg)
@@ -188,11 +188,16 @@ def cli(*argv: str):
         "jobs", description="show jobs", help="show jobs (default)"
     )
     parser_show_jobs.add_argument(
-        "-d", "--workflow-dir", type=Path, default=Path.cwd(), help="workflow directory"
+        "-d",
+        "--workflow-dir",
+        metavar="DIR",
+        type=Path,
+        default=Path.cwd(),
+        help="set workflow directory to DIR",
     )
     parser_show_jobs.add_argument(
         "-A",
-        "--all-jobs",
+        "--all",
         dest="state",
         action="store_const",
         const="ALL",
@@ -200,7 +205,7 @@ def cli(*argv: str):
     )
     parser_show_jobs.add_argument(
         "-P",
-        "--pending-jobs",
+        "--pending",
         dest="state",
         action="store_const",
         const="PENDING",
@@ -208,7 +213,7 @@ def cli(*argv: str):
     )
     parser_show_jobs.add_argument(
         "-R",
-        "--running-jobs",
+        "--running",
         dest="state",
         action="store_const",
         const="RUNNING",
@@ -216,7 +221,7 @@ def cli(*argv: str):
     )
     parser_show_jobs.add_argument(
         "-S",
-        "--success-jobs",
+        "--success",
         dest="state",
         action="store_const",
         const="SUCCESS",
@@ -224,7 +229,7 @@ def cli(*argv: str):
     )
     parser_show_jobs.add_argument(
         "-F",
-        "--failed-jobs",
+        "--failed",
         dest="state",
         action="store_const",
         const="FAILED",
@@ -233,10 +238,12 @@ def cli(*argv: str):
     parser_show_jobs.set_defaults(state="FAILED")
     parser_show_jobs.add_argument(
         "-f",
-        "--filter-by",
+        "--filter",
+        metavar="EXPR",
+        dest="filter_expr",
         type=str,
         default=None,
-        help="evaluate to filter jobs by their arguments",
+        help="evaluate EXPR to filter jobs by their arguments",
     )
     parser_show_jobs.add_argument(
         "-o", "--output", action="store_true", help="show standard output"
@@ -246,18 +253,22 @@ def cli(*argv: str):
     )
     parser_show_jobs.add_argument(
         "-g",
-        "--grep-regex",
+        "--grep",
+        metavar="REGEX",
+        dest="grep_regex",
         type=re.compile,
         action="append",
         default=[],
-        help="filter lines of standard output/error through regular expressions",
+        help="filter lines of standard output/error through REGEX",
     )
     parser_show_jobs.add_argument(
         "-n",
-        "--last-n-lines",
+        "--last",
+        metavar="N",
+        dest="last_n_lines",
         type=nonnegative_int,
         default=10,
-        help="show the last <n> lines of standard output/error (default: 10; if zero, show all lines)",
+        help="show the last N lines of standard output/error (default: 10; if zero, show all lines)",
     )
     parser_show_jobs.add_argument(
         "-l", "--files", action="store_true", help="show files in job directory"
@@ -270,7 +281,11 @@ def cli(*argv: str):
     )
     parser_show_config.add_argument("--tags", nargs="+", help="assume these tags")
     parser_show_config.add_argument(
-        "--batch", type=str, default=None, help="assume this batch system"
+        "--batch",
+        metavar="BATCH_SYSTEM",
+        type=str,
+        default=None,
+        help="assume this batch system",
     )
     parser_show_config.set_defaults(subcommand=show_config)
 
