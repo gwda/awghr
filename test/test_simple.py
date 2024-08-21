@@ -98,12 +98,6 @@ try:
 except SystemExit:
     pass
 try:
-    cli("jobs", "-d", str(workdir), "-f", "index == len([1,2,3])", "-Al")
-    msg = "should have raised a NameError"
-    raise AssertionError(msg)
-except NameError:
-    pass
-try:
     cli("jobs")
     msg = "should have raised a FileNotFoundError"
     raise AssertionError(msg)

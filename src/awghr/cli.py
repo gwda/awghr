@@ -5,6 +5,7 @@ import sys
 from collections import deque
 from datetime import datetime
 from pathlib import Path
+from shlex import quote
 
 from .config import show_config
 
@@ -122,12 +123,11 @@ def show_jobs(args):
 
             # Compile filter
             filter_code = compile(args.filter_expr, "--filter", "eval")
+
+            # Set any unrecognised names to None
             for name in filter_code.co_names:
                 if name not in job_args:
-                    msg = "--filter may only reference job arguments '{}'".format(
-                        "', '".join(job_args.keys())
-                    )
-                    raise NameError(msg)
+                    job_args[name] = None
 
             # Execute filter
             if eval(filter_code, {"__builtins__": {}}, job_args):
@@ -145,7 +145,13 @@ def show_jobs(args):
             print("")
 
         # Create job prefix
-        job_prefix = ",".join([f"{k}={v}" for k, v in job_args])
+        # - Formatted so that it can be used as a filter to --filter
+        job_prefix_unquoted = " and ".join(
+            ["{}=={}".format(k, repr(v)) for k, v in job_args]
+        )
+        if '"' not in job_prefix_unquoted:
+            job_prefix_unquoted = job_prefix_unquoted.replace("'", '"')
+        job_prefix = quote(job_prefix_unquoted)
 
         # Show job state
         print("JOB {}\tSTATE {}".format(job_prefix, job_state_cache[job]))
