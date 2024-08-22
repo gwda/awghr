@@ -1,6 +1,8 @@
+import json
 import logging
 import subprocess
 import sys
+from pathlib import Path
 
 from awghr import Workflow
 from awghr.cli import cli
@@ -48,6 +50,16 @@ logger.info("check workflow state is SUCCESS")
 statefile = list(workdir.glob("workflow_state_*.txt"))[0]
 state = statefile.read_text().strip()
 assert state == "SUCCESS"
+
+logger.info("check job states are as expected")
+joblistfile = list(workdir.glob("workflow_jobs_*.txt"))[0]
+for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
+    jobargs = json.load((jobdir / "job_args.json").open())
+    jobstate = (jobdir / "job_state").read_text().strip()
+    if jobargs["exit_code"] == 77:
+        assert jobstate == "SUCCESS/SKIPPED"
+    else:
+        assert jobstate == "SUCCESS"
 
 logger.info("check that output file were (not) created as expected")
 outfiledir = workdir / "outputs"
@@ -100,10 +112,16 @@ logger.info("submit workflow and wait for it to finish")
 subprocess.run([workdir / "submit"], check=True)
 subprocess.run([workdir / "wait", "-n", "1", workdir / "queue"], check=True)
 
-logger.info("check workflow state is FAILED")
+logger.info("check workflow state is SUCCESS")
 statefile = list(workdir.glob("workflow_state_*.txt"))[0]
 state = statefile.read_text().strip()
-assert state == "FAILED"
+assert state == "SUCCESS"
+
+logger.info("check job states are as expected")
+joblistfile = list(workdir.glob("workflow_jobs_*.txt"))[0]
+for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
+    jobstate = (jobdir / "job_state").read_text().strip()
+    assert jobstate == "SUCCESS/SKIPPED"
 
 logger.info("check that output file were not created as expected")
 outfiledir = workdir / "outputs"

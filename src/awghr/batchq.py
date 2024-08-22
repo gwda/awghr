@@ -245,9 +245,15 @@ echo RUNNING > '{jobstate_file}'
                         # Path to file indicating job state
                         needs_jobstate_file = jobs[needs_job_ID]["dir"] / "job_state"
 
-                        # Test that job was successful
-                        f += f"jobstate=`cat '{needs_jobstate_file}' 2>/dev/null || true`"
-                        f += """test "X${jobstate}" = XSUCCESS"""
+                        # Test that job was successful, or skip if it was skipped
+                        f += f"""
+jobstate=`cat '{needs_jobstate_file}' 2>/dev/null || true`
+if test "X${{jobstate}}" = XSUCCESS/SKIPPED; then
+    exit 77
+elif test "X${{jobstate}}" != XSUCCESS; then
+    fail 'Prerequisite job {needs_job_ID} was not successful'
+fi
+"""
 
                     # Hard-link standard output/error files from job array back to job directory
                     for stdouterr in ("job_stdout", "job_stderr"):
@@ -450,8 +456,8 @@ function job_array_needs_ID_idx() {{
                     needs_jobarray_index_file = needs_jobarraydir / "job_array_indexes"
                     f += f"""
 jobstate=`cat '{needs_jobstate_file}' 2>/dev/null || true`
-if test "X${{jobstate}}" != XSUCCESS; then
-    test -f '{needs_jobarray_batchqID_file}' || fail 'Dependent job array {needs_job_array_ID} has not been submitted'
+if test "X${{jobstate}}" != XSUCCESS && test "X${{jobstate}}" != XSUCCESS/SKIPPED; then
+    test -f '{needs_jobarray_batchqID_file}' || fail 'Prerequisite job array {needs_job_array_ID} has not been submitted'
     batchq_ID=`cat '{needs_jobarray_batchqID_file}'`
     job_array_needs_ID_idx "${{batchq_ID}}" '{needs_jobarray_index_file}' '{needs_job_array_idx}'
     batchq_needs_IDs="${{batchq_needs_IDs}}:${{batchq_needs_ID_idx}}"
