@@ -59,7 +59,7 @@ assert len(list(workdir.glob("workflow_jobs_*.txt"))) == 1
 assert len(list(workdir.glob("workflow_state_*.txt"))) == 1
 assert len(list(workdir.glob(".workflow_submitted_*.txt"))) == 0
 
-logger.info("check state is SUCCESS")
+logger.info("check workflow state is SUCCESS")
 statefile = list(workdir.glob("workflow_state_*.txt"))[0]
 state = statefile.read_text().strip()
 assert state == "SUCCESS"

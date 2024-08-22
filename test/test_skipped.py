@@ -44,7 +44,7 @@ logger.info("submit workflow and wait for it to finish")
 subprocess.run([workdir / "submit"], check=True)
 subprocess.run([workdir / "wait", "-n", "1", workdir / "queue"], check=True)
 
-logger.info("check state")
+logger.info("check workflow state is SUCCESS")
 statefile = list(workdir.glob("workflow_state_*.txt"))[0]
 state = statefile.read_text().strip()
 assert state == "SUCCESS"
@@ -100,7 +100,7 @@ logger.info("submit workflow and wait for it to finish")
 subprocess.run([workdir / "submit"], check=True)
 subprocess.run([workdir / "wait", "-n", "1", workdir / "queue"], check=True)
 
-logger.info("check state is FAILED")
+logger.info("check workflow state is FAILED")
 statefile = list(workdir.glob("workflow_state_*.txt"))[0]
 state = statefile.read_text().strip()
 assert state == "FAILED"
