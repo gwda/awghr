@@ -3,6 +3,10 @@ import re
 import stat
 from pathlib import Path
 
+from pint import UnitRegistry
+
+_ureg = UnitRegistry()
+
 
 class WorkflowException(Exception):
     """Raise for workflow generation errors"""

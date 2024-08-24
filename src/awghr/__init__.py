@@ -11,7 +11,7 @@ from pathlib import Path
 from shutil import which
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from pint import Unit, UnitRegistry
+from pint import Unit
 
 from .config import read_config
 from .util import (
@@ -19,13 +19,12 @@ from .util import (
     JobFileList,
     ProgressLogger,
     WorkflowException,
+    _ureg,
     job_dir_from_ID,
 )
 
 __author__ = "Karl Wette"
 __version__ = "0.1"
-
-_ureg = UnitRegistry()
 
 # Set up logging
 logging.basicConfig(

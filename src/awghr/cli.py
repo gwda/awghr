@@ -7,9 +7,8 @@ from collections import deque
 from datetime import datetime
 from pathlib import Path
 
-from . import _ureg
 from .config import show_config
-from .util import job_ID_from_dir
+from .util import _ureg, job_ID_from_dir
 
 
 def resolved_path(value):
