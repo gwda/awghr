@@ -145,12 +145,12 @@ elif test "X${{jobstate}}" != XSUCCESS; then
 fi
 """
 
-                # Hard-link input files into job scratch directory
+                # Soft-link input files into job scratch directory
                 for infile in job["infiles"]:
                     f += (
                         f"test -f '{infile}' || fail 'Missing input file {infile.name}'"
                     )
-                    f += f"ln -f '{infile}' './{infile.name}'"
+                    f += f"ln -sf '{infile}' './{infile.name}'"
 
                 # Run job script
                 job_stdout_file = job["dir"] / "job_stdout"
