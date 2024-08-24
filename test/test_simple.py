@@ -48,6 +48,11 @@ for i in range(10):
 
 workdir = w.write()
 
+logger.info("test command line interface")
+print("-----", flush=True)
+cli("-d", str(workdir), "-P")
+print("-----", flush=True)
+
 logger.info("submit workflow and wait for it to finish")
 subprocess.run([workdir / "submit"], check=True)
 subprocess.run([workdir / "wait", "-n", "1", workdir / "queue"], check=True)
