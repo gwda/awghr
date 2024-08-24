@@ -252,7 +252,7 @@ class Workflow:
             raise WorkflowException(msg)
 
         # Generate JSON representation of arguments
-        args_json = json.dumps(args, sort_keys=True)
+        args_json = json.dumps(args, default=str, sort_keys=True)
 
         # Generate job ID as hash of JSON representation,
         # and update hash used to generate workflow ID
