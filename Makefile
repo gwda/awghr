@@ -2,7 +2,7 @@ ifndef VIRTUAL_ENV
 $(error Missing virtual environment)
 endif
 
-BATCH_SYSTEMS = pbs slurm
+BATCH_SYSTEMS = slurm pbs
 
 .PHONY: build
 build: .initialised-dev
@@ -64,7 +64,12 @@ INIT_DOCKER_TARGETS = $(addprefix .initialised-docker-,$(BATCH_SYSTEMS))
 $(INIT_DOCKER_TARGETS): .initialised-docker-%: Makefile
 	-docker stop awghr-testing-$* >/dev/null
 	-docker rm awghr-testing-$* >/dev/null
-	docker create -it --hostname "$*-ubuntu-host" --name "awghr-testing-$*" "kwwette/testing-batch-system:$*" /bin/bash /tmp/test/runner.sh "$*" >/dev/null
+	docker create -it \
+		--hostname "$*-ubuntu-host" \
+		--name "awghr-testing-$*" \
+		"kwwette/testing-batch-system:$*" \
+		/bin/bash /tmp/test/runner.sh "$*" \
+		>/dev/null
 	@date > $@
 
 DEBUG_CHECK_TARGETS = $(addprefix debug-,$(CHECK_TARGETS))
@@ -75,7 +80,7 @@ $(DEBUG_CHECK_TARGETS): debug-check-%:
 	docker run -it --hostname "$*-ubuntu-host" --rm --entrypoint /usr/local/bin/entrypoint "$${image}" /bin/bash; \
 	docker image rm "$${image}" >/dev/null
 
-DOCKER_IMAGES = htcondor pbs slurm
+DOCKER_IMAGES = $(BATCH_SYSTEMS) htcondor
 BUILD_DOCKER_TARGETS = $(addprefix docker-,$(DOCKER_IMAGES))
 
 .PHONY: docker
@@ -84,12 +89,12 @@ docker: $(BUILD_DOCKER_TARGETS)
 .PHONY: $(BUILD_DOCKER_TARGETS)
 $(BUILD_DOCKER_TARGETS): docker-%:
 	docker buildx build \
-	--allow network.host \
-	--build-arg "BUILDKIT_SANDBOX_HOSTNAME=$*-ubuntu-host" \
-	--add-host "$*-ubuntu-host:host-gateway" \
-	--file "docker/$*.Dockerfile" \
-	--tag "kwwette/testing-batch-system:$*" \
-	docker/
+		--allow network.host \
+		--build-arg "BUILDKIT_SANDBOX_HOSTNAME=$*-ubuntu-host" \
+		--add-host "$*-ubuntu-host:host-gateway" \
+		--file "docker/$*.Dockerfile" \
+		--tag "kwwette/testing-batch-system:$*" \
+		docker/
 
 .PHONY: docker-push
 docker-push:
