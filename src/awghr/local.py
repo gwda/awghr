@@ -85,9 +85,7 @@ trap trap_workflow_state EXIT
             f += f"rm -f '{failedjobfile}'"
 
             # Run jobs in order
-            for n, job in enumerate(
-                sorted(jobs.values(), key=lambda job: job["order"]), start=1
-            ):
+            for n, job in enumerate(jobs.values(), start=1):
 
                 # Run jobs inside a sub-shell
                 f += "("
