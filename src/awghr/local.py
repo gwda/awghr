@@ -67,7 +67,6 @@ function trap_workflow_state() {
                 f += f"""
     jobstate=`cat '{jobstate_file}' 2>/dev/null || true`
     if test "X${{jobstate%%/*}}" != XSUCCESS; then
-        echo '{job['dir']}' >> '{failedjobfile}'
         workstate=FAILED
     fi
 """
@@ -107,6 +106,7 @@ function trap_job_state() {{
         exit 0
     else
         echo FAILED > '{jobstate_file}'
+        echo '{job["dir"]}' >> '{failedjobfile}'
         exit ${{status}}
     fi
 }}
