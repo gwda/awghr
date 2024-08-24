@@ -125,11 +125,13 @@ def show_jobs(args):
         with (job / "job_args.json").open() as f:
             job_args_cache[job] = json.load(f)
 
-    # Find constant job arguments
-    constant_job_args = set(job_args_cache[jobs[0]].items())
-    for job in jobs[1:]:
-        constant_job_args = constant_job_args & set(job_args_cache[job].items())
-    constant_job_args = set(k for k, v in constant_job_args)
+    # Find constant job arguments, in order to hide them in output
+    constant_job_args = set()
+    if len(jobs) > 1:
+        constant_job_args = set(job_args_cache[jobs[0]].items())
+        for job in jobs[1:]:
+            constant_job_args = constant_job_args & set(job_args_cache[job].items())
+        constant_job_args = set(k for k, v in constant_job_args)
 
     if args.filter_expr:
 
