@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Dict
 
-from .util import FileLineWriter
+from .util import FileLineWriter, job_dir_from_ID
 
 _logger = logging.getLogger(__name__)
 
@@ -123,10 +123,10 @@ echo RUNNING > '{jobstate_file}'
 """
 
                 # Change to job scratch directory
-                jobscratchdir_name = workflowname + "_" + job["ID"]
+                jobscratchdir = job_dir_from_ID(batchdir / "tmp", job["ID"])
                 f += f"""
-mkdir -p '/tmp/{jobscratchdir_name}'
-cd '/tmp/{jobscratchdir_name}'
+mkdir -p '{jobscratchdir}'
+cd '{jobscratchdir}'
 """
 
                 # Check that all prerequisite jobs were successfully run
