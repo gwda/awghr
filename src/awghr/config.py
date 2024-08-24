@@ -23,7 +23,6 @@ _batch_systems: List[Tuple[str, str, Any]] = [
 _keys: Dict[str, Any] = {
     "account": None,
     "basedir": Path.cwd(),
-    "dated?": True,
     "envlist": "",
 }
 

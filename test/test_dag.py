@@ -12,7 +12,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-w = Workflow(name="dag", dated=False, tags=["maxarray"])
+w = Workflow(name="dag", tags=["maxarray"])
 
 # Build up files containing up to 3 digits
 for level in range(3):

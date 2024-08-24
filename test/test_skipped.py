@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 # -- Test that independent jobs can be skipped
 
-w = Workflow(name="skipped1", dated=False)
+w = Workflow(name="skipped1")
 
 # Add jobs
 for exit_code in (0, 77):
@@ -71,7 +71,7 @@ print("-----", flush=True)
 
 # -- Test that dependent jobs cannot be skipped
 
-w = Workflow(name="skipped2", dated=False)
+w = Workflow(name="skipped2")
 
 # Add jobs
 j1 = w.add_job(

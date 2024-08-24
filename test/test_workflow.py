@@ -13,7 +13,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Create workflow
-w = Workflow(name="add_job", dated=False)
+w = Workflow(name="add_job")
 
 # Try creating a workflow with a non-existent base directory
 try:

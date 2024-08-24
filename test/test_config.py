@@ -66,22 +66,6 @@ account = acct
 
 
 @test
-def invalid_section_key_type():
-    src = default_src
-    src += """
-[DEFAULT]
-account = acct
-dated? = why
-"""
-    try:
-        read_config(src)
-        msg = "should have raised a ConfigException"
-        raise AssertionError(msg)
-    except ConfigException:
-        pass
-
-
-@test
 def missing_required_key():
     try:
         _keys = awghr.config._keys

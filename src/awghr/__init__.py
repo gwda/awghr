@@ -6,7 +6,6 @@ import re
 import shlex
 import sys
 from contextlib import ExitStack
-from datetime import datetime
 from hashlib import blake2b
 from pathlib import Path
 from shutil import which
@@ -47,7 +46,6 @@ class Workflow:
     [DEFAULT]           # This section match all batch systems/hosts/tags
     account = ...           # Default value of `account` argument passed to Workflow()
     basedir = ...           # Default value of `basedir` argument passed to Workflow()
-    dated? = ...            # Default value of `dated` argument passed to Workflow()
     envlist =               # List of environment variables to save/set in job script:
         *PATH               # - Save any variables matching this regular expression.
         VAR=val             # - Set variable to the given value.
@@ -91,7 +89,6 @@ class Workflow:
         tags: Optional[List[str]] = None,
         account: Optional[str] = None,
         basedir: Optional[Path] = None,
-        dated: Optional[bool] = None,
     ):
         """
         Create a new workflow.
@@ -105,13 +102,10 @@ class Workflow:
                 Accounting tag the workflow should be charged against.
                 If not given, use the default value retrieved from `~/.awghr.cfg`.
             basedir (Optional[Path]):
-                Base directory for all workflows; this workflow will be written to a subdirectory.
+                Base directory for all workflows. This workflow will be written to a dated
+                subdirectory; a symlink will be created to the most recent directory.
                 If not given, use the default value retrieved from `~/.awghr.cfg`,
                 or else the current directory.
-            dated (Optional[bool]):
-                If true, the workflow subdirectory in `basedir` will be named after the current
-                date and time, plus `name`. If false, the workflow subdirectory will be just `name`.
-                If not given, use the default value retrieved from `~/.awghr.cfg`, or else true.
         """
 
         # Read configuration
@@ -123,8 +117,6 @@ class Workflow:
             account = cfg["account"]
         if basedir is None:
             basedir = cfg["basedir"]
-        if dated is None:
-            dated = cfg["dated?"]
 
         # Check input values
         try:
@@ -135,18 +127,12 @@ class Workflow:
 
         # Initialise internal variables
         self._name = name
+        self._workdir = basedir / self._name
         self._account = account
         self._workflow_writer = cfg["workflow_writer"](cfg["batch_system_cfg"])
         self._workflow_hash = blake2b(digest_size=8, usedforsecurity=False)
         self._jobs: Dict[str, Dict[str, Any]] = {}
         self._log_add_jobs = ProgressLogger(_logger, "added %s jobs to workflow")
-
-        # Add workflow directory to base directory
-        if dated:
-            workdirname = datetime.now().strftime("%Y-%m-%d_%H-%M-%S_") + self._name
-        else:
-            workdirname = self._name
-        self._workdir = basedir / workdirname
 
         # Process environment variables
         self._env = {}
