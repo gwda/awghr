@@ -120,6 +120,20 @@ try:
     raise AssertionError(msg)
 except WorkflowException:
     pass
+try:
+    w.add_job(
+        args=dict(index=999),
+        cmds=[["true"]],
+        time=1 * w.MIN,
+        mem=10 * w.MB,
+        disk=10 * w.MB,
+        needs=["non-existent-job"],
+        outputs=["dummy.txt"],
+    )
+    msg = "should have raised a WorkflowException"
+    raise AssertionError(msg)
+except WorkflowException:
+    pass
 
 # Try to add a job with non-unique outputs
 try:

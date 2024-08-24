@@ -102,7 +102,7 @@ w.add_job(
     time=1 * w.MIN,
     mem=10 * w.MB,
     disk=10 * w.MB,
-    inputs=[(j1, "file77.txt")],
+    needs=[j1],
     outputs=["file{exit_code}.txt"],
 )
 
