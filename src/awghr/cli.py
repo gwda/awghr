@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 from .config import show_config
-from .util import _ureg, job_ID_from_dir
+from .util import _ureg
 
 
 def resolved_path(value):
@@ -157,15 +157,12 @@ def show_jobs(args):
     ordered_jobs = [(sorted(job_args_cache[job].items()), job) for job in filtered_jobs]
 
     # Show jobs
-    for n, (job_args, job) in enumerate(ordered_jobs):
-        if n > 0:
+    for n, (job_args, job) in enumerate(ordered_jobs, start=1):
+        if n > 1:
             print("")
 
-        # Extract job ID from job directory
-        job_ID = job_ID_from_dir(args.workflow_dir / "jobs", job)
-
         # Create prefix for all printed output
-        prefix = "JOB " + job_ID + " {:>5}"
+        prefix = f"JOB {n:<5}" + " {:>5}"
 
         # Show job arguments
         # - Formatted so that it can be used as a filter to --filter
