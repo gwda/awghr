@@ -111,11 +111,6 @@ def show_jobs(args):
                                 "%a, %d %b %Y %H:%M:%S %Z"
                             )
                         )
-                else:
-                    job_state = "PENDING"
-                    if args.state == "ALL" or args.state == job_state:
-                        jobs.append(job)
-                        job_state_cache[job] = job_state
 
     if len(jobs) == 0:
         return
@@ -237,14 +232,6 @@ def cli(*argv: str):
         action="store_const",
         const="ALL",
         help="show all jobs",
-    )
-    parser_show_jobs.add_argument(
-        "-P",
-        "--pending",
-        dest="state",
-        action="store_const",
-        const="PENDING",
-        help="show only pending jobs",
     )
     parser_show_jobs.add_argument(
         "-R",
