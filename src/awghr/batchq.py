@@ -112,6 +112,10 @@ class BatchQWorkflowWriter:
         ctrlscripts,
     ):
 
+        # Guestimated runtime for submission and workstate jobs
+        # - Assumes batch system can process 5000 jobs in 15 minutes
+        submit_time_min = math.ceil(len(jobs) / 5000) * 15
+
         # Bundle jobs by order, dependencies, and resources
         job_bundles = {}
         for job in jobs.values():
@@ -308,7 +312,7 @@ fi
             f += self.BATCHQ_HEADER.format(
                 jobname=f"{workflowname}_state",
                 account=account,
-                time_min=15,
+                time_min=submit_time_min,
                 mem_MB=10,
                 disk_MB=10,
                 threads=1,
@@ -360,7 +364,7 @@ fi
             f += self.BATCHQ_HEADER.format(
                 jobname=workflowname,
                 account=account,
-                time_min=15,
+                time_min=submit_time_min,
                 mem_MB=10,
                 disk_MB=10,
                 threads=1,
