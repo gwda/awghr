@@ -164,7 +164,7 @@ def show_jobs(args):
             print("")
 
         # Create prefix for all printed output
-        prefix = f"JOB {n:<5}" + " {:>5}"
+        prefix = f"#{n:<5}" + " {:>5}"
 
         # Show job arguments
         # - Formatted so that it can be used as a filter to --filter
