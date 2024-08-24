@@ -154,9 +154,10 @@ class BatchQWorkflowWriter:
             # Use first job in array for retrieving resources
             job = job_array[0]
 
-            # Write job array submission script
-            jobarray_script_file = jobarraydir / "submit_job_array.sh"
-            with FileLineWriter(jobarray_script_file) as f:
+            # Write job array script
+            jobarray_submit_script_file = jobarraydir / "submit_job_array.sh"
+            jobarray_script_file = jobarraydir / "job_array.sh"
+            with FileLineWriter(jobarray_submit_script_file) as f:
                 f += "#!/bin/bash"
 
                 # Write job script header
@@ -175,6 +176,11 @@ class BatchQWorkflowWriter:
 
                 # Exit on any errors
                 f += "set -e"
+
+                # Run job array script
+                f += f"source '{jobarray_script_file}'"
+
+            with FileLineWriter(jobarray_script_file) as f:
 
                 # Write shell function fail() for reporting errors
                 f += """
@@ -293,8 +299,9 @@ fi
         log_make_job_arrays.finish()
 
         # Write script to check all jobs have succeeded
-        workstate_script_file = batchdir / "submit_workstate.sh"
-        with FileLineWriter(workstate_script_file) as f:
+        workstate_submit_script_file = batchdir / "submit_workstate.sh"
+        workstate_script_file = batchdir / "workstate.sh"
+        with FileLineWriter(workstate_submit_script_file) as f:
             f += "#!/bin/bash"
 
             # Write job script header
@@ -311,6 +318,11 @@ fi
 
             # Exit on any errors
             f += "set -e"
+
+            # Run script to check all jobs have succeeded
+            f += f"source '{workstate_script_file}'"
+
+        with FileLineWriter(workstate_script_file) as f:
 
             # Ensure list of directories of failed jobs does not exist
             f += f"rm -f '{failedjobfile}'"
@@ -335,10 +347,13 @@ fi
             # Remove file indicating workflow has been submitted
             f += f"rm -f '{submittedfile}'"
 
-        # Write script to submit all jobs
-        all_jobs_script_file = batchdir / "submit_all_jobs.sh"
+        # Register which jobs have been written
         all_jobs_ID_written = set()
-        with FileLineWriter(all_jobs_script_file) as f:
+
+        # Write script to submit all jobs
+        all_jobs_submit_script_file = batchdir / "submit_all_jobs.sh"
+        all_jobs_script_file = batchdir / "all_jobs.sh"
+        with FileLineWriter(all_jobs_submit_script_file) as f:
             f += "#!/bin/bash"
 
             # Write job script header
@@ -355,6 +370,11 @@ fi
 
             # Exit on any errors
             f += "set -e"
+
+            # Run script to submit all jobs
+            f += f"source '{all_jobs_script_file}'"
+
+        with FileLineWriter(all_jobs_script_file) as f:
 
             # Set trap to write the workflow state if errors are encountered
             f += f"""
@@ -466,7 +486,8 @@ fi
 """
 
                 # Determine job array indexes which should be submitted
-                jobarray_script_file = jobarraydir / "submit_job_array.sh"
+                jobarray_submit_script_file = jobarraydir / "submit_job_array.sh"
+                jobarray_script_file = jobarraydir / "job_array.sh"
                 jobarray_index_file = jobarraydir / "job_array_indexes"
                 batch_array_range = self.BATCHQ_ARRAY_RANGE.format(
                     n="$((batchq_array_count-1))"
@@ -493,7 +514,7 @@ else
         batchq_dependency="${{batchq_dependency}},{self.BATCHQ_SUBMIT_ARRAY_DEPEND}${{batchq_needs_IDs}}"
     fi
     rm -f '{jobarraydir}/"job_stdout_'* '{jobarraydir}/"job_stderr_'*
-    batchq_ID=`{self.BATCHQ_SUBMIT_ARRAY} ${{batchq_dependency}} {self.BATCHQ_SUBMIT_ARG_ARRAY}${{batchq_array}} '{jobarray_script_file}'`
+    batchq_ID=`{self.BATCHQ_SUBMIT_ARRAY} ${{batchq_dependency}} {self.BATCHQ_SUBMIT_ARG_ARRAY}${{batchq_array}} '{jobarray_submit_script_file}'`
     batchq_ID=`echo "${{batchq_ID{self.BATCHQ_ID_REMOVE_SUFFIX}}}"`
     echo "info: submitted ${{batchq_array_count}} jobs in job array {job_array_ID}, batch ID ${{batchq_ID}}"
     batchq_all_IDs="${{batchq_all_IDs}}:${{batchq_ID}}"
@@ -511,14 +532,14 @@ batchq_dependency="{self.BATCHQ_SUBMIT_ARG_DEPEND}afterok:${{{self.BATCHQ_JOB_ID
 if test "X${{batchq_all_IDs}}" != X; then
     batchq_dependency="${{batchq_dependency}},{self.BATCHQ_SUBMIT_STATE_DEPEND}${{batchq_all_IDs}}"
 fi
-batchq_ID=`{self.BATCHQ_SUBMIT_STATE} ${{batchq_dependency}} '{workstate_script_file}'`
+batchq_ID=`{self.BATCHQ_SUBMIT_STATE} ${{batchq_dependency}} '{workstate_submit_script_file}'`
 batchq_ID=`echo "${{batchq_ID{self.BATCHQ_ID_REMOVE_SUFFIX}}}"`
 echo "info: submitted state job, batch ID ${{batchq_ID}}"
-    """
+"""
 
         # Write commands to top-level control scripts
         ctrlscripts["submit"] += self.BATCHQ_SUBMIT_ALL.format(
-            script=all_jobs_script_file
+            script=all_jobs_submit_script_file
         )
         ctrlscripts["queue"] += self.BATCHQ_QUEUE.format(jobname=workflowname)
         ctrlscripts["cancel"] += self.BATCHQ_CANCEL.format(jobname=workflowname)
