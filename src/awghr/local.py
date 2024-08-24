@@ -174,7 +174,7 @@ fi
         ctrlscripts[
             "submit"
         ] += f"""
-bash '{all_jobs_script_file}' &
+setsid bash '{all_jobs_script_file}' &
 """
         ctrlscripts[
             "queue"
@@ -184,6 +184,6 @@ test ! -f '{all_jobs_stdout_file}' || tail -n 1 '{all_jobs_stdout_file}'
         ctrlscripts[
             "cancel"
         ] += f"""
-pid=`cat '{all_jobs_pid_file}'`
-test "X${{pid}}" = X || kill -TERM "${{pid}}"
+pid=`cat '{all_jobs_pid_file}' 2>/dev/null || true`
+test "X${{pid}}" = X || kill -TERM -${{pid}}
 """
