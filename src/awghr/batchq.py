@@ -204,7 +204,7 @@ batchq_job_index="$1"
 
                 # Change to job scratch directory
                 f += f"""test -d "{self.jobfs}" || mkdir -p "{self.jobfs}" || fail 'Could not make scratch directory {self.jobfs}'"""
-                f += f'''cd "{self.jobfs}"'''
+                f += f'cd "{self.jobfs}"'
 
                 # Select which job in job array to run
                 f += "case ${batchq_job_index} in"
@@ -239,7 +239,7 @@ trap trap_state EXIT
 echo RUNNING > '{jobstate_file}'
 """
 
-                    # Check that all prerequisite jobs were successfully
+                    # Check that all prerequisite jobs were successfully run
                     for needs_job_ID in job["needs"]:
 
                         # Path to file indicating job state
@@ -313,7 +313,7 @@ fi
             f += "set -e"
 
             # Ensure list of directories of failed jobs does not exist
-            f += "rm -f '{failedjobfile}'"
+            f += f"rm -f '{failedjobfile}'"
 
             # Default to success
             f += "workstate=SUCCESS"
@@ -375,6 +375,7 @@ function fail() {
     exit 1
 }
 """
+
             # Write shell function job_array_indexes() which
             # determines which indexes of an array job need to be run
             f += """
