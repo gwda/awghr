@@ -5,6 +5,7 @@ from shutil import which
 from socket import getfqdn
 from typing import Any, Dict, List, Optional, Tuple
 
+from .local import LocalWorkflowWriter
 from .pbs import PBSWorkflowWriter
 from .slurm import SlurmWorkflowWriter
 from .util import ConfigException
@@ -63,9 +64,13 @@ def read_config(
                 msg = f"Both '{cfg['batch_system']}' and '{batch_system}' batch systems appear to be present"
                 raise ConfigException(msg)
     if "batch_system" not in cfg:
-        batch_systems_str = "/".join(batch_system_names)
-        msg = f"No known batch system ({batch_systems_str}) was found"
-        raise ConfigException(msg)
+
+        # If not batch system present, use local workflow writer
+        cfg["batch_system"] = "local"
+        cfg["workflow_writer"] = LocalWorkflowWriter
+
+        # Default configuration for local workflow
+        cfg["account"] = "local"
 
     # Read configuration
     parser = ConfigParser()

@@ -33,20 +33,6 @@ def multiple_batch_system():
 
 
 @test
-def no_batch_system():
-    try:
-        _batch_systems = awghr.config._batch_systems
-        awghr.config._batch_systems = [("dummy", "nonexistent", None)]
-        read_config("")
-        msg = "should have raised a ConfigException"
-        raise AssertionError(msg)
-    except ConfigException:
-        pass
-    finally:
-        awghr.config._batch_systems = _batch_systems
-
-
-@test
 def read_config_file():
     cfg = read_config()
     assert cfg["account"] == "default"
@@ -97,17 +83,21 @@ dated? = why
 
 @test
 def missing_required_key():
-    src = default_src
-    src += """
-[DEFAULT]
-# no account
-"""
     try:
+        _keys = awghr.config._keys
+        awghr.config._keys = {"required": None}
+        src = default_src
+        src += """
+[DEFAULT]
+# no `required` key
+"""
         read_config(src)
         msg = "should have raised a ConfigException"
         raise AssertionError(msg)
     except ConfigException:
         pass
+    finally:
+        awghr.config._keys = _keys
 
 
 @test

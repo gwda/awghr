@@ -2,7 +2,7 @@ ifndef VIRTUAL_ENV
 $(error Missing virtual environment)
 endif
 
-BATCH_SYSTEMS = slurm pbs
+BATCH_SYSTEMS = local slurm pbs
 
 .PHONY: build
 build: .initialised-dev

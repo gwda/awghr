@@ -81,5 +81,5 @@ class FileLineWriter:
         os.chmod(self._filepath, self._finalmode)
 
     def __iadd__(self, line: str):
-        print(str(line).strip(), file=self._file)
+        print(str(line).strip("\n"), file=self._file)
         return self
