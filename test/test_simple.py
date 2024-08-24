@@ -22,7 +22,7 @@ infile.write_text("XYZ")
 # Add 10 independent jobs
 for i in range(10):
     w.add_job(
-        args=dict(index=i),
+        args=dict(index=i, const=10),
         cmds=[
             """
             bash -c '

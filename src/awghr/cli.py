@@ -125,6 +125,12 @@ def show_jobs(args):
         with (job / "job_args.json").open() as f:
             job_args_cache[job] = json.load(f)
 
+    # Find constant job arguments
+    constant_job_args = set(job_args_cache[jobs[0]].items())
+    for job in jobs[1:]:
+        constant_job_args = constant_job_args & set(job_args_cache[job].items())
+    constant_job_args = set(k for k, v in constant_job_args)
+
     if args.filter_expr:
 
         # Filter jobs
@@ -164,7 +170,11 @@ def show_jobs(args):
         # Show job arguments
         # - Formatted so that it can be used as a filter to --filter
         job_args_str_unquoted = " and ".join(
-            ["{}=={}".format(k, repr(v)) for k, v in job_args]
+            [
+                "{}=={}".format(k, repr(v))
+                for k, v in job_args
+                if k not in constant_job_args
+            ]
         )
         if '"' not in job_args_str_unquoted:
             job_args_str_unquoted = job_args_str_unquoted.replace("'", '"')
