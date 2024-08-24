@@ -78,7 +78,7 @@ function trap_workflow_state() {
 """
             f += """
 }
-trap trap_workflow_state EXIT
+trap trap_workflow_state EXIT TERM
 """
 
             # Ensure list of directories of failed jobs does not exist
@@ -108,7 +108,7 @@ function trap_job_state() {{
         exit ${{status}}
     fi
 }}
-trap trap_job_state EXIT
+trap trap_job_state EXIT TERM
 """
 
                 # Check if job has already been run successfully
@@ -185,5 +185,5 @@ test ! -f '{all_jobs_stdout_file}' || tail -n 1 '{all_jobs_stdout_file}'
             "cancel"
         ] += f"""
 pid=`cat '{all_jobs_pid_file}'`
-test "X${{pid}}" = X || kill -9 "${{pid}}"
+test "X${{pid}}" = X || kill -TERM "${{pid}}"
 """
