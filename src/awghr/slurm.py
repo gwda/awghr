@@ -78,6 +78,7 @@ scancel --name='{jobname}'
 """
 
     def __init__(self, batchsyscfg):
+        super().__init__(batchsyscfg)
 
         # Store location of job scratch directory
         self.jobfs = batchsyscfg["jobfs"]

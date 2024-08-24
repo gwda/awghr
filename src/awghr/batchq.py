@@ -14,6 +14,7 @@ class BatchQWorkflowWriter:
     KEYS: Dict[str, Any] = {
         "jobfs": None,
         "n_arraymax": 0,
+        "n_jobsubpermin": 300,
     }
 
     # Job script header; should define the format() fields:
@@ -98,6 +99,11 @@ class BatchQWorkflowWriter:
     # Maximum size of job array
     max_array_size: int
 
+    def __init__(self, batchsyscfg):
+
+        # Store rate jobs can be submitted per minute
+        self.job_submit_per_min = float(batchsyscfg["n_jobsubpermin"])
+
     def __call__(
         self,
         *,
@@ -112,9 +118,9 @@ class BatchQWorkflowWriter:
         ctrlscripts,
     ):
 
-        # Guestimated runtime for submission and workstate jobs
-        # - Assumes batch system can process 5000 jobs in 15 minutes
-        submit_time_min = math.ceil(len(jobs) / 5000) * 15
+        # Guestimate runtime for submission and workstate jobs
+        # - At least 10 minutes
+        submit_time_min = max(10, math.ceil(len(jobs) / self.job_submit_per_min))
 
         # Bundle jobs by order, dependencies, and resources
         job_bundles = {}
