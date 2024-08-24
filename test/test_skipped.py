@@ -1,5 +1,6 @@
 import json
 import logging
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -24,15 +25,12 @@ for exit_code in (0, 77):
     w.add_job(
         args=dict(exit_code=exit_code),
         cmds=[
-            [
-                "bash",
-                "-c",
-                (
-                    "echo DONE > file{exit_code}.txt"
-                    if exit_code == 0
-                    else "exit {exit_code}"
-                ),
-            ]
+            "bash -c "
+            + shlex.quote(
+                "echo DONE > file{exit_code}.txt"
+                if exit_code == 0
+                else "exit {exit_code}"
+            ),
         ],
         time=1 * w.MIN,
         mem=10 * w.MB,
@@ -79,11 +77,7 @@ w = Workflow(name="skipped2", dated=False)
 j1 = w.add_job(
     args=dict(exit_code=77),
     cmds=[
-        [
-            "bash",
-            "-c",
-            "echo DONE > file{exit_code}.txt; exit {exit_code}",
-        ]
+        "bash -c 'echo DONE > file{exit_code}.txt; exit {exit_code}'",
     ],
     time=1 * w.MIN,
     mem=10 * w.MB,
@@ -93,11 +87,7 @@ j1 = w.add_job(
 w.add_job(
     args=dict(exit_code=0),
     cmds=[
-        [
-            "bash",
-            "-c",
-            "echo DONE > file{exit_code}.txt; exit {exit_code}",
-        ]
+        "bash -c 'echo DONE > file{exit_code}.txt; exit {exit_code}'",
     ],
     time=1 * w.MIN,
     mem=10 * w.MB,

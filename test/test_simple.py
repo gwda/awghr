@@ -24,17 +24,20 @@ for i in range(10):
     w.add_job(
         args=dict(index=i),
         cmds=[
-            [
-                "bash",
-                "-c",
-                "if [ $MYTHREADS -ne 1 ]; then echo 'MYTHREADS!=1' >&2; exit 1; fi; "
-                + "echo $HOME; "
-                + "echo ${{TESTVAR}}1 >&2; "
-                + "echo ${{TESTVAR}}2 >&2; "
-                + "echo ${{TESTVAR}}3 >&2; "
-                + "echo xyz >&2; "
-                + "echo `cat {_in[0]}`{index} > out_{index}.txt",
-            ]
+            """
+            bash -c '
+                if [ $MYTHREADS -ne 1 ]; then
+                    echo 'MYTHREADS!=1' >&2;
+                    exit 1;
+                fi;
+                echo $HOME;
+                echo ${{TESTVAR}}1 >&2;
+                echo ${{TESTVAR}}2 >&2;
+                echo ${{TESTVAR}}3 >&2;
+                echo xyz >&2;
+                echo `cat {_in["prefix"]}`{index} > out_{index}.txt
+            '
+            """
         ],
         time=1 * w.MIN,
         mem=10 * w.MB,

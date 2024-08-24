@@ -1,4 +1,5 @@
 import os
+import re
 import stat
 from pathlib import Path
 
@@ -28,6 +29,19 @@ def job_dir_from_ID(basedir: Path, job_ID: str):
 # Extract job ID from job directory
 def job_ID_from_dir(basedir: Path, job_dir: Path):
     return "".join(job_dir.relative_to(basedir).parts)
+
+
+# List of job files, which may be indexed with regular expressions
+class JobFileList:
+
+    def __init__(self, _list):
+        self._list = _list
+
+    def __repr__(self):
+        return " ".join(self._list)
+
+    def __getitem__(self, regex):
+        return " ".join([x for x in self._list if re.match(regex, x)])
 
 
 # Log progress at progressively longer intervals

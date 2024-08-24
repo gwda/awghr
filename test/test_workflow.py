@@ -26,7 +26,7 @@ except WorkflowException:
 # Add job
 job_args = dict(
     args=dict(index=0),
-    cmds=[["/usr/bin/true"]],
+    cmds=["/usr/bin/true"],
     time=1 * w.MIN,
     mem=10 * w.MB,
     disk=10 * w.MB,
@@ -47,7 +47,7 @@ except WorkflowException:
 try:
     w.add_job(
         args=dict(_not_allowed=True),
-        cmds=[["true"]],
+        cmds=["true"],
         time=1 * w.MIN,
         mem=10 * w.MB,
         disk=10 * w.MB,
@@ -62,7 +62,7 @@ except WorkflowException:
 try:
     w.add_job(
         args=dict(index=999),
-        cmds=[["./does-not-exist"]],
+        cmds=["./does-not-exist"],
         time=1 * w.MIN,
         mem=10 * w.MB,
         disk=10 * w.MB,
@@ -77,7 +77,7 @@ except WorkflowException:
 try:
     w.add_job(
         args=dict(index=999),
-        cmds=[["true"]],
+        cmds=["true"],
         time=1 * w.MIN,
         mem=10 * w.MB,
         disk=10 * w.MB,
@@ -93,7 +93,7 @@ except WorkflowException:
 try:
     w.add_job(
         args=dict(index=999),
-        cmds=[["true"]],
+        cmds=["true"],
         time=1 * w.MIN,
         mem=10 * w.MB,
         disk=10 * w.MB,
@@ -109,7 +109,7 @@ except WorkflowException:
 try:
     w.add_job(
         args=dict(index=999),
-        cmds=[["true"]],
+        cmds=["true"],
         time=1 * w.MIN,
         mem=10 * w.MB,
         disk=10 * w.MB,
@@ -123,7 +123,7 @@ except WorkflowException:
 try:
     w.add_job(
         args=dict(index=999),
-        cmds=[["true"]],
+        cmds=["true"],
         time=1 * w.MIN,
         mem=10 * w.MB,
         disk=10 * w.MB,
@@ -139,7 +139,7 @@ except WorkflowException:
 try:
     w.add_job(
         args=dict(index=999),
-        cmds=[["true"]],
+        cmds=["true"],
         time=1 * w.MIN,
         mem=10 * w.MB,
         disk=10 * w.MB,
@@ -153,7 +153,7 @@ except WorkflowException:
 # Try to add a job with non-workflow-unique final output file
 bad_job = w.add_job(
     args=dict(index=999),
-    cmds=[["true"]],
+    cmds=["true"],
     time=1 * w.MIN,
     mem=10 * w.MB,
     disk=10 * w.MB,

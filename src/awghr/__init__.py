@@ -3,19 +3,25 @@ import logging
 import math
 import os
 import re
+import shlex
 import sys
 from contextlib import ExitStack
 from datetime import datetime
 from hashlib import blake2b
 from pathlib import Path
-from shlex import quote
 from shutil import which
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from pint import Unit, UnitRegistry
 
 from .config import read_config
-from .util import FileLineWriter, ProgressLogger, WorkflowException, job_dir_from_ID
+from .util import (
+    FileLineWriter,
+    JobFileList,
+    ProgressLogger,
+    WorkflowException,
+    job_dir_from_ID,
+)
 
 __author__ = "Karl Wette"
 __version__ = "0.1"
@@ -163,7 +169,7 @@ class Workflow:
         self,
         *,
         args: Dict[str, Any],
-        cmds: List[List[Any]],
+        cmds: List[str],
         time: Unit,
         mem: Unit,
         disk: Unit,
@@ -180,12 +186,16 @@ class Workflow:
             args (Dict[str, Any]):
                 Arguments and their values which uniquely identify the job.
                 Argument names cannot begin with an underscore.
-            cmds (List[List[Any]]):
-                A list of commands and their arguments to execute.
+            cmds (List[str]):
+                A list of commands to execute.
                 May contain `{format}` strings which will be filled by:
                 * the dictionary supplied in `args`;
-                * `_in[n]`: the `n`th input file supplied in `inputs`;
-                * `_out[n]`: the `n`th output file supplied in `outputs`.
+                * `_in`: input file(s) supplied in `inputs`, separated by spaces.
+                * `_in[re]`: the input file(s) supplied in `inputs` that
+                  match the regular expression `re`, separated by spaces.
+                * `_out`: output file(s) supplied in `outputs`, separated by spaces.
+                * `_out[re]`: the output file(s) supplied in `outputs` that
+                  match the regular expression `re`, separated by spaces.
                 * `_time_min`: requested wall time in minutes.
                 * `_mem_MB`: requested memory in MB.
                 * `_disk_MB`: requested temporary disk space in MB.
@@ -331,12 +341,13 @@ class Workflow:
 
         # Format and store commands
         cmdargs = dict(args)
-        cmdargs["_in"] = [p.name for p in job["infiles"]]
-        cmdargs["_out"] = [p.name for p in job["outfiles"]]
-        job["cmds"] = [
-            [str(arg).format(**cmdargs, **job["resources"]) for arg in cmd]
-            for cmd in cmds
-        ]
+        cmdargs["_in"] = JobFileList([p.name for p in job["infiles"]])
+        cmdargs["_out"] = JobFileList([p.name for p in job["outfiles"]])
+        job["cmds"] = []
+        for format_cmd in cmds:
+            format_cmd = format_cmd.format(**cmdargs, **job["resources"])
+            format_cmd = re.sub(r"\n\s*", " ", format_cmd)
+            job["cmds"].append(shlex.split(format_cmd))
 
         # Determine full path to executables
         for cmd in job["cmds"]:
@@ -441,7 +452,7 @@ class Workflow:
                 # Write job environment
                 for var in self._env:
                     val = self._env[var].format(**job["resources"])
-                    f += "export {}={}".format(var, quote(val))
+                    f += "export {}={}".format(var, shlex.quote(val))
 
                 # Ensure job directory is searched first for commands
                 f += 'export PATH="${PWD}:${PATH}"'
@@ -449,7 +460,7 @@ class Workflow:
 
                 # Write job commands
                 for cmd in job["cmds"]:
-                    quotedargs = [quote(str(arg)) for arg in cmd]
+                    quotedargs = [shlex.quote(str(arg)) for arg in cmd]
                     if cmd[0].resolve() in job["infiles"]:
                         quotedargs[0] = "./" + cmd[0].name
                     else:

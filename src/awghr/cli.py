@@ -1,11 +1,11 @@
 import argparse
 import json
 import re
+import shlex
 import sys
 from collections import deque
 from datetime import datetime
 from pathlib import Path
-from shlex import quote
 
 from . import _ureg
 from .config import show_config
@@ -169,7 +169,7 @@ def show_jobs(args):
         )
         if '"' not in job_args_str_unquoted:
             job_args_str_unquoted = job_args_str_unquoted.replace("'", '"')
-        job_args_str = quote(job_args_str_unquoted)
+        job_args_str = shlex.quote(job_args_str_unquoted)
         print(prefix.format("ARGS"), job_args_str)
 
         # Show job state
