@@ -1,6 +1,7 @@
 import os
 import re
 import stat
+import time
 from pathlib import Path
 
 from pint import UnitRegistry
@@ -55,16 +56,28 @@ class ProgressLogger:
         self._logger = logger
         self._msg = msg
         self._count = 0
-        self._print_prog_at = 7
+        self._print_prog = 0
+        self._print_prog_at = 10
+        self._t0 = time.time_ns()
 
     def update(self):
         self._count += 1
-        if self._count == self._print_prog_at:
-            self._logger.info(self._msg, str(self._count))
-            self._print_prog_at *= 7
+        self._print_prog += 1
+        if self._print_prog == self._print_prog_at:
+            dt = time.time_ns() - self._t0
+            r = (self._count / _ureg.Quantity(dt, "nanosecond")).to_compact()
+            self._logger.info(self._msg + " (%s)", str(self._count), format(r, "0.1f~"))
+            self._print_prog = 0
+            self._print_prog_at *= 2
 
     def finish(self):
-        self._logger.info(self._msg, "a total of " + str(self._count))
+        dt = time.time_ns() - self._t0
+        r = (self._count / _ureg.Quantity(dt, "nanosecond")).to_compact()
+        self._logger.info(
+            self._msg + " (%s)",
+            "a total of " + str(self._count),
+            format(r, "0.1f~"),
+        )
 
 
 # Convenience class for writing lines to a text file
