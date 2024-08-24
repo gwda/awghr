@@ -196,3 +196,11 @@ for n in 0 1 2; do
 done
 rm -rf /tmp/*
 EOF
+
+# Create testing directory
+RUN <<EOF
+mkdir -p /testing
+chmod 0777 /testing
+usermod -d /testing pbsuser
+EOF
+WORKDIR /testing

@@ -1,6 +1,6 @@
 set -e
 
-source /tmp/test/.runnerrc
+source /testing/test/.runnerrc
 
 batch_system="$1"
 
@@ -8,51 +8,49 @@ echo "===== $0: set up batch system: ${batch_system}"
 case "${batch_system}" in
     pbs)
         ( qdel `qselect` >/dev/null 2>&1 ) || true
-        rm -rf /tmp/pbs-scratch/
-        mkdir -p /tmp/pbs-scratch/
+        rm -rf /tmp/pbs-*
         ;;
     slurm)
         scancel -u 0
-        rm -rf /tmp/slurm-scratch/
-        mkdir -p /tmp/slurm-scratch/
+        rm -rf /tmp/slurm-*
         ;;
 esac
 
 echo "===== $0: set up virtual environment"
-if test ! -f /tmp/venv/bin/activate; then
-    python3 -m venv /tmp/venv
+if test ! -f /testing/venv/bin/activate; then
+    python3 -m venv /testing/venv
 fi
-source /tmp/venv/bin/activate
+source /testing/venv/bin/activate
 
 echo "===== $0: install packages"
-pip install -r /tmp/test/requirements-test.txt
-pip install --force-reinstall /tmp/dist/*.whl
+pip install -r /testing/test/requirements-test.txt
+pip install --force-reinstall /testing/dist/*.whl
 
-export COVERAGE_RCFILE="/tmp/test/coverage.cfg"
-export COVERAGE_FILE="/tmp/.coverage-${batch_system}"
+export COVERAGE_RCFILE="/testing/test/coverage.cfg"
+export COVERAGE_FILE="/testing/.coverage-${batch_system}"
 coverage erase
 
-testworkbasedir="/tmp/workdirs"
-rm -rf "${testworkbasedir}"
+baseworkdir="/testing/workdir"
+rm -rf "${baseworkdir}"
 
 if test "X${TESTS}" != X; then
     echo "===== $0: run single test"
 else
     echo "===== $0: run all tests"
-    TESTS=`cat /tmp/test/list-of-tests.txt`
+    TESTS=`cat /testing/test/list-of-tests.txt`
 fi
 
 for TEST in ${TESTS}; do
     echo "===== $0: test: ${TEST}"
-    testworkdir="${testworkbasedir}/${TEST}"
-    mkdir -p "${testworkdir}"
-    cp "/tmp/test/awghr.cfg" "${testworkdir}/.awghr.cfg"
+    workdir="${baseworkdir}/${TEST}"
+    mkdir -p "${workdir}"
+    cp "/testing/test/awghr.cfg" "${workdir}/.awghr.cfg"
     (
         exec > >(trap "" INT TERM; sed "s/^/${TEST}: /")
         exec 2> >(trap "" INT TERM; sed "s/^/${TEST} ERROR: /" >&2)
-        cd "${testworkdir}"
-        export HOME="${testworkdir}"
-        coverage run -a "/tmp/test/test_${TEST}.py"
+        cd "${workdir}"
+        export HOME="${workdir}"
+        coverage run -a "/testing/test/test_${TEST}.py"
     )
     status=$?
     if test ${status} -eq 0; then

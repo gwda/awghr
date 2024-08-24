@@ -52,11 +52,11 @@ endif
 .PHONY: $(CHECK_TARGETS)
 $(CHECK_TARGETS): check-%: .pre-check .initialised-docker-%
 	-docker stop "awghr-testing-$*" >/dev/null
-	docker cp "dist/." "awghr-testing-$*:/tmp/dist" >/dev/null
+	docker cp "dist/." "awghr-testing-$*:/testing/dist" >/dev/null
 	@echo "TESTS=$(TEST)" > "test/.runnerrc"
-	docker cp "test/." "awghr-testing-$*:/tmp/test" >/dev/null
+	docker cp "test/." "awghr-testing-$*:/testing/test" >/dev/null
 	docker start -ai "awghr-testing-$*"
-	docker cp "awghr-testing-$*:/tmp/.coverage-$*" "test/.coverage-$*" >/dev/null
+	docker cp "awghr-testing-$*:/testing/.coverage-$*" "test/.coverage-$*" >/dev/null
 	-docker stop "awghr-testing-$*" >/dev/null
 
 INIT_DOCKER_TARGETS = $(addprefix .initialised-docker-,$(BATCH_SYSTEMS))
@@ -68,14 +68,14 @@ $(INIT_DOCKER_TARGETS): .initialised-docker-%: Makefile
 		--hostname "$*-ubuntu-host" \
 		--name "awghr-testing-$*" \
 		"kwwette/testing-batch-system:$*" \
-		/bin/bash /tmp/test/runner.sh "$*" \
+		/bin/bash /testing/test/runner.sh "$*" \
 		>/dev/null
 	@date > $@
 
 DEBUG_CHECK_TARGETS = $(addprefix debug-,$(CHECK_TARGETS))
 
 .PHONY: $(DEBUG_CHECK_TARGETS)
-$(DEBUG_CHECK_TARGETS): debug-check-%:
+$(DEBUG_CHECK_TARGETS): debug-check-%: .initialised-docker-%
 	@image=`docker commit awghr-testing-$*`; \
 	docker run -it --hostname "$*-ubuntu-host" --rm --entrypoint /usr/local/bin/entrypoint "$${image}" /bin/bash; \
 	docker image rm "$${image}" >/dev/null
