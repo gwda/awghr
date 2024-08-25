@@ -212,7 +212,7 @@ def show_jobs(args):
         job_state_str = job_state_cache[job]
         if job in job_state_last_modified_cache:
             job_state_str += job_state_last_modified_cache[job].strftime(
-                " %a, %d %b %Y %H:%M:%S"
+                " %Y-%m-%d %H:%M:%S"
             )
         if (
             job_state_cache[job] == "RUNNING" and job in cache["batchID"]
