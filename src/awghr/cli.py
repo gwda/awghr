@@ -405,4 +405,9 @@ def cli(*argv: str):
     args = parser.parse_args(parse_argv)
 
     # Execute sub-command
-    args.subcommand(args)
+    try:
+        args.subcommand(args)
+    except BrokenPipeError:  # pragma: no cover
+
+        # Ignore errors if output is piped to a pager
+        pass
