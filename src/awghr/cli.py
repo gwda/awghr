@@ -75,6 +75,7 @@ def show_jobs(args):
     # Get list of jobs and their states
     jobs = []
     job_state_cache = {}
+    job_batchID_cache = {}
     for job_list in job_lists:
 
         # If only showing failed jobs, use failed jobs list if possible
@@ -116,6 +117,7 @@ def show_jobs(args):
                             job_state == "RUNNING" and job_batchID_file.is_file()
                         ):  # pragma: no cover
                             job_batchID = job_batchID_file.read_text().strip()
+                            job_batchID_cache[job] = job_batchID
                             job_state_cache[job] += f" BATCHID {job_batchID}"
 
                 else:
@@ -123,6 +125,10 @@ def show_jobs(args):
                     if args.state == job_state:
                         jobs.append(job)
                         job_state_cache[job] = job_state
+
+    # Filter jobs by batch system ID
+    if args.batch_ID:  # pragma: no cover
+        jobs = [job for job in jobs if args.batch_ID == job_batchID_cache.get(job, "")]
 
     if len(jobs) == 0:
         return
@@ -297,6 +303,14 @@ def cli(*argv: str):
         help="show only failed jobs (default)",
     )
     parser_show_jobs.set_defaults(state="FAILED")
+    parser_show_jobs.add_argument(
+        "-i",
+        "--batch-ID",
+        metavar="ID",
+        type=str,
+        default=None,
+        help="show only job with the given batch system ID",
+    )
     parser_show_jobs.add_argument(
         "-f",
         "--filter",
