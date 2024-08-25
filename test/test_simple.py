@@ -48,6 +48,14 @@ for i in range(10):
 
 w.write()
 
+logger.info("check for job files that should (not) exist before submission")
+joblistfile = w.workdir / f"workflow_jobs_{w.ID}.txt"
+for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
+    assert not (jobdir / "job_batchID").is_file()
+    assert not (jobdir / "job_state").is_file()
+    assert (jobdir / "job_args.json").is_file()
+    assert (jobdir / "job_script.sh").is_file()
+
 logger.info("test command line interface")
 print("-----", flush=True)
 cli("-d", str(w.workdir), "-P")
@@ -79,6 +87,14 @@ for i in range(10):
     logger.info("check that output file '%s' is present and correct", outfile)
     assert outfile.is_file()
     outfile.read_text() == f"XYZ{i}"
+
+logger.info("check for job files that should exist after submission")
+joblistfile = w.workdir / f"workflow_jobs_{w.ID}.txt"
+for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
+    assert (jobdir / "job_batchID").is_file()
+    assert (jobdir / "job_state").is_file()
+    assert (jobdir / "job_args.json").is_file()
+    assert (jobdir / "job_script.sh").is_file()
 
 logger.info("check that job standard output/error printed what was expected")
 joblistfile = w.workdir / f"workflow_jobs_{w.ID}.txt"

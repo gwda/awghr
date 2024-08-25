@@ -100,16 +100,24 @@ def show_jobs(args):
                     job_state = job_state_file.read_text().strip()
                     if args.state == "ALL" or args.state == job_state:
                         jobs.append(job)
+                        job_state_cache[job] = job_state
+
+                        # Append date state was last modified
                         job_state_last_modified = datetime.fromtimestamp(
                             job_state_file.stat().st_mtime
                         )
-                        job_state_cache[job] = (
-                            job_state
-                            + " "
-                            + job_state_last_modified.strftime(
-                                "%a, %d %b %Y %H:%M:%S %Z"
-                            )
+                        job_state_cache[job] += job_state_last_modified.strftime(
+                            " %a, %d %b %Y %H:%M:%S"
                         )
+
+                        # Append batch ID
+                        job_batchID_file = job / "job_batchID"
+                        if (
+                            job_state == "RUNNING" and job_batchID_file.is_file()
+                        ):  # pragma: no cover
+                            job_batchID = job_batchID_file.read_text().strip()
+                            job_state_cache[job] += f" BATCHID {job_batchID}"
+
                 else:
                     job_state = "PENDING"
                     if args.state == job_state:

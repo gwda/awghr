@@ -91,6 +91,10 @@ trap trap_workflow_state EXIT TERM
                 f += "("
                 f += f"""echo 'info: running job #{n}/{len(jobs)}: {job["dir"]}'"""
 
+                # Write job batch ID to file
+                jobbatchID_file = job["dir"] / "job_batchID"
+                f += f"""echo '{n}' > '{jobbatchID_file}'"""
+
                 # Set trap to write job state file
                 jobstate_file = job["dir"] / "job_state"
                 f += f"""

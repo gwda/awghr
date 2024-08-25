@@ -24,6 +24,8 @@ class PBSWorkflowWriter(BatchQWorkflowWriter):
 
     BATCHQ_JOB_ID = "PBS_JOBID"
 
+    BATCHQ_JOB_ARRAY_ID_EXPR = "${PBS_JOBID}"
+
     BATCHQ_ARRAY_INDEX = "PBS_ARRAY_INDEX"
 
     # - PBS insists that job arrays must have more than one subjob ...

@@ -32,6 +32,10 @@ class BatchQWorkflowWriter:
     # the batch system ID of the current job
     BATCHQ_JOB_ID: str
 
+    # Expression which gives the batch system ID of the
+    # current job in a job array
+    BATCHQ_JOB_ARRAY_ID_EXPR: str
+
     # Name of environment variable which gives the batch array index
     # - This may not be the same as the **job array** index: it is
     #   assumed that the batch system can only handle contiguous
@@ -234,6 +238,10 @@ batchq_job_index="$1"
 
                     # Print comment used to extract job indexes and directories
                     f += f"# JOB {idx} {job['dir']}"
+
+                    # Write job batch ID to file
+                    jobbatchID_file = job["dir"] / "job_batchID"
+                    f += f"""echo "{self.BATCHQ_JOB_ARRAY_ID_EXPR}" > '{jobbatchID_file}'"""
 
                     # Set trap to write job state file
                     jobstate_file = job["dir"] / "job_state"

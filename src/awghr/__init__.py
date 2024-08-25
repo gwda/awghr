@@ -435,6 +435,10 @@ class Workflow:
             # Make job directory
             job["dir"].mkdir(parents=True, exist_ok=True)
 
+            # Remove job batch ID file
+            jobbatchID_file = job["dir"] / "job_batchID"
+            jobbatchID_file.unlink(missing_ok=True)
+
             # Remove job state file
             jobstate_file = job["dir"] / "job_state"
             jobstate_file.unlink(missing_ok=True)
