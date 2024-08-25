@@ -523,9 +523,13 @@ if test -f '{submittedfile}'; then
     echo "info: workflow {self.ID} has already been submitted"
     exit 1
 fi
-rm -f '{workstatefile}'
-rm -f '{failedjobfile}'
 """
+            for rm_file in (
+                workstatefile,
+                failedjobfile,
+                self.workdir / ".jobs_cache",
+            ):
+                ctrlscripts["submit"] += f"rm -f '{rm_file}'"
 
             # Make batch system script directory
             batchdir = self.workdir / "batch" / self.ID

@@ -1,5 +1,6 @@
 import argparse
 import json
+import pickle
 import re
 import shlex
 import sys
@@ -67,92 +68,82 @@ def show_stdouterr(prefix, stdfile, grep_regex, last_n_lines):
 def show_jobs(args):
 
     # Check for workflows
-    job_lists = list(args.workflow_dir.glob("workflow_jobs_*.txt"))
-    if len(job_lists) == 0:
+    job_list_files = list(args.workflow_dir.glob("workflow_jobs_*.txt"))
+    if len(job_list_files) == 0:
         msg = f"'{args.workflow_dir}' is not a workflow directory"
         raise FileNotFoundError(msg)
 
-    # Get list of jobs and their states
+    # Get list of jobs to examine
     jobs = []
-    job_state_cache = {}
-    job_batchID_cache = {}
-    for job_list in job_lists:
+    for job_list_file in job_list_files:
 
         # If only showing failed jobs, use failed jobs list if possible
         if args.state == "FAILED":
-            failed_job_list = job_list.parent / job_list.name.replace(
-                "_jobs_", "_failed_jobs_"
+            failed_job_list_file = job_list_file.parent / job_list_file.name.replace(
+                "_state_", "_failed_jobs_"
             )
-            if failed_job_list.is_file():
-
-                # Read list of failed jobs
-                with failed_job_list.open() as f:
-                    for job in [Path(line.strip()) for line in f]:
-                        jobs.append(job)
-                        job_state_cache[job] = "FAILED"
-
+            if failed_job_list_file.is_file():
+                jobs.extend(
+                    [Path(line) for line in failed_job_list_file.read_text().split()]
+                )
                 continue
 
-        # Read job state files
-        with job_list.open() as f:
-            for job in [Path(line.strip()) for line in f]:
-                job_state_file = job / "job_state"
-                if job_state_file.is_file():
-                    job_state = job_state_file.read_text().strip()
-                    if args.state == "ALL" or args.state == job_state:
-                        jobs.append(job)
-                        job_state_cache[job] = job_state
+        # Otherwise use full jobs list
+        jobs.extend([Path(line) for line in job_list_file.read_text().split()])
 
-                        # Append date state was last modified
-                        job_state_last_modified = datetime.fromtimestamp(
-                            job_state_file.stat().st_mtime
-                        )
-                        job_state_cache[job] += job_state_last_modified.strftime(
-                            " %a, %d %b %Y %H:%M:%S"
-                        )
+    # Load cache
+    cache = {}
+    cache_file = args.workflow_dir / ".jobs_cache"
+    if cache_file.is_file():
+        cache = pickle.load(cache_file.open("rb"))
+    for entry, default in (("batchID", {}), ("args", {}), ("constant_args", None)):
+        if entry not in cache:
+            cache[entry] = default
 
-                        # Append batch ID
-                        job_batchID_file = job / "job_batchID"
-                        if (
-                            job_state == "RUNNING" and job_batchID_file.is_file()
-                        ):  # pragma: no cover
-                            job_batchID = job_batchID_file.read_text().strip()
-                            job_batchID_cache[job] = job_batchID
-                            job_state_cache[job] += f" BATCHID {job_batchID}"
+    # Add information that will not change while workflow is running to cache
+    for job in jobs:
 
-                else:
-                    job_state = "PENDING"
-                    if args.state == job_state:
-                        jobs.append(job)
-                        job_state_cache[job] = job_state
+        # Add job batch IDs to cache
+        if job not in cache["batchID"]:
+            job_batchID_file = job / "job_batchID"
+            if job_batchID_file.is_file():
+                cache["batchID"][job] = job_batchID_file.read_text().strip()
+
+        # Add job arguments to cache
+        if job not in cache["args"]:
+            cache["args"][job] = json.load((job / "job_args.json").open())
+            cache["constant_args"] = None
+
+    # Find constant job arguments, in order to hide them in output
+    if cache["constant_args"] is None:
+        job_args_counts = {}
+        for job in jobs:
+            for arg, val in cache["args"][job].items():
+                if arg not in job_args_counts:
+                    job_args_counts[arg] = {}
+                if val not in job_args_counts[arg]:
+                    job_args_counts[arg][val] = 0
+                job_args_counts[arg][val] += 1
+        cache["constant_args"] = set()
+        for arg in job_args_counts:
+
+            # Argument is constant if it only has one value, and all jobs have that value
+            if len(job_args_counts[arg]) == 1:
+                if list(job_args_counts[arg].items())[0][1] == len(jobs):
+                    cache["constant_args"].add(arg)
+
+    # Save cache
+    pickle.dump(cache, cache_file.open("wb"))
 
     # Filter jobs by batch system ID
     if args.batch_ID:  # pragma: no cover
-        jobs = [job for job in jobs if args.batch_ID == job_batchID_cache.get(job, "")]
+        jobs = [job for job in jobs if args.batch_ID == cache["batchID"][job]]
 
-    if len(jobs) == 0:
-        return
-
-    # Cache job arguments
-    job_args_cache = {}
-    for job in jobs:
-        with (job / "job_args.json").open() as f:
-            job_args_cache[job] = json.load(f)
-
-    # Find constant job arguments, in order to hide them in output
-    constant_job_args = set()
-    if len(jobs) > 1:
-        constant_job_args = set(job_args_cache[jobs[0]].items())
-        for job in jobs[1:]:
-            constant_job_args = constant_job_args & set(job_args_cache[job].items())
-        constant_job_args = set(k for k, v in constant_job_args)
-
+    # Filter jobs by arguments
+    filtered_jobs = []
     if args.filter_expr:
-
-        # Filter jobs
-        filtered_jobs = []
         for job in jobs:
-            job_args = job_args_cache[job]
+            job_args = cache["args"][job]
 
             # Compile filter
             filter_code = compile(args.filter_expr, "--filter", "eval")
@@ -166,13 +157,31 @@ def show_jobs(args):
             if eval(filter_code, {"__builtins__": {}}, job_args):
                 filtered_jobs.append(job)
 
-    else:
-        filtered_jobs = jobs
+        jobs = filtered_jobs
 
-    # Order jobs by their arguments
-    ordered_jobs = [(sorted(job_args_cache[job].items()), job) for job in filtered_jobs]
+    # Filter jobs by state
+    filtered_jobs = []
+    job_state_cache = {}
+    job_state_last_modified_cache = {}
+    for job in jobs:
+        job_state_file = job / "job_state"
+        if job_state_file.is_file():
+            job_state = job_state_file.read_text().strip()
+            job_state_last_modified_cache[job] = datetime.fromtimestamp(
+                job_state_file.stat().st_mtime
+            )
+        else:
+            job_state = "PENDING"
+        if args.state == "ALL" or args.state == job_state:
+            filtered_jobs.append(job)
+            job_state_cache[job] = job_state
+    jobs = filtered_jobs
 
-    # Show jobs
+    if len(jobs) == 0:
+        return
+
+    # Show job, ordered jobs by their arguments
+    ordered_jobs = [(sorted(cache["args"][job].items()), job) for job in jobs]
     for n, (job_args, job) in enumerate(ordered_jobs, start=1):
         if n > 1:
             print("")
@@ -186,7 +195,7 @@ def show_jobs(args):
             [
                 "{}=={}".format(k, repr(v))
                 for k, v in job_args
-                if k not in constant_job_args
+                if k not in cache["constant_args"]
             ]
         )
         if '"' not in job_args_str_unquoted:
@@ -194,8 +203,17 @@ def show_jobs(args):
         job_args_str = shlex.quote(job_args_str_unquoted)
         print(prefix.format("ARGS"), job_args_str)
 
-        # Show job state
-        print(prefix.format("STATE"), job_state_cache[job])
+        # Show job state, date it was last modified, and batch system ID
+        job_state_str = job_state_cache[job]
+        if job in job_state_last_modified_cache:
+            job_state_str += job_state_last_modified_cache[job].strftime(
+                " %a, %d %b %Y %H:%M:%S"
+            )
+        if (
+            job_state_cache[job] == "RUNNING" and job in cache["batchID"]
+        ):  # pragma: no cover
+            job_state_str += " BATCHID " + cache["batchID"][job]
+        print(prefix.format("STATE"), job_state_str)
 
         # Show job directory
         if args.job_dir:
@@ -260,7 +278,7 @@ def cli(*argv: str):
         dest="state",
         action="store_const",
         const="ALL",
-        help="show all (non-pending) jobs",
+        help="show all jobs",
     )
     parser_show_jobs.add_argument(
         "-P",
