@@ -51,23 +51,22 @@ class ProgressLogger:
         self._logger = logger
         self._msg = msg
         self._count = 0
-        self._print_prog = 0
-        self._print_prog_at = 10
-        self._t0 = time.time_ns()
+        self._t0 = time.time()
+        self._dt_print_prog = 5
+        self._ddt_print_prog = 5
 
     def update(self):
         self._count += 1
-        self._print_prog += 1
-        if self._print_prog == self._print_prog_at:
-            dt = time.time_ns() - self._t0
-            r = (self._count / _ureg.Quantity(dt, "nanosecond")).to_compact()
+        dt = time.time() - self._t0
+        if dt > self._dt_print_prog:  # pragma: no cover
+            r = (self._count / _ureg.Quantity(dt, "second")).to_compact()
             self._logger.info(self._msg + " (%s)", str(self._count), format(r, "0.1f~"))
-            self._print_prog = 0
-            self._print_prog_at *= 2
+            self._ddt_print_prog += 5
+            self._dt_print_prog += self._ddt_print_prog
 
     def finish(self):
-        dt = time.time_ns() - self._t0
-        r = (self._count / _ureg.Quantity(dt, "nanosecond")).to_compact()
+        dt = time.time() - self._t0
+        r = (self._count / _ureg.Quantity(dt, "second")).to_compact()
         self._logger.info(
             self._msg + " (%s)",
             "a total of " + str(self._count),
