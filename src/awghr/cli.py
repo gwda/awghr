@@ -16,10 +16,10 @@ def resolved_path(value):
     return Path(value).resolve(strict=True)
 
 
-def nonnegative_int(value):
+def positive_int(value):
     value = int(value)
-    if value < 0:
-        msg = f"'{value}' is not a nonnegative integer"
+    if value <= 0:
+        msg = f"'{value}' is not a positive integer"
         raise argparse.ArgumentTypeError(msg)
     return value
 
@@ -365,9 +365,17 @@ def cli(*argv: str):
         "--last",
         metavar="N",
         dest="last_n_lines",
-        type=nonnegative_int,
+        type=positive_int,
         default=10,
-        help="show the last N lines of standard output/error (default: 10; if zero, show all lines)",
+        help="show the last N lines of standard output/error (default: 10)",
+    )
+    parser_show_jobs.add_argument(
+        "-z",
+        "--full",
+        dest="last_n_lines",
+        action="store_const",
+        const=0,
+        help="show the full standard output/error",
     )
     parser_show_jobs.set_defaults(subcommand=show_jobs)
 

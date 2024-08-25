@@ -108,10 +108,10 @@ logger.info("test command line interface")
 print("-----", flush=True)
 cli("jobs", "-d", str(w.workdir), "-Ae", "-n", "1", "-g", "a")
 print("-----", flush=True)
-cli("-d", str(w.workdir), "-f", "index < 5", "-Ajlon", "0")
+cli("-d", str(w.workdir), "-f", "index < 5", "-Ajloz")
 print("-----", flush=True)
 try:
-    cli("jobs", "-d", str(w.workdir), "-n", "-1")
+    cli("jobs", "-d", str(w.workdir), "-n", "0")
     msg = "should have exited"
     raise AssertionError(msg)
 except SystemExit:
