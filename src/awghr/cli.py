@@ -8,6 +8,8 @@ from collections import deque
 from datetime import datetime
 from pathlib import Path
 
+from tqdm import tqdm
+
 from .config import show_config
 from .util import _ureg
 
@@ -105,7 +107,7 @@ def show_jobs(args):
         cache["constant_args"] = None
 
     # Add information that will not change while workflow is running to cache
-    for job in jobs:
+    for job in tqdm(jobs, desc="Cacheing ", leave=False):
 
         # Add job batch IDs to cache
         if job not in cache["batchID"]:
@@ -140,18 +142,24 @@ def show_jobs(args):
     # Save cache
     pickle.dump(cache, cache_file.open("wb"))
 
-    # Filter jobs by batch system ID
-    if args.batch_ID:  # pragma: no cover
-        jobs = [job for job in jobs if args.batch_ID == cache["batchID"][job]]
-
-    # Filter jobs by arguments
-    filtered_jobs = []
+    # Compile filter
     if args.filter_expr:
-        for job in jobs:
-            job_args = cache["args"][job]
+        filter_code = compile(args.filter_expr, "--filter", "eval")
 
-            # Compile filter
-            filter_code = compile(args.filter_expr, "--filter", "eval")
+    # Filter jobs
+    filtered_jobs = []
+    job_state_cache = {}
+    job_state_last_modified_cache = {}
+    for job in tqdm(jobs, desc="Filtering", leave=False):
+
+        # Filter jobs by batch system ID
+        if args.batch_ID:  # pragma: no cover
+            if args.batch_ID != cache["batchID"][job]:
+                continue
+
+        # Filter jobs by arguments
+        if args.filter_expr:
+            job_args = cache["args"][job]
 
             # Set any unrecognised names to None
             for name in filter_code.co_names:
@@ -159,16 +167,10 @@ def show_jobs(args):
                     job_args[name] = None
 
             # Execute filter
-            if eval(filter_code, {"__builtins__": {}}, job_args):
-                filtered_jobs.append(job)
+            if not eval(filter_code, {"__builtins__": {}}, job_args):
+                continue
 
-        jobs = filtered_jobs
-
-    # Filter jobs by state
-    filtered_jobs = []
-    job_state_cache = {}
-    job_state_last_modified_cache = {}
-    for job in jobs:
+        # Filter jobs by state
         job_state_file = job / "job_state"
         if job_state_file.is_file():
             job_state = job_state_file.read_text().strip()
@@ -177,13 +179,14 @@ def show_jobs(args):
             )
         else:
             job_state = "PENDING"
-        if args.state == "ALL" or args.state == job_state:
-            filtered_jobs.append(job)
-            job_state_cache[job] = job_state
-    jobs = filtered_jobs
+        job_state_cache[job] = job_state
+        if args.state != "ALL" and args.state != job_state:
+            continue
+
+        filtered_jobs.append(job)
 
     # Show job, ordered jobs by their arguments
-    ordered_jobs = sorted([(cache["sorted_args"][job], job) for job in jobs])
+    ordered_jobs = sorted([(cache["sorted_args"][job], job) for job in filtered_jobs])
     for n, (job_args, job) in enumerate(ordered_jobs, start=1):
         if n > 1:
             print("")
