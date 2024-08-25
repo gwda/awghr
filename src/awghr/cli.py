@@ -76,7 +76,7 @@ def show_jobs(args):
         raise FileNotFoundError(msg)
 
     # Get list of jobs to examine
-    jobs = []
+    jobs = set()
     for job_list_file in job_list_files:
 
         # If only showing failed jobs, use failed jobs list if possible
@@ -85,13 +85,13 @@ def show_jobs(args):
                 "_state_", "_failed_jobs_"
             )
             if failed_job_list_file.is_file():
-                jobs.extend(
+                jobs.update(
                     [Path(line) for line in failed_job_list_file.read_text().split()]
                 )
                 continue
 
         # Otherwise use full jobs list
-        jobs.extend([Path(line) for line in job_list_file.read_text().split()])
+        jobs.update([Path(line) for line in job_list_file.read_text().split()])
 
     # Load cache
     cache = {}
