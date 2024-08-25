@@ -122,36 +122,36 @@ while len(jobs) > 1:
             jobs.append(job_ID)
 
 
-workdir = w.write()
+w.write()
 
 while True:
     logger.info(
         "submit workflow and wait for it to finish (%i fail files exist)",
         len(fail_files),
     )
-    subprocess.run([workdir / "submit"], check=True)
-    subprocess.run([workdir / "wait", workdir / "queue"], check=True)
+    subprocess.run([w.workdir / "submit"], check=True)
+    subprocess.run([w.workdir / "wait", w.workdir / "queue"], check=True)
 
     logger.info("check for files (%i fail files exist)", len(fail_files))
-    assert len(list(workdir.glob("workflow_jobs_*.txt"))) == 1
-    assert len(list(workdir.glob("workflow_state_*.txt"))) == 1
+    assert len(list(w.workdir.glob("workflow_jobs_*.txt"))) == 1
+    assert len(list(w.workdir.glob("workflow_state_*.txt"))) == 1
     if len(fail_files) > 0:
-        assert len(list(workdir.glob("workflow_failed_jobs_*.txt"))) == 1
+        assert len(list(w.workdir.glob("workflow_failed_jobs_*.txt"))) == 1
 
     expected_state = "FAILED" if len(fail_files) > 0 else "SUCCESS"
     logger.info(
         "check state is %s (%i fail files exist)", expected_state, len(fail_files)
     )
-    statefile = list(workdir.glob("workflow_state_*.txt"))[0]
+    statefile = w.workdir / f"workflow_state_{w.ID}.txt"
     state = statefile.read_text().strip()
     assert state == expected_state
 
     logger.info("test command line interface")
     print("-----", flush=True)
-    cli("jobs", "-d", str(workdir), "-e")
+    cli("jobs", "-d", str(w.workdir), "-e")
     print("-----", flush=True)
     tmpstatefile = statefile.replace(statefile.with_suffix(".tmp"))
-    cli("jobs", "-d", str(workdir), "-e")
+    cli("jobs", "-d", str(w.workdir), "-e")
     tmpstatefile.replace(statefile)
     print("-----", flush=True)
 
@@ -161,7 +161,7 @@ while True:
     fail_file = fail_files.pop(0)
     fail_file.unlink()
 
-outfile = workdir / "outputs" / f"f-{jobs[0]}.txt"
+outfile = w.workdir / "outputs" / f"f-{jobs[0]}.txt"
 logger.info("check that output file '%s' is present and correct", outfile)
 assert outfile.is_file()
 digits = outfile.read_text().splitlines()
@@ -174,7 +174,7 @@ for i in range(3):
 
 logger.info("test command line interface")
 print("-----", flush=True)
-cli("jobs", "-d", str(workdir), "-e")
+cli("jobs", "-d", str(w.workdir), "-e")
 print("-----", flush=True)
-cli("jobs", "-d", str(workdir), "-Af", "stage=='build' and digit==0")
+cli("jobs", "-d", str(w.workdir), "-Af", "stage=='build' and digit==0")
 print("-----", flush=True)

@@ -38,19 +38,19 @@ for exit_code in (0, 77):
         outputs=["file{exit_code}.txt"],
     )
 
-workdir = w.write()
+w.write()
 
 logger.info("submit workflow and wait for it to finish")
-subprocess.run([workdir / "submit"], check=True)
-subprocess.run([workdir / "wait", "-n", "1", workdir / "queue"], check=True)
+subprocess.run([w.workdir / "submit"], check=True)
+subprocess.run([w.workdir / "wait", "-n", "1", w.workdir / "queue"], check=True)
 
 logger.info("check workflow state is SUCCESS")
-statefile = list(workdir.glob("workflow_state_*.txt"))[0]
+statefile = w.workdir / f"workflow_state_{w.ID}.txt"
 state = statefile.read_text().strip()
 assert state == "SUCCESS"
 
 logger.info("check job states are as expected")
-joblistfile = list(workdir.glob("workflow_jobs_*.txt"))[0]
+joblistfile = w.workdir / f"workflow_jobs_{w.ID}.txt"
 for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
     jobargs = json.load((jobdir / "job_args.json").open())
     jobstate = (jobdir / "job_state").read_text().strip()
@@ -60,13 +60,13 @@ for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
         assert jobstate == "SUCCESS"
 
 logger.info("check that output file were (not) created as expected")
-outfiledir = workdir / "outputs"
+outfiledir = w.workdir / "outputs"
 assert (outfiledir / "file0.txt").is_file()
 assert not (outfiledir / "file77.txt").is_file()
 
 logger.info("test command line interface")
 print("-----", flush=True)
-cli("jobs", "-d", str(workdir), "-A")
+cli("jobs", "-d", str(w.workdir), "-A")
 print("-----", flush=True)
 
 # -- Test that dependent jobs cannot be skipped
@@ -96,29 +96,29 @@ w.add_job(
     outputs=["file{exit_code}.txt"],
 )
 
-workdir = w.write()
+w.write()
 
 logger.info("submit workflow and wait for it to finish")
-subprocess.run([workdir / "submit"], check=True)
-subprocess.run([workdir / "wait", "-n", "1", workdir / "queue"], check=True)
+subprocess.run([w.workdir / "submit"], check=True)
+subprocess.run([w.workdir / "wait", "-n", "1", w.workdir / "queue"], check=True)
 
 logger.info("check workflow state is SUCCESS")
-statefile = list(workdir.glob("workflow_state_*.txt"))[0]
+statefile = w.workdir / f"workflow_state_{w.ID}.txt"
 state = statefile.read_text().strip()
 assert state == "SUCCESS"
 
 logger.info("check job states are as expected")
-joblistfile = list(workdir.glob("workflow_jobs_*.txt"))[0]
+joblistfile = w.workdir / f"workflow_jobs_{w.ID}.txt"
 for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
     jobstate = (jobdir / "job_state").read_text().strip()
     assert jobstate == "SUCCESS/SKIPPED"
 
 logger.info("check that output file were not created as expected")
-outfiledir = workdir / "outputs"
+outfiledir = w.workdir / "outputs"
 assert not (outfiledir / "file0.txt").is_file()
 assert not (outfiledir / "file77.txt").is_file()
 
 logger.info("test command line interface")
 print("-----", flush=True)
-cli("jobs", "-d", str(workdir), "-A")
+cli("jobs", "-d", str(w.workdir), "-A")
 print("-----", flush=True)

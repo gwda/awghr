@@ -95,22 +95,22 @@ while len(jobs) > 1:
             jobs.append(job_ID)
 
 
-workdir = w.write()
+w.write()
 
 logger.info("submit workflow and wait for it to finish")
-subprocess.run([workdir / "submit"], check=True)
-subprocess.run([workdir / "wait", workdir / "queue"], check=True)
+subprocess.run([w.workdir / "submit"], check=True)
+subprocess.run([w.workdir / "wait", w.workdir / "queue"], check=True)
 
 logger.info("check for files")
-assert len(list(workdir.glob("workflow_jobs_*.txt"))) == 1
-assert len(list(workdir.glob("workflow_state_*.txt"))) == 1
+assert len(list(w.workdir.glob("workflow_jobs_*.txt"))) == 1
+assert len(list(w.workdir.glob("workflow_state_*.txt"))) == 1
 
 logger.info("check workflow state is SUCCESS")
-statefile = list(workdir.glob("workflow_state_*.txt"))[0]
+statefile = w.workdir / f"workflow_state_{w.ID}.txt"
 state = statefile.read_text().strip()
 assert state == "SUCCESS"
 
-outfile = workdir / "outputs" / f"f-{jobs[0]}.txt"
+outfile = w.workdir / "outputs" / f"f-{jobs[0]}.txt"
 logger.info("check that output file '%s' is present and correct", outfile)
 assert outfile.is_file()
 digits = outfile.read_text().splitlines()

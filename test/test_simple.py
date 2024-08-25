@@ -46,56 +46,56 @@ for i in range(10):
         outputs=["out_{index}.txt"],
     )
 
-workdir = w.write()
+w.write()
 
 logger.info("test command line interface")
 print("-----", flush=True)
-cli("-d", str(workdir), "-P")
+cli("-d", str(w.workdir), "-P")
 print("-----", flush=True)
 
 logger.info("submit workflow and wait for it to finish")
-subprocess.run([workdir / "submit"], check=True)
-subprocess.run([workdir / "wait", "-n", "1", workdir / "queue"], check=True)
+subprocess.run([w.workdir / "submit"], check=True)
+subprocess.run([w.workdir / "wait", "-n", "1", w.workdir / "queue"], check=True)
 
 logger.info("check for files")
-assert len(list(workdir.glob("workflow_jobs_*.txt"))) == 1
-assert len(list(workdir.glob("workflow_state_*.txt"))) == 1
-assert len(list(workdir.glob(".workflow_submitted_*.txt"))) == 0
+assert len(list(w.workdir.glob("workflow_jobs_*.txt"))) == 1
+assert len(list(w.workdir.glob("workflow_state_*.txt"))) == 1
+assert len(list(w.workdir.glob(".workflow_submitted_*.txt"))) == 0
 
 logger.info("check workflow state is SUCCESS")
-statefile = list(workdir.glob("workflow_state_*.txt"))[0]
+statefile = w.workdir / f"workflow_state_{w.ID}.txt"
 state = statefile.read_text().strip()
 assert state == "SUCCESS"
 
 logger.info("check that state is re-created")
 statefile.unlink()
-subprocess.run([workdir / "submit"], check=True)
-subprocess.run([workdir / "wait"], check=True)
+subprocess.run([w.workdir / "submit"], check=True)
+subprocess.run([w.workdir / "wait"], check=True)
 state = statefile.read_text().strip()
 assert state == "SUCCESS"
 
 for i in range(10):
-    outfile = workdir / "outputs" / f"out_{i}.txt"
+    outfile = w.workdir / "outputs" / f"out_{i}.txt"
     logger.info("check that output file '%s' is present and correct", outfile)
     assert outfile.is_file()
     outfile.read_text() == f"XYZ{i}"
 
 logger.info("check that job standard output/error printed what was expected")
-joblistfile = list(workdir.glob("workflow_jobs_*.txt"))[0]
+joblistfile = w.workdir / f"workflow_jobs_{w.ID}.txt"
 for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
     stdout = (jobdir / "job_stdout").read_text().strip()
     stderr = (jobdir / "job_stderr").read_text().strip()
-    assert stdout == str(workdir.parent)
+    assert stdout == str(w.workdir.parent)
     assert stderr == "\n".join(["abc1", "abc2", "abc3", "xyz"])
 
 logger.info("test command line interface")
 print("-----", flush=True)
-cli("jobs", "-d", str(workdir), "-Ae", "-n", "1", "-g", "a")
+cli("jobs", "-d", str(w.workdir), "-Ae", "-n", "1", "-g", "a")
 print("-----", flush=True)
-cli("-d", str(workdir), "-f", "index < 5", "-Ajlon", "0")
+cli("-d", str(w.workdir), "-f", "index < 5", "-Ajlon", "0")
 print("-----", flush=True)
 try:
-    cli("jobs", "-d", str(workdir), "-n", "-1")
+    cli("jobs", "-d", str(w.workdir), "-n", "-1")
     msg = "should have exited"
     raise AssertionError(msg)
 except SystemExit:

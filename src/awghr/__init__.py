@@ -40,6 +40,11 @@ class Workflow:
     Generate a workflow.
 
     Attributes:
+        workdir (Path):
+            Working directory where workflow will be written.
+        ID (Optional[str]):
+            A unique string representing the workflow.
+            Only available after `write()` has been called.
         MIN (Quantity):
             Constant, representing 1 minute.
         HOUR (Quantity):
@@ -85,6 +90,10 @@ class Workflow:
         ...
         ```
     """
+
+    # Attributes
+    workdir: Path
+    ID: Optional[str] = None
 
     # Useful units of time
     MIN: Quantity = _ureg.Quantity(1.0, "minute")
@@ -137,9 +146,11 @@ class Workflow:
             msg = f"Base directory '{basedir}' is not a directory"
             raise WorkflowException(msg)
 
+        # Set workflow directory
+        self.workdir = basedir / name
+
         # Initialise internal variables
         self._name = name
-        self._workdir = basedir / self._name
         self._account = account
         self._workflow_writer = cfg["workflow_writer"](cfg["batch_system_cfg"])
         self._workflow_hash = blake2b(digest_size=8, usedforsecurity=False)
@@ -161,7 +172,7 @@ class Workflow:
         # Log details
         _logger.info("workflow name: %s", self._name)
         _logger.info("workflow account: %s", self._account)
-        _logger.info("workflow directory: %s", self._workdir)
+        _logger.info("workflow directory: %s", self.workdir)
 
     def add_job(
         self,
@@ -276,7 +287,7 @@ class Workflow:
         }
 
         # Create job directory
-        jobdir = job_dir_from_ID(self._workdir / "jobs", job_ID)
+        jobdir = job_dir_from_ID(self.workdir / "jobs", job_ID)
         job["dir"] = jobdir
 
         # Parse input file list
@@ -364,36 +375,33 @@ class Workflow:
         """
         return self._jobs[key[0]]["args"][key[1]]
 
-    def write(self) -> Path:
+    def write(self) -> None:
         """
         Write workflow files and directories.
-
-        Returns:
-            Path: path where workflow was written.
         """
 
         # Log progress
         self._log_add_jobs.finish()
 
         # Generate workflow ID as hash of all job JSON representations
-        self._workflow_ID = self._workflow_hash.hexdigest()
+        self.ID = self._workflow_hash.hexdigest()
 
         # Name of file indicating workflow has been submitted
-        submittedfile = self._workdir / f".workflow_submitted_{self._workflow_ID}.txt"
+        submittedfile = self.workdir / f".workflow_submitted_{self.ID}.txt"
 
         # Check that workflow has not been submitted
         if submittedfile.is_file():
-            msg = f"workflow {self._workflow_ID} has already been submitted"
+            msg = f"workflow {self.ID} has already been submitted"
             raise WorkflowException(msg)
 
         # Name of file which workflow will write final state to
         # - Remove any existing file
-        workstatefile = self._workdir / f"workflow_state_{self._workflow_ID}.txt"
+        workstatefile = self.workdir / f"workflow_state_{self.ID}.txt"
         workstatefile.unlink(missing_ok=True)
 
         # Name of file containing directories of any failed jobs
         # - Remove any existing file
-        failedjobfile = self._workdir / f"workflow_failed_jobs_{self._workflow_ID}.txt"
+        failedjobfile = self.workdir / f"workflow_failed_jobs_{self.ID}.txt"
         failedjobfile.unlink(missing_ok=True)
 
         # Determine intermediate jobs, which are required as dependencies
@@ -418,7 +426,7 @@ class Workflow:
                 out_final_files.add(out_file.name)
 
         # Make directory for final output files
-        outfinaldir = self._workdir / "outputs"
+        outfinaldir = self.workdir / "outputs"
         outfinaldir.mkdir(parents=True, exist_ok=True)
 
         log_make_jobs = ProgressLogger(_logger, "wrote %s job directories in workflow")
@@ -465,7 +473,7 @@ class Workflow:
         log_make_jobs.finish()
 
         # Write list of all job directories
-        all_jobs_file = self._workdir / f"workflow_jobs_{self._workflow_ID}.txt"
+        all_jobs_file = self.workdir / f"workflow_jobs_{self.ID}.txt"
         with FileLineWriter(all_jobs_file) as f:
             for job in self._jobs.values():
                 f += job["dir"]
@@ -474,7 +482,7 @@ class Workflow:
         with ExitStack() as stack:
             ctrlscripts = {
                 ctrlscript: stack.enter_context(
-                    FileLineWriter(self._workdir / ctrlscript, executable=True)
+                    FileLineWriter(self.workdir / ctrlscript, executable=True)
                 )
                 for ctrlscript in ("submit", "queue", "cancel", "wait")
             }
@@ -502,13 +510,13 @@ fi
 if test -f '{workstatefile}'; then
     state=`cat '{workstatefile}'`
     if test "X${{state}}" = XSUCCESS; then
-        echo "info: workflow {self._workflow_ID} has already been successfully run"
+        echo "info: workflow {self.ID} has already been successfully run"
         exit 1
     fi
     rm -f '{submittedfile}'
 fi
 if test -f '{submittedfile}'; then
-    echo "info: workflow {self._workflow_ID} has already been submitted"
+    echo "info: workflow {self.ID} has already been submitted"
     exit 1
 fi
 rm -f '{workstatefile}'
@@ -516,12 +524,12 @@ rm -f '{failedjobfile}'
 """
 
             # Make batch system script directory
-            batchdir = self._workdir / "batch" / self._workflow_ID
+            batchdir = self.workdir / "batch" / self.ID
             batchdir.mkdir(parents=True, exist_ok=True)
 
             # Write batch system scripts
             self._workflow_writer(
-                workflowname=f"awghr_{self._workflow_ID}",
+                workflowname=f"awghr_{self.ID}",
                 batchdir=batchdir,
                 account=self._account,
                 jobs=self._jobs,
@@ -537,12 +545,12 @@ rm -f '{failedjobfile}'
                 "submit"
             ] += f"""
 echo SUBMITTED > '{submittedfile}'
-echo 'info: submitted all jobs in workflow {self._workflow_ID}'
+echo 'info: submitted all jobs in workflow {self.ID}'
 """
             ctrlscripts[
                 "cancel"
             ] += f"""
-echo 'info: cancelled all jobs in workflow {self._workflow_ID}'
+echo 'info: cancelled all jobs in workflow {self.ID}'
 """
 
             # Write top-level wait script
@@ -569,5 +577,3 @@ echo "workflow state: `cat '{workstatefile}'`"
 
         # Log completion
         _logger.info("workflow has been written")
-
-        return self._workdir
