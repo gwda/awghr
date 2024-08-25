@@ -96,9 +96,13 @@ def show_jobs(args):
     cache_file = args.workflow_dir / ".jobs_cache"
     if cache_file.is_file():
         cache = pickle.load(cache_file.open("rb"))
-    for entry, default in (("batchID", {}), ("args", {}), ("constant_args", None)):
-        if entry not in cache:
-            cache[entry] = default
+    if "batchID" not in cache:
+        cache["batchID"] = {}
+    if "args" not in cache or "sorted_args" not in cache:
+        cache["args"] = {}
+        cache["sorted_args"] = {}
+    if "constant_args" not in cache:
+        cache["constant_args"] = None
 
     # Add information that will not change while workflow is running to cache
     for job in jobs:
@@ -112,6 +116,7 @@ def show_jobs(args):
         # Add job arguments to cache
         if job not in cache["args"]:
             cache["args"][job] = json.load((job / "job_args.json").open())
+            cache["sorted_args"][job] = sorted(cache["args"][job].items())
             cache["constant_args"] = None
 
     # Find constant job arguments, in order to hide them in output
@@ -177,11 +182,8 @@ def show_jobs(args):
             job_state_cache[job] = job_state
     jobs = filtered_jobs
 
-    if len(jobs) == 0:
-        return
-
     # Show job, ordered jobs by their arguments
-    ordered_jobs = [(sorted(cache["args"][job].items()), job) for job in jobs]
+    ordered_jobs = sorted([(cache["sorted_args"][job], job) for job in jobs])
     for n, (job_args, job) in enumerate(ordered_jobs, start=1):
         if n > 1:
             print("")
