@@ -11,7 +11,7 @@ from pathlib import Path
 from shutil import which
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from pint import Unit
+from pint import Quantity, Unit
 
 from .config import read_config
 from .util import (
@@ -39,47 +39,61 @@ class Workflow:
     """
     Generate a workflow.
 
-    Default workflow configurations are retrieved from `~/.awghr.cfg`.
-    This is a `ConfigParser`-style configuration file with the following syntax:
-    ```
-    [DEFAULT]           # This section match all batch systems/hosts/tags
-    account = ...           # Default value of `account` argument passed to Workflow()
-    basedir = ...           # Default value of `basedir` argument passed to Workflow()
-    envlist =               # List of environment variables to save/set in job script:
-        *PATH               # - Save any variables matching this regular expression.
-        VAR=val             # - Set variable to the given value.
-        ...                 #   May contain `{format}` strings which will be filled by:
-                            #   * `_time_min`: requested wall time in minutes.
-                            #   * `_mem_MB`: requested memory in MB.
-                            #   * `_disk_MB`: requested temporary disk space in MB.
-                            #   * `_threads`: requested number of threads.
+    Attributes:
+        MIN (Quantity):
+            Constant, representing 1 minute.
+        HOUR (Quantity):
+            Constant, representing 60 minutes.
+        DAY (Quantity):
+            Constant, representing 1440 minutes.
+        MB (Quantity):
+            Constant, representing 10^6 bytes.
+        GB (Quantity):
+            Constant, representing 10^9 bytes.
 
-    # Section headings are arbitrary
-    [host matching]     # This section matches the host `login1.example.com`
-    match host = login1.example.com
-    match host = .example.com
-    match host = login1
-    match host = login
-    ...
+    Configuration:
+        Default workflow configurations are retrieved from `~/.awghr.cfg`.
 
-    [batch matching]    # This section matches a given batch system
-    match batch = ...
-    # Batch system matching sections may include system-specific keys
+        This is a `ConfigParser`-style configuration file with the following syntax:
+        ```
+        [DEFAULT]           # This section match all batch systems/hosts/tags
+        account = ...           # Default value of `account` argument passed to Workflow()
+        basedir = ...           # Default value of `basedir` argument passed to Workflow()
+        envlist =               # List of environment variables to save/set in job script:
+            *PATH               # - Save any variables matching this regular expression.
+            VAR=val             # - Set variable to the given value.
+            ...                 #   May contain `{format}` strings which will be filled by:
+                                #   * `_time_min`: requested wall time in minutes.
+                                #   * `_mem_MB`: requested memory in MB.
+                                #   * `_disk_MB`: requested temporary disk space in MB.
+                                #   * `_threads`: requested number of threads.
 
-    [tag matching]      # This section matches a tag in the `tags` list passed to Workflow()
-    match tag = ...
-    ...
-    ```
+        # Section headings are arbitrary
+        [host matching]     # This section matches the host `login1.example.com`
+        match host = login1.example.com
+        match host = .example.com
+        match host = login1
+        match host = login
+        ...
+
+        [batch matching]    # This section matches a given batch system
+        match batch = ...
+        # Batch system matching sections may include system-specific keys
+
+        [tag matching]      # This section matches a tag in the `tags` list passed to Workflow()
+        match tag = ...
+        ...
+        ```
     """
 
     # Useful units of time
-    MIN = _ureg.Quantity(1.0, "minute")
-    HOUR = _ureg.Quantity(1.0, "hour")
-    DAY = _ureg.Quantity(1.0, "day")
+    MIN: Quantity = _ureg.Quantity(1.0, "minute")
+    HOUR: Quantity = _ureg.Quantity(1.0, "hour")
+    DAY: Quantity = _ureg.Quantity(1.0, "day")
 
     # Useful units of size
-    MB = _ureg.Quantity(1.0, "megabyte")
-    GB = _ureg.Quantity(1.0, "gigabyte")
+    MB: Quantity = _ureg.Quantity(1.0, "megabyte")
+    GB: Quantity = _ureg.Quantity(1.0, "gigabyte")
 
     def __init__(
         self,
@@ -101,8 +115,7 @@ class Workflow:
                 Accounting tag the workflow should be charged against.
                 If not given, use the default value retrieved from `~/.awghr.cfg`.
             basedir (Optional[Path]):
-                Base directory for all workflows. This workflow will be written to a dated
-                subdirectory; a symlink will be created to the most recent directory.
+                Base workflow directory; this workflow will be written to subdirectory.
                 If not given, use the default value retrieved from `~/.awghr.cfg`,
                 or else the current directory.
         """
@@ -187,18 +200,13 @@ class Workflow:
                 * `_threads`: requested number of threads.
             time (Unit):
                 Requested wall time of the job.
-                Use the pre-defined constants:
-                * `Workflow.MIN`: 1 minute.
-                * `Workflow.HOUR`: 60 minutes.
-                * `Workflow.DAY`: 1440 minutes.
+                Use the pre-defined constants: `MIN`, `HOUR`, `DAY`.
             mem (Unit):
                 Requested memory of the job.
-                Use the pre-defined constants:
-                * `Workflow.MB`: 10^6 bytes.
-                * `Workflow.GB`: 10^9 bytes.
+                Use the pre-defined constants: `MB`, `GB`.
             disk (Unit):
                 Requested temporary disk space of the job.
-                Use the same pre-defined constants as for `mem`.
+                Use the pre-defined constants: `MB`, `GB`.
             threads (int):
                 Requested number of threads of the job.
                 Default is 1.
