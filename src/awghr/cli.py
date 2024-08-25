@@ -230,7 +230,7 @@ def show_jobs(args):
                 job.iterdir(), key=lambda j: (not j.name.startswith("job_"), j)
             ):
                 f_size = _ureg.Quantity(f.stat().st_size, "byte").to_compact()
-                print(prefix.format("FILE"), f, "SIZE", format(f_size, "~"))
+                print(prefix.format("FILE"), f, "SIZE", format(f_size, "0.1f~"))
 
         # Show standard output
         if args.output:
