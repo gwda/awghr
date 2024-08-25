@@ -225,6 +225,8 @@ def show_jobs(args):
                     args.last_n_lines,
                 )
 
+        sys.stdout.flush()
+
 
 def cli(*argv: str):
 
