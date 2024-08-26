@@ -34,14 +34,22 @@ def job_dir_from_ID(basedir: Path, job_ID: str):
 # List of job files, which may be indexed with regular expressions
 class JobFileList:
 
-    def __init__(self, _list):
+    def __init__(self, _name, _list):
+        self._name = _name
         self._list = _list
 
     def __repr__(self):
+        if len(self._list) == 0:
+            msg = f"'{self._name}' must return at least one file"
+            raise WorkflowException(msg)
         return " ".join(self._list)
 
     def __getitem__(self, regex):
-        return " ".join([x for x in self._list if re.match(regex, x)])
+        f_lst = [x for x in self._list if re.match(regex, x)]
+        if len(f_lst) == 0:
+            msg = f"'{self._name}[{regex}]' must return at least one file"
+            raise WorkflowException(msg)
+        return " ".join(f_lst)
 
 
 # Log progress at progressively longer intervals

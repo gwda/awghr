@@ -105,6 +105,35 @@ try:
 except WorkflowException:
     pass
 
+# Try to add a job with an empty file list substitution
+try:
+    w.add_job(
+        args=dict(index=999),
+        cmds=["echo {_in}"],
+        time=1 * w.MIN,
+        mem=10 * w.MB,
+        disk=10 * w.MB,
+        outputs=["dummy.txt"],
+    )
+    msg = "should have raised a WorkflowException"
+    raise AssertionError(msg)
+except WorkflowException:
+    pass
+try:
+    w.add_job(
+        args=dict(index=999),
+        cmds=["echo {_in[false]}"],
+        time=1 * w.MIN,
+        mem=10 * w.MB,
+        disk=10 * w.MB,
+        inputs=[Path("/usr/bin/true")],
+        outputs=["dummy.txt"],
+    )
+    msg = "should have raised a WorkflowException"
+    raise AssertionError(msg)
+except WorkflowException:
+    pass
+
 # Try to add a job with non-existent dependency
 try:
     w.add_job(

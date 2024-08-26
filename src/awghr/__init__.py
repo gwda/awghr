@@ -345,8 +345,8 @@ class Workflow:
 
         # Format and store commands
         cmdargs = dict(args)
-        cmdargs["_in"] = JobFileList([p.name for p in job["infiles"]])
-        cmdargs["_out"] = JobFileList([p.name for p in job["outfiles"]])
+        cmdargs["_in"] = JobFileList("_in", [p.name for p in job["infiles"]])
+        cmdargs["_out"] = JobFileList("_out", [p.name for p in job["outfiles"]])
         job["cmds"] = []
         for format_cmd in cmds:
             format_cmd = format_cmd.format(**cmdargs, **job["resources"])
