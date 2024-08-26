@@ -123,21 +123,26 @@ def show_jobs(args):
 
     # Find constant job arguments, in order to hide them in output
     if cache["constant_args"] is None:
-        job_args_counts = {}
-        for job in jobs:
-            for arg, val in cache["args"][job].items():
-                if arg not in job_args_counts:
-                    job_args_counts[arg] = {}
-                if val not in job_args_counts[arg]:
-                    job_args_counts[arg][val] = 0
-                job_args_counts[arg][val] += 1
         cache["constant_args"] = set()
-        for arg in job_args_counts:
+
+        # Only if there is more than one job
+        if len(jobs) > 1:
+
+            # Count how many different values each argument has
+            job_args_counts = {}
+            for job in jobs:
+                for arg, val in cache["args"][job].items():
+                    if arg not in job_args_counts:
+                        job_args_counts[arg] = {}
+                    if val not in job_args_counts[arg]:
+                        job_args_counts[arg][val] = 0
+                    job_args_counts[arg][val] += 1
 
             # Argument is constant if it only has one value, and all jobs have that value
-            if len(job_args_counts[arg]) == 1:
-                if list(job_args_counts[arg].items())[0][1] == len(jobs):
-                    cache["constant_args"].add(arg)
+            for arg in job_args_counts:
+                if len(job_args_counts[arg]) == 1:
+                    if list(job_args_counts[arg].items())[0][1] == len(jobs):
+                        cache["constant_args"].add(arg)
 
     # Save cache
     pickle.dump(cache, cache_file.open("wb"))
