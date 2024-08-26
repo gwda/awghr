@@ -439,9 +439,12 @@ class Workflow:
             jobbatchID_file = job["dir"] / "job_batchID"
             jobbatchID_file.unlink(missing_ok=True)
 
-            # Remove job state file
+            # Remove job state file, if job was not successful
             jobstate_file = job["dir"] / "job_state"
-            jobstate_file.unlink(missing_ok=True)
+            if jobstate_file.is_file():
+                jobstate = jobstate_file.read_text().strip()
+                if not jobstate.startswith("SUCCESS"):
+                    jobstate_file.unlink(missing_ok=True)
 
             # Write JSON representation of arguments
             job_args_file = job["dir"] / "job_args.json"

@@ -104,6 +104,12 @@ for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
     assert stdout == str(w.workdir.parent)
     assert stderr == "\n".join(["abc1", "abc2", "abc3", "xyz"])
 
+logger.info("check that re-writing workflow does not remove successful states")
+w.write()
+joblistfile = w.workdir / f"workflow_jobs_{w.ID}.txt"
+for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
+    assert (jobdir / "job_state").is_file()
+
 logger.info("test command line interface")
 print("-----", flush=True)
 cli("jobs", "-d", str(w.workdir), "-Ae", "-n", "1", "-g", "a")

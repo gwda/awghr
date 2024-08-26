@@ -63,3 +63,7 @@ logger.info("test command line interface")
 print("-----", flush=True)
 cli("jobs", "-d", str(w.workdir))
 print("-----", flush=True)
+
+logger.info("check that re-writing workflow removes unsuccessful states")
+w.write()
+assert not jobstatefile.is_file()
