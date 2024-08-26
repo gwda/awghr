@@ -3,8 +3,10 @@ import json
 import pickle
 import re
 import shlex
+import subprocess
 import sys
 from collections import deque
+from contextlib import redirect_stdout
 from datetime import datetime
 from pathlib import Path
 
@@ -409,10 +411,13 @@ def cli(*argv: str):
         parse_argv.insert(0, "jobs")
     args = parser.parse_args(parse_argv)
 
-    # Execute sub-command
+    # Execute sub-command, pipe output through a pager
+    # - Ignore errors if pipe is broken
     try:
-        args.subcommand(args)
+        with subprocess.Popen(
+            ["less", "-FRSX"], shell=False, stdin=subprocess.PIPE, text=True
+        ) as p:
+            with redirect_stdout(p.stdin):
+                args.subcommand(args)
     except BrokenPipeError:  # pragma: no cover
-
-        # Ignore errors if output is piped to a pager
         pass
