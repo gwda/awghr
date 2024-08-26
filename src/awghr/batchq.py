@@ -168,7 +168,7 @@ class BatchQWorkflowWriter:
             # Use first job in array for retrieving resources
             job = job_array[0]
 
-            # Write job array script
+            # Write job array submission script
             jobarray_submit_script_file = jobarraydir / "submit_job_array.sh"
             jobarray_script_file = jobarraydir / "job_array.sh"
             with FileLineWriter(jobarray_submit_script_file) as f:
@@ -188,7 +188,7 @@ class BatchQWorkflowWriter:
                     / f"job_stderr_{self.BATCHQ_SUBMIT_ARRAY_INDEX_REPL}",
                 )
 
-                # Exit on any errors
+                # Exit on any script errors
                 f += "set -e"
 
                 # Run job array script
@@ -244,10 +244,11 @@ batchq_job_index="$1"
                     f += f"""echo "{self.BATCHQ_JOB_ARRAY_ID_EXPR}" > '{jobbatchID_file}'"""
 
                     # Set trap to write job state file
+                    # - for signals, exit with 128+<signal number>
                     jobstate_file = job["dir"] / "job_state"
                     f += f"""
 function trap_state() {{
-    local status=$?
+    local status=$1
     if test ${{status}} -eq 0; then
         echo SUCCESS > '{jobstate_file}'
         exit 0
@@ -259,7 +260,8 @@ function trap_state() {{
         exit ${{status}}
     fi
 }}
-trap trap_state EXIT
+trap 'trap_state $?' EXIT
+trap 'trap_state 143' TERM
 echo RUNNING > '{jobstate_file}'
 """
 
@@ -316,7 +318,7 @@ fi
             log_make_job_arrays.update()
         log_make_job_arrays.finish()
 
-        # Write script to check all jobs have succeeded
+        # Write submission script to check all jobs have succeeded
         workstate_submit_script_file = batchdir / "submit_workstate.sh"
         workstate_script_file = batchdir / "workstate.sh"
         with FileLineWriter(workstate_submit_script_file) as f:
@@ -334,7 +336,7 @@ fi
                 stderr=batchdir / "submit_workstate_stderr",
             )
 
-            # Exit on any errors
+            # Exit on any script errors
             f += "set -e"
 
             # Run script to check all jobs have succeeded
@@ -348,7 +350,10 @@ fi
             # Default to success
             f += "workstate=SUCCESS"
 
-            # Check state of all jobs; write directories of failed jobs to file
+            # Check state of all jobs
+            # - write directories of failed jobs to file
+            # - if a job is still RUNNING, it clearly didn't
+            #   complete successfully, so mark as FAILED
             for _, job_array in job_arrays.items():
                 for job in job_array:
                     jobstate_file = job["dir"] / "job_state"
@@ -357,6 +362,9 @@ jobstate=`cat '{jobstate_file}' 2>/dev/null || true`
 if test "X${{jobstate%%/*}}" != XSUCCESS; then
     echo '{job['dir']}' >> '{failedjobfile}'
     workstate=FAILED
+    if test "X${{jobstate}}" = XRUNNING; then
+        echo FAILED > '{jobstate_file}'
+    fi
 fi
 """
             # Write workflow state
@@ -368,7 +376,7 @@ fi
         # Register which jobs have been written
         all_jobs_ID_written = set()
 
-        # Write script to submit all jobs
+        # Write submission script to submit all jobs
         all_jobs_submit_script_file = batchdir / "submit_all_jobs.sh"
         all_jobs_script_file = batchdir / "all_jobs.sh"
         with FileLineWriter(all_jobs_submit_script_file) as f:
@@ -386,7 +394,7 @@ fi
                 stderr=batchdir / "submit_all_jobs_stderr",
             )
 
-            # Exit on any errors
+            # Exit on any script errors
             f += "set -e"
 
             # Run script to submit all jobs
@@ -395,15 +403,17 @@ fi
         with FileLineWriter(all_jobs_script_file) as f:
 
             # Set trap to write the workflow state if errors are encountered
+            # - for signals, exit with 128+<signal number>
             f += f"""
 function trap_state() {{
-    local status=$?
+    local status=$1
     if test ${{status}} -ne 0; then
         echo FAILED > '{workstatefile}'
     fi
     exit ${{status}}
 }}
-trap trap_state EXIT
+trap 'trap_state $?' EXIT
+trap 'trap_state 143' TERM
 """
 
             # Write shell function fail() for reporting errors

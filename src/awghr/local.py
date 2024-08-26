@@ -39,7 +39,7 @@ class LocalWorkflowWriter:
         with FileLineWriter(all_jobs_script_file) as f:
             f += "#!/bin/bash"
 
-            # Exit on any errors
+            # Exit on any script errors
             f += "set -e"
 
             # Redirect standard output and error from script
@@ -57,9 +57,12 @@ function fail() {
 """
 
             # Set trap to write workflow state
+            # - if a job is still RUNNING, it clearly didn't
+            #   complete successfully, so mark as FAILED
+            # - for signals, exit with 128+<signal number>
             f += """
 function trap_workflow_state() {
-    local status=$?
+    local status=$1
     workstate=SUCCESS
 """
             for job in jobs.values():
@@ -68,6 +71,9 @@ function trap_workflow_state() {
     jobstate=`cat '{jobstate_file}' 2>/dev/null || true`
     if test "X${{jobstate%%/*}}" != XSUCCESS; then
         workstate=FAILED
+        if test "X${{jobstate}}" = XRUNNING; then
+            echo FAILED > '{jobstate_file}'
+        fi
     fi
 """
             f += f"""
@@ -78,7 +84,8 @@ function trap_workflow_state() {
 """
             f += """
 }
-trap trap_workflow_state EXIT TERM
+trap 'trap_workflow_state $?' EXIT
+trap 'trap_workflow_state 143' TERM
 """
 
             # Ensure list of directories of failed jobs does not exist
@@ -96,10 +103,11 @@ trap trap_workflow_state EXIT TERM
                 f += f"""echo '{n}' > '{jobbatchID_file}'"""
 
                 # Set trap to write job state file
+                # - for signals, exit with 128+<signal number>
                 jobstate_file = job["dir"] / "job_state"
                 f += f"""
 function trap_job_state() {{
-    local status=$?
+    local status=$1
     if test ${{status}} -eq 0; then
         echo SUCCESS > '{jobstate_file}'
         exit 0
@@ -112,7 +120,8 @@ function trap_job_state() {{
         exit ${{status}}
     fi
 }}
-trap trap_job_state EXIT TERM
+trap 'trap_job_state $?' EXIT
+trap 'trap_job_state 143' TERM
 """
 
                 # Check if job has already been run successfully
