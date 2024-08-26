@@ -221,9 +221,7 @@ def show_jobs(args):
             job_state_str += job_state_last_modified_cache[job].strftime(
                 " %Y-%m-%d %H:%M:%S"
             )
-        if (
-            job_state_cache[job] == "RUNNING" and job in cache["batchID"]
-        ):  # pragma: no cover
+        if job in cache["batchID"]:
             job_state_str += " BATCHID " + cache["batchID"][job]
         print(prefix.format("STATE"), job_state_str)
 
