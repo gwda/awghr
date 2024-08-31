@@ -205,9 +205,10 @@ w.write()
 
 # Test that workflow cannot be rewritten once submitted
 try:
-    submittedfile = w.workdir / f".workflow_submitted_{w.ID}.txt"
+    submittedfile = w.workdir / "batch" / w.ID / "workflow_submitted"
     submittedfile.touch()
     w.write()
+    msg = "should have raised a WorkflowException"
     raise AssertionError(msg)
 except WorkflowException:
     pass

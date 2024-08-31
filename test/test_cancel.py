@@ -30,7 +30,8 @@ w.write()
 
 logger.info("submit workflow, wait for it to start running, then cancel it")
 subprocess.run([w.workdir / "submit"], check=True)
-joblistfile = w.workdir / f"workflow_jobs_{w.ID}.txt"
+joblistfile = w.workdir / "batch" / w.ID / "workflow_all_jobs"
+assert joblistfile.is_file()
 jobstatefile = Path(joblistfile.read_text().strip()) / "job_state"
 n = 0
 while not jobstatefile.is_file():
@@ -39,7 +40,7 @@ while not jobstatefile.is_file():
     n += 1
     assert n < 100
 subprocess.run([w.workdir / "cancel"], check=True)
-statefile = w.workdir / f"workflow_state_{w.ID}.txt"
+statefile = w.workdir / "batch" / w.ID / "workflow_state"
 n = 0
 while not statefile.is_file():
     logger.info("waiting for %s to exist ...", statefile)
@@ -47,9 +48,10 @@ while not statefile.is_file():
     n += 1
     assert n < 100
 
-logger.info("check for files")
-assert len(list(w.workdir.glob("workflow_state_*.txt"))) == 1
-assert len(list(w.workdir.glob(".workflow_submitted_*.txt"))) == 0
+logger.info("check for workflow files")
+assert statefile.is_file()
+submittedfile = w.workdir / "batch" / w.ID / "workflow_submitted"
+assert not submittedfile.is_file()
 
 logger.info("check job state is FAILED")
 jobstate = jobstatefile.read_text().strip()

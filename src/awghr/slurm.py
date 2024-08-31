@@ -67,17 +67,7 @@ class SlurmWorkflowWriter(BatchQWorkflowWriter):
     # `<cluster_name>` is not part of the job ID and must be removed.
     BATCHQ_ID_REMOVE_SUFFIX = "%%:*"
 
-    BATCHQ_SUBMIT_ALL = """
-sbatch --quiet '{script}'
-"""
-
-    BATCHQ_QUEUE = """
-squeue --name='{jobname}' --format='%20i  %2t  %.12M  %.10m  %.12d  %.4C  %.8p  %12P  %R' --sort='-M,-p'
-"""
-
-    BATCHQ_CANCEL = """
-scancel --name='{jobname}'
-"""
+    BATCHQ_SUBMIT_ALL = "sbatch"
 
     def __init__(self, batchsyscfg):
         super().__init__(batchsyscfg)
@@ -105,3 +95,33 @@ scancel --name='{jobname}'
             except KeyError:  # pragma: no cover
                 msg = "could not determine maximum size of Slurm job array"
                 raise BatchSystemException(msg)
+
+    def _batchq_ctrl_commands(self):
+
+        # Command to submit workflow scripts in $@
+        submit = """
+batchq_submit() {
+    local script=
+    for script in $@; do
+        sbatch --quiet ${script}
+    done
+}
+"""
+
+        # Command to display all queued jobs with names in $@
+        queue = """
+batchq_queue () {
+    local jobnames=`echo $@ | tr ' ' ','`
+    squeue --name="${jobnames}" --format='%20i  %2t  %.12M  %.10m  %.12d  %.4C  %.8p  %12P  %R' --sort='-M,-p'
+}
+"""
+
+        # Command to cancel all jobs with names in $@
+        cancel = """
+batchq_cancel() {
+    local jobnames=`echo $@ | tr ' ' ','`
+    scancel --name="${jobnames}"
+}
+"""
+
+        return submit, queue, cancel

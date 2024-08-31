@@ -38,7 +38,7 @@ endif
 			exit 1; \
 		fi; \
 	done
-	@for test in `cat test/list-of-tests.txt`; do \
+	@for test in `grep -v '^#' test/list-of-tests.txt`; do \
 		if ! test -f "test/test_$${test}.py"; then \
 			echo "ERROR: test test/test_$${test}.py does not exist"; \
 			exit 1; \

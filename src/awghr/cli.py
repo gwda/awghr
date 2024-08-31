@@ -72,32 +72,33 @@ def show_stdouterr(prefix, stdfile, grep_regex, last_n_lines):
 def show_jobs(args):
 
     # Check for workflows
-    job_list_files = list(args.workflow_dir.glob("workflow_jobs_*.txt"))
+    job_list_files = list(args.workflow_dir.glob("batch/*/workflow_all_jobs"))
     if len(job_list_files) == 0:
         msg = f"'{args.workflow_dir}' is not a workflow directory"
         raise FileNotFoundError(msg)
 
     # Get list of jobs to examine
     jobs = set()
+    batchdirs = {}
     for job_list_file in job_list_files:
 
         # If only showing failed jobs, use failed jobs list if possible
-        if args.state == "FAILED":
-            failed_job_list_file = job_list_file.parent / job_list_file.name.replace(
-                "_state_", "_failed_jobs_"
-            )
-            if failed_job_list_file.is_file():
-                jobs.update(
-                    [Path(line) for line in failed_job_list_file.read_text().split()]
-                )
-                continue
+        failed_job_list_file = job_list_file.parent / "workflow_failed_jobs"
+        if args.state == "FAILED" and failed_job_list_file.is_file():
+            use_job_list_file = failed_job_list_file
+        else:
+            # Otherwise use full jobs list
+            use_job_list_file = job_list_file
 
-        # Otherwise use full jobs list
-        jobs.update([Path(line) for line in job_list_file.read_text().split()])
+        # Update list of jobs
+        new_jobs = [Path(line) for line in use_job_list_file.read_text().split()]
+        jobs.update(new_jobs)
+        batchdir = str(use_job_list_file.parent)
+        batchdirs.update(dict.fromkeys(new_jobs, batchdir))
 
     # Load cache
     cache = {}
-    cache_file = args.workflow_dir / ".jobs_cache"
+    cache_file = args.workflow_dir / "jobs" / ".cache"
     if cache_file.is_file():
         cache = pickle.load(cache_file.open("rb"))
     if "batchID" not in cache:
@@ -226,8 +227,12 @@ def show_jobs(args):
         print(prefix.format("STATE"), job_state_str)
 
         # Show job directory
+        if args.batch_dir:
+            print(prefix.format("BATCH"), batchdirs[job])
+
+        # Show job directory
         if args.job_dir:
-            print(prefix.format("DIR"), job)
+            print(prefix.format("JOB"), job)
 
         # Show files in job directory
         if args.files:
@@ -347,6 +352,9 @@ def cli(*argv: str):
         type=str,
         default=None,
         help="evaluate EXPR to filter jobs by their arguments",
+    )
+    parser_show_jobs.add_argument(
+        "-b", "--batch-dir", action="store_true", help="show the batch directory"
     )
     parser_show_jobs.add_argument(
         "-j", "--job-dir", action="store_true", help="show the job directory"

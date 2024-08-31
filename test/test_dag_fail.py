@@ -132,17 +132,19 @@ while True:
     subprocess.run([w.workdir / "submit"], check=True)
     subprocess.run([w.workdir / "wait", w.workdir / "queue"], check=True)
 
-    logger.info("check for files (%i fail files exist)", len(fail_files))
-    assert len(list(w.workdir.glob("workflow_jobs_*.txt"))) == 1
-    assert len(list(w.workdir.glob("workflow_state_*.txt"))) == 1
+    logger.info("check for workflow files (%i fail files exist)", len(fail_files))
+    joblistfile = w.workdir / "batch" / w.ID / "workflow_all_jobs"
+    assert joblistfile.is_file()
+    statefile = w.workdir / "batch" / w.ID / "workflow_state"
+    assert statefile.is_file()
     if len(fail_files) > 0:
-        assert len(list(w.workdir.glob("workflow_failed_jobs_*.txt"))) == 1
+        failedjoblistfile = w.workdir / "batch" / w.ID / "workflow_failed_jobs"
+        assert joblistfile.is_file()
 
     expected_state = "FAILED" if len(fail_files) > 0 else "SUCCESS"
     logger.info(
         "check state is %s (%i fail files exist)", expected_state, len(fail_files)
     )
-    statefile = w.workdir / f"workflow_state_{w.ID}.txt"
     state = statefile.read_text().strip()
     assert state == expected_state
 

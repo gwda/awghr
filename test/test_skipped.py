@@ -45,12 +45,14 @@ subprocess.run([w.workdir / "submit"], check=True)
 subprocess.run([w.workdir / "wait", "-n", "1", w.workdir / "queue"], check=True)
 
 logger.info("check workflow state is SUCCESS")
-statefile = w.workdir / f"workflow_state_{w.ID}.txt"
+statefile = w.workdir / "batch" / w.ID / "workflow_state"
+assert statefile.is_file()
 state = statefile.read_text().strip()
 assert state == "SUCCESS"
 
 logger.info("check job states are as expected")
-joblistfile = w.workdir / f"workflow_jobs_{w.ID}.txt"
+joblistfile = w.workdir / "batch" / w.ID / "workflow_all_jobs"
+assert joblistfile.is_file()
 for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
     jobargs = json.load((jobdir / "job_args.json").open())
     jobstate = (jobdir / "job_state").read_text().strip()
@@ -103,12 +105,14 @@ subprocess.run([w.workdir / "submit"], check=True)
 subprocess.run([w.workdir / "wait", "-n", "1", w.workdir / "queue"], check=True)
 
 logger.info("check workflow state is SUCCESS")
-statefile = w.workdir / f"workflow_state_{w.ID}.txt"
+statefile = w.workdir / "batch" / w.ID / "workflow_state"
+assert statefile.is_file()
 state = statefile.read_text().strip()
 assert state == "SUCCESS"
 
 logger.info("check job states are as expected")
-joblistfile = w.workdir / f"workflow_jobs_{w.ID}.txt"
+joblistfile = w.workdir / "batch" / w.ID / "workflow_all_jobs"
+assert joblistfile.is_file()
 for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
     jobstate = (jobdir / "job_state").read_text().strip()
     assert jobstate == "SUCCESS/SKIPPED"

@@ -65,18 +65,6 @@ class PBSWorkflowWriter(BatchQWorkflowWriter):
     # optional and is removed for brevity.
     BATCHQ_ID_REMOVE_SUFFIX = "%%.*"
 
-    BATCHQ_SUBMIT_ALL = """
-qsub '{script}' >/dev/null
-"""
-
-    BATCHQ_QUEUE = """
-( qstat -w -T `qselect -N '{jobname}'` 2>/dev/null ) || true
-"""
-
-    BATCHQ_CANCEL = """
-qdel `qselect -N '{jobname}'` || true
-"""
-
     def __init__(self, batchsyscfg):
         super().__init__(batchsyscfg)
 
@@ -104,3 +92,51 @@ qdel `qselect -N '{jobname}'` || true
             except KeyError:  # pragma: no cover
                 msg = "could not determine maximum size of PBS job array"
                 raise BatchSystemException(msg)
+
+    def _batchq_ctrl_commands(self):
+
+        # Command to submit workflow scripts in $@
+        submit = """
+batchq_submit() {
+    local script=
+    for script in $@; do
+        qsub ${script} >/dev/null
+    done
+}
+"""
+
+        # Command to display all queued jobs with names in $@
+        queue = """
+batchq_queue() {
+    local allbatchIDs=
+    local jobname=
+    for jobname in $@; do
+        local batchIDs=`qselect -N ${jobname}`
+        if test "X${batchIDs}" != X; then
+            allbatchIDs="${allbatchIDs} ${batchIDs}"
+        fi
+    done
+    if test "X${allbatchIDs}" != X; then
+        qstat -w -T ${allbatchIDs} 2>/dev/null || true
+    fi
+}
+"""
+
+        # Command to cancel all jobs with names in $@
+        cancel = """
+batchq_cancel() {
+    local allbatchIDs=
+    local jobname=
+    for jobname in $@; do
+        local batchIDs=`qselect -N ${jobname}`
+        if test "X${batchIDs}" != X; then
+            allbatchIDs="${allbatchIDs} ${batchIDs}"
+        fi
+    done
+    if test "X${allbatchIDs}" != X; then
+        qdel ${allbatchIDs} || true
+    fi
+}
+"""
+
+        return submit, queue, cancel

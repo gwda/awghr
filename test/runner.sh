@@ -37,7 +37,7 @@ if test "X${TESTS}" != X; then
     echo "===== $0: run single test"
 else
     echo "===== $0: run all tests"
-    TESTS=`cat /testing/test/list-of-tests.txt`
+    TESTS=`grep -v '^#' /testing/test/list-of-tests.txt`
 fi
 
 for TEST in ${TESTS}; do

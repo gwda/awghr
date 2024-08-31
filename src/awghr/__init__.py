@@ -5,7 +5,6 @@ import os
 import re
 import shlex
 import sys
-from contextlib import ExitStack
 from hashlib import blake2b
 from pathlib import Path
 from shutil import which
@@ -42,7 +41,7 @@ class Workflow:
     Attributes:
         workdir (Path):
             Working directory where workflow will be written.
-        ID (Optional[str]):
+        ID (str):
             A unique string representing the workflow.
             Only available after `write()` has been called.
         MIN (Quantity):
@@ -93,7 +92,7 @@ class Workflow:
 
     # Attributes
     workdir: Path
-    ID: Optional[str] = None
+    ID: str = "0" * 16
 
     # Useful units of time
     MIN: Quantity = _ureg.Quantity(1.0, "minute")
@@ -385,24 +384,19 @@ class Workflow:
 
         # Generate workflow ID as hash of all job JSON representations
         self.ID = self._workflow_hash.hexdigest()
+        assert self.ID != "0" * 16
+
+        # Directory containing batch system scripts
+        basebatchdir = self.workdir / "batch"
+        batchdir = basebatchdir / self.ID
 
         # Name of file indicating workflow has been submitted
-        submittedfile = self.workdir / f".workflow_submitted_{self.ID}.txt"
+        submittedfile = batchdir / "workflow_submitted"
 
         # Check that workflow has not been submitted
         if submittedfile.is_file():
             msg = f"workflow {self.ID} has already been submitted"
             raise WorkflowException(msg)
-
-        # Name of file which workflow will write final state to
-        # - Remove any existing file
-        workstatefile = self.workdir / f"workflow_state_{self.ID}.txt"
-        workstatefile.unlink(missing_ok=True)
-
-        # Name of file containing directories of any failed jobs
-        # - Remove any existing file
-        failedjobfile = self.workdir / f"workflow_failed_jobs_{self.ID}.txt"
-        failedjobfile.unlink(missing_ok=True)
 
         # Determine intermediate jobs, which are required as dependencies
         intermediate_jobs = set()
@@ -429,8 +423,49 @@ class Workflow:
         outfinaldir = self.workdir / "outputs"
         outfinaldir.mkdir(parents=True, exist_ok=True)
 
+        # Name of file containing a list of all job directories
+        # - Remove any existing file
+        alljobsfile = batchdir / "workflow_all_jobs"
+        alljobsfile.unlink(missing_ok=True)
+
+        # Name of file containing a list of all output files
+        # - Remove any existing file
+        joboutputsfile = batchdir / "workflow_outputs"
+        joboutputsfile.unlink(missing_ok=True)
+
+        # Get existing jobs in workflow directory, to check for duplicates
+        existing_jobs = {}
+        for existing_joblist_file in basebatchdir.glob("*/workflow_all_jobs"):
+            existing_joblist_workflow_ID = existing_joblist_file.parent.name
+            existing_joblist = [
+                Path(line) for line in existing_joblist_file.read_text().split()
+            ]
+            existing_jobs.update(
+                dict.fromkeys(existing_joblist, existing_joblist_workflow_ID)
+            )
+
+        # Get outputs of existing workflows, to check for duplicates
+        existing_outputs = {}
+        for existing_joboutputs_file in basebatchdir.glob("*/workflow_outputs"):
+            existing_joboutputs_workflow_ID = existing_joboutputs_file.parent.name
+            existing_joboutputs = existing_joboutputs_file.read_text().split()
+            existing_outputs.update(
+                dict.fromkeys(existing_joboutputs, existing_joboutputs_workflow_ID)
+            )
+
         log_make_jobs = ProgressLogger(_logger, "wrote %s job directories in workflow")
         for job in self._jobs.values():
+
+            # Check for duplicate jobs
+            if job["dir"] in existing_jobs:
+                msg = f"job {job['ID']} already exists in workflow {existing_jobs[job['dir']]}"
+                raise WorkflowException(msg)
+
+            # Check for duplicate outputs
+            for outp in job["outfiles"]:
+                if outp.name in existing_outputs:
+                    msg = f"output file '{outp}' of job {job['ID']} already existsi in workflow {existing_outputs[outp.name]}"
+                    raise WorkflowException(msg)
 
             # Make job directory
             job["dir"].mkdir(parents=True, exist_ok=True)
@@ -439,7 +474,7 @@ class Workflow:
             jobbatchID_file = job["dir"] / "job_batchID"
             jobbatchID_file.unlink(missing_ok=True)
 
-            # Remove job state file, if job was not successful
+            # Remove job state file, if job was not successful or skipped
             jobstate_file = job["dir"] / "job_state"
             if jobstate_file.is_file():
                 jobstate = jobstate_file.read_text().strip()
@@ -479,95 +514,136 @@ class Workflow:
             log_make_jobs.update()
         log_make_jobs.finish()
 
+        # Make batch system script directory
+        batchdir.mkdir(parents=True, exist_ok=True)
+
         # Write list of all job directories
-        all_jobs_file = self.workdir / f"workflow_jobs_{self.ID}.txt"
-        with FileLineWriter(all_jobs_file) as f:
+        with FileLineWriter(alljobsfile) as f:
             for job in self._jobs.values():
                 f += job["dir"]
 
-        # Create top-level control scripts
-        with ExitStack() as stack:
-            ctrlscripts = {
-                ctrlscript: stack.enter_context(
-                    FileLineWriter(self.workdir / ctrlscript, executable=True)
-                )
-                for ctrlscript in ("submit", "queue", "cancel", "wait")
-            }
+        # Write list of all output files
+        with FileLineWriter(joboutputsfile) as f:
+            for job in self._jobs.values():
+                for outp in job["outfiles"]:
+                    f += outp.name
 
-            # Write preambles to top-level control scripts
-            for ctrlscript in ("submit", "queue", "cancel", "wait"):
-                ctrlscripts[
-                    ctrlscript
-                ] += """
+        # Name of file containing directories of any failed jobs
+        # - Remove any existing file
+        failedjobfile = batchdir / "workflow_failed_jobs"
+        failedjobfile.unlink(missing_ok=True)
+
+        # Name of file which workflow will write final state to
+        # - Remove any existing file
+        workstatefile = batchdir / "workflow_state"
+        workstatefile.unlink(missing_ok=True)
+
+        # Write batch system scripts
+        self._workflow_writer(
+            ID=self.ID,
+            batchdir=batchdir,
+            account=self._account,
+            jobs=self._jobs,
+            outfinaldir=outfinaldir,
+            failedjobfile=failedjobfile,
+            workstatefile=workstatefile,
+            submittedfile=submittedfile,
+        )
+
+        # List of all workflow IDs that have been written,
+        # generated from batch system script directories
+        all_workflow_IDs = sorted(
+            [d.name for d in basebatchdir.iterdir() if d.is_dir()]
+        )
+        all_workflow_IDs_str = " ".join(all_workflow_IDs)
+
+        # Get top-level control script commands
+        submit, queue, cancel = self._workflow_writer.ctrl_commands(basebatchdir)
+
+        # Write top-level control script: submit all jobs
+        with FileLineWriter(self.workdir / "submit", executable=True) as f:
+            f += f"""
 #!/bin/bash
 set -e
-"""
-            for ctrlscript in ("submit", "queue", "cancel"):
-                ctrlscripts[
-                    ctrlscript
-                ] += """
 if test "X$1" != X; then
     echo "usage: $0" >&2
     exit 1
 fi
-"""
-            ctrlscripts[
-                "submit"
-            ] += f"""
-if test -f '{workstatefile}'; then
-    state=`cat '{workstatefile}'`
-    if test "X${{state}}" = XSUCCESS; then
-        echo "info: workflow {self.ID} has already been successfully run"
-        exit 1
+workflow_IDs=
+for ID in {all_workflow_IDs_str}; do
+    state_file="{basebatchdir}/${{ID}}/workflow_state"
+    failed_file="{basebatchdir}${{ID}}/workflow_failed_jobs"
+    sub_file="{basebatchdir}/${{ID}}/workflow_submitted"
+    if test -f "${{state_file}}"; then
+        workstate=`cat ${{state_file}}`
+        if test "X${{workstate}}" = XSUCCESS; then
+            echo "info: workflow ${{ID}} has already been successfully run"
+            continue
+        fi
+    elif test -f "${{sub_file}}"; then
+        echo "info: workflow ${{ID}} has already been submitted"
+        continue
     fi
-    rm -f '{submittedfile}'
-fi
-if test -f '{submittedfile}'; then
-    echo "info: workflow {self.ID} has already been submitted"
+    workflow_IDs="${{workflow_IDs}} ${{ID}}"
+    rm -f "${{state_file}}" "${{failed_file}}" "${{sub_file}}"
+done
+if test "X${{workflow_IDs}}" = X; then
+    echo "info: no workflows to submit"
     exit 1
 fi
+{submit}
+submit ${{workflow_IDs}}
+msg=
+for ID in ${{workflow_IDs}}; do
+    sub_file="{basebatchdir}/${{ID}}/workflow_submitted"
+    echo SUBMITTED > ${{sub_file}}
+    if test "X${{msg}}" != X; then
+        msg="s${{msg}}"
+    fi
+    msg="${{msg}} ${{ID}}"
+done
+echo "info: submitted all jobs in workflow${{msg}}"
 """
-            for rm_file in (
-                workstatefile,
-                failedjobfile,
-                self.workdir / ".jobs_cache",
-            ):
-                ctrlscripts["submit"] += f"rm -f '{rm_file}'"
 
-            # Make batch system script directory
-            batchdir = self.workdir / "batch" / self.ID
-            batchdir.mkdir(parents=True, exist_ok=True)
+        # Write top-level control script: display all queued jobs
+        with FileLineWriter(self.workdir / "queue", executable=True) as f:
+            f += f"""
+#!/bin/bash
+set -e
+if test "X$1" != X; then
+    echo "usage: $0" >&2
+    exit 1
+fi
+{queue}
+queue {all_workflow_IDs_str}
+"""
 
-            # Write batch system scripts
-            self._workflow_writer(
-                workflowname=f"awghr_{self.ID}",
-                batchdir=batchdir,
-                account=self._account,
-                jobs=self._jobs,
-                outfinaldir=outfinaldir,
-                failedjobfile=failedjobfile,
-                workstatefile=workstatefile,
-                submittedfile=submittedfile,
-                ctrlscripts=ctrlscripts,
+        # Write top-level control script: cancel all jobs
+        with FileLineWriter(self.workdir / "cancel", executable=True) as f:
+            f += f"""
+#!/bin/bash
+set -e
+if test "X$1" != X; then
+    echo "usage: $0" >&2
+    exit 1
+fi
+{cancel}
+cancel {all_workflow_IDs_str}
+"""
+
+        # Write top-level control script: wait for all workflows to complete
+        with FileLineWriter(self.workdir / "wait", executable=True) as f:
+            all_workstatefiles_exist = " && ".join(
+                [
+                    f"test -f '{f}'"
+                    for f in [
+                        basebatchdir / ID / "workflow_state" for ID in all_workflow_IDs
+                    ]
+                ]
             )
-
-            # Write codas to top-level control scripts
-            ctrlscripts[
-                "submit"
-            ] += f"""
-echo SUBMITTED > '{submittedfile}'
-echo 'info: submitted all jobs in workflow {self.ID}'
-"""
-            ctrlscripts[
-                "cancel"
-            ] += f"""
-echo 'info: cancelled all jobs in workflow {self.ID}'
-"""
-
-            # Write top-level wait script
-            ctrlscripts[
-                "wait"
-            ] += f"""
+            f += f"""
+#!/bin/bash
+set -e
 sleepfor=5.0
 case "$1" in
     -h|--help)
@@ -579,11 +655,20 @@ case "$1" in
         sleepfor="$1"
         shift
 esac
-until test -f '{workstatefile}'; do
+until {all_workstatefiles_exist}; do
     "$@"
     sleep ${{sleepfor}}
 done
-echo "workflow state: `cat '{workstatefile}'`"
+allworkstate=SUCCESS
+for ID in {all_workflow_IDs_str}; do
+    state_file="{basebatchdir}/${{ID}}/workflow_state"
+    workstate=`cat ${{state_file}}`
+    echo "workflow state: ${{allworkstate}} (${{ID}})"
+    if test "X${{workstate}}" != XSUCCESS; then
+        allworkstate=FAILED
+    fi
+done
+echo "workflow state: ${{allworkstate}}"
 """
 
         # Log completion

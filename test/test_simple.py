@@ -48,8 +48,17 @@ for i in range(10):
 
 w.write()
 
+logger.info("check generated files")
+for f in (w.workdir / "batch" / w.ID).iterdir():
+    assert (
+        f.name in ("workflow_all_jobs", "workflow_outputs")
+        or f.name.startswith("batch_")
+        or f.name.startswith("job_")
+    )
+
 logger.info("check for job files that should (not) exist before submission")
-joblistfile = w.workdir / f"workflow_jobs_{w.ID}.txt"
+joblistfile = w.workdir / "batch" / w.ID / "workflow_all_jobs"
+assert joblistfile.is_file()
 for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
     assert not (jobdir / "job_batchID").is_file()
     assert not (jobdir / "job_state").is_file()
@@ -65,13 +74,13 @@ logger.info("submit workflow and wait for it to finish")
 subprocess.run([w.workdir / "submit"], check=True)
 subprocess.run([w.workdir / "wait", "-n", "1", w.workdir / "queue"], check=True)
 
-logger.info("check for files")
-assert len(list(w.workdir.glob("workflow_jobs_*.txt"))) == 1
-assert len(list(w.workdir.glob("workflow_state_*.txt"))) == 1
-assert len(list(w.workdir.glob(".workflow_submitted_*.txt"))) == 0
+logger.info("check for workflow files")
+statefile = w.workdir / "batch" / w.ID / "workflow_state"
+assert statefile.is_file()
+submittedfile = w.workdir / "batch" / w.ID / "workflow_submitted"
+assert not submittedfile.is_file()
 
 logger.info("check workflow state is SUCCESS")
-statefile = w.workdir / f"workflow_state_{w.ID}.txt"
 state = statefile.read_text().strip()
 assert state == "SUCCESS"
 
@@ -89,7 +98,6 @@ for i in range(10):
     outfile.read_text() == f"XYZ{i}"
 
 logger.info("check for job files that should exist after submission")
-joblistfile = w.workdir / f"workflow_jobs_{w.ID}.txt"
 for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
     assert (jobdir / "job_batchID").is_file()
     assert (jobdir / "job_state").is_file()
@@ -97,7 +105,6 @@ for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
     assert (jobdir / "job_script.sh").is_file()
 
 logger.info("check that job standard output/error printed what was expected")
-joblistfile = w.workdir / f"workflow_jobs_{w.ID}.txt"
 for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
     stdout = (jobdir / "job_stdout").read_text().strip()
     stderr = (jobdir / "job_stderr").read_text().strip()
@@ -106,7 +113,8 @@ for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
 
 logger.info("check that re-writing workflow does not remove successful states")
 w.write()
-joblistfile = w.workdir / f"workflow_jobs_{w.ID}.txt"
+joblistfile = w.workdir / "batch" / w.ID / "workflow_all_jobs"
+assert joblistfile.is_file()
 for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
     assert (jobdir / "job_state").is_file()
 
@@ -114,7 +122,7 @@ logger.info("test command line interface")
 print("-----", flush=True)
 cli("jobs", "-d", str(w.workdir), "-Ae", "-n", "1", "-g", "a")
 print("-----", flush=True)
-cli("-d", str(w.workdir), "-f", "index < 5", "-Ajloz")
+cli("-d", str(w.workdir), "-f", "index < 5", "-Abjloz")
 print("-----", flush=True)
 try:
     cli("jobs", "-d", str(w.workdir), "-n", "0")

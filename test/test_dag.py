@@ -101,12 +101,15 @@ logger.info("submit workflow and wait for it to finish")
 subprocess.run([w.workdir / "submit"], check=True)
 subprocess.run([w.workdir / "wait", w.workdir / "queue"], check=True)
 
-logger.info("check for files")
-assert len(list(w.workdir.glob("workflow_jobs_*.txt"))) == 1
-assert len(list(w.workdir.glob("workflow_state_*.txt"))) == 1
+logger.info("check for workflow files")
+joblistfile = w.workdir / "batch" / w.ID / "workflow_all_jobs"
+assert joblistfile.is_file()
+statefile = w.workdir / "batch" / w.ID / "workflow_state"
+assert statefile.is_file()
 
 logger.info("check workflow state is SUCCESS")
-statefile = w.workdir / f"workflow_state_{w.ID}.txt"
+statefile = w.workdir / "batch" / w.ID / "workflow_state"
+assert statefile.is_file()
 state = statefile.read_text().strip()
 assert state == "SUCCESS"
 

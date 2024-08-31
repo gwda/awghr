@@ -20,7 +20,7 @@ class LocalWorkflowWriter:
     def __call__(
         self,
         *,
-        workflowname,
+        ID,
         batchdir,
         account,
         jobs,
@@ -28,14 +28,13 @@ class LocalWorkflowWriter:
         failedjobfile,
         workstatefile,
         submittedfile,
-        ctrlscripts,
     ):
 
         # Write script to run all jobs
-        all_jobs_script_file = batchdir / "run_all_jobs.sh"
-        all_jobs_stdout_file = batchdir / "run_all_jobs_stdout"
-        all_jobs_stderr_file = batchdir / "run_all_jobs_stderr"
-        all_jobs_pid_file = batchdir / "run_all_jobs_pid"
+        all_jobs_script_file = batchdir / "batch_all_script.sh"
+        all_jobs_stdout_file = batchdir / "batch_all_stdout"
+        all_jobs_stderr_file = batchdir / "batch_all_stderr"
+        all_jobs_pid_file = batchdir / "batch_all_pid"
         with FileLineWriter(all_jobs_script_file) as f:
             f += "#!/bin/bash"
 
@@ -46,7 +45,8 @@ class LocalWorkflowWriter:
             f += f"exec >'{all_jobs_stdout_file}' 2>'{all_jobs_stderr_file}'"
 
             # Save process ID
-            f += f"echo $$ > '{all_jobs_pid_file}'"
+            # - dash (`-`) is needed to send kill signal to process group
+            f += f"echo -$$ > '{all_jobs_pid_file}'"
 
             # Write shell function fail() for reporting errors
             f += """
@@ -134,7 +134,7 @@ echo RUNNING > '{jobstate_file}'
 """
 
                 # Change to job scratch directory
-                jobscratchdir = job_dir_from_ID(batchdir / "tmp", job["ID"])
+                jobscratchdir = job_dir_from_ID(batchdir / "job_scratch", job["ID"])
                 f += f"""
 mkdir -p '{jobscratchdir}'
 cd '{jobscratchdir}'
@@ -183,20 +183,56 @@ fi
                 f += "exit 0"
                 f += ")"
 
-        # Write commands to top-level control scripts
-        ctrlscripts[
-            "submit"
-        ] += f"""
-setsid bash '{all_jobs_script_file}' &
+    def ctrl_commands(self, basebatchdir):
+
+        # Shell function to submit workflows in `basebatchdir` with IDs in $@
+        submit = f"""
+submit() {{
+    local cmd=
+    local ID=
+    for ID in $@; do
+        if test "X${{cmd}}" != X; then
+            cmd="${{cmd}}; "
+        fi
+        cmd="${{cmd}}bash '{basebatchdir}/${{ID}}/batch_all_script.sh'"
+    done
+    setsid bash -c "${{cmd}}" &
+}}
 """
-        ctrlscripts[
-            "queue"
-        ] += f"""
-test ! -f '{all_jobs_stdout_file}' || tail -n 1 '{all_jobs_stdout_file}'
+
+        # Shell function to display all queued jobs from workflows in `basebatchdir` with IDs in $@
+        queue = f"""
+queue() {{
+    local stdoutfiles=
+    local ID=
+    for ID in $@; do
+        local stdoutfile="{basebatchdir}/${{ID}}/batch_all_stdoutfile"
+        if test -f "${{stdoutfile}}"; then
+            stdoutfiles="${{stdoutfiles}} ${{stdoutfile}}"
+        fi
+    done
+    if test "X${{stdoutfiles}}" != X; then
+        tail -F ${{stdoutfiles}}
+    fi
+}}
 """
-        ctrlscripts[
-            "cancel"
-        ] += f"""
-pid=`cat '{all_jobs_pid_file}' 2>/dev/null || true`
-test "X${{pid}}" = X || kill -TERM -${{pid}}
+
+        # Shell function to cancel all jobs from from workflows in `basebatchdir` with IDs in $@
+        cancel = f"""
+cancel() {{
+    local pids=
+    local ID=
+    for ID in $@; do
+        local pidfile="{basebatchdir}/${{ID}}/batch_all_pid"
+        if test -f "${{pidfile}}"; then
+            pid=`cat "${{pidfile}}"`
+            pids="${{pids}} ${{pid}}"
+        fi
+    done
+    if test "X${{pids}}" != X; then
+        kill -TERM ${{pids}}
+    fi
+}}
 """
+
+        return submit, queue, cancel

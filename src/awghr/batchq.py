@@ -88,15 +88,6 @@ class BatchQWorkflowWriter:
     # - For example, "%%.*" removes all output from the first period
     BATCHQ_ID_REMOVE_SUFFIX: str
 
-    # Command to submit job `script` that submits all jobs
-    BATCHQ_SUBMIT_ALL: str
-
-    # Command to display all queued jobs with the given `jobname`
-    BATCHQ_QUEUE: str
-
-    # Command to cancel all jobs with the given `jobname`
-    BATCHQ_CANCEL: str
-
     # Location of job scratch directory
     jobfs: str
 
@@ -111,7 +102,7 @@ class BatchQWorkflowWriter:
     def __call__(
         self,
         *,
-        workflowname,
+        ID,
         batchdir,
         account,
         jobs,
@@ -119,7 +110,6 @@ class BatchQWorkflowWriter:
         failedjobfile,
         workstatefile,
         submittedfile,
-        ctrlscripts,
     ):
 
         # Guestimate runtime for submission and workstate jobs
@@ -169,14 +159,14 @@ class BatchQWorkflowWriter:
             job = job_array[0]
 
             # Write job array submission script
-            jobarray_submit_script_file = jobarraydir / "submit_job_array.sh"
-            jobarray_script_file = jobarraydir / "job_array.sh"
+            jobarray_submit_script_file = jobarraydir / "job_array_submit.sh"
+            jobarray_script_file = jobarraydir / "job_array_script.sh"
             with FileLineWriter(jobarray_submit_script_file) as f:
                 f += "#!/bin/bash"
 
                 # Write job script header
                 f += self.BATCHQ_HEADER.format(
-                    jobname=workflowname,
+                    jobname=f"awghr_{ID}",
                     account=account,
                     time_min=job["time_min"],
                     mem_MB=job["mem_MB"],
@@ -319,21 +309,21 @@ fi
         log_make_job_arrays.finish()
 
         # Write submission script to check all jobs have succeeded
-        workstate_submit_script_file = batchdir / "submit_workstate.sh"
-        workstate_script_file = batchdir / "workstate.sh"
+        workstate_submit_script_file = batchdir / "batch_workstate_submit.sh"
+        workstate_script_file = batchdir / "batch_workstate_script.sh"
         with FileLineWriter(workstate_submit_script_file) as f:
             f += "#!/bin/bash"
 
             # Write job script header
             f += self.BATCHQ_HEADER.format(
-                jobname=f"{workflowname}_state",
+                jobname=f"awghr_{ID}_state",
                 account=account,
                 time_min=submit_time_min,
                 mem_MB=10,
                 disk_MB=10,
                 threads=1,
-                stdout=batchdir / "submit_workstate_stdout",
-                stderr=batchdir / "submit_workstate_stderr",
+                stdout=batchdir / "batch_workstate_stdout",
+                stderr=batchdir / "batch_workstate_stderr",
             )
 
             # Exit on any script errors
@@ -377,21 +367,21 @@ fi
         all_jobs_ID_written = set()
 
         # Write submission script to submit all jobs
-        all_jobs_submit_script_file = batchdir / "submit_all_jobs.sh"
-        all_jobs_script_file = batchdir / "all_jobs.sh"
+        all_jobs_submit_script_file = batchdir / "batch_all_submit.sh"
+        all_jobs_script_file = batchdir / "batch_all_script.sh"
         with FileLineWriter(all_jobs_submit_script_file) as f:
             f += "#!/bin/bash"
 
             # Write job script header
             f += self.BATCHQ_HEADER.format(
-                jobname=workflowname,
+                jobname=f"awghr_{ID}",
                 account=account,
                 time_min=submit_time_min,
                 mem_MB=10,
                 disk_MB=10,
                 threads=1,
-                stdout=batchdir / "submit_all_jobs_stdout",
-                stderr=batchdir / "submit_all_jobs_stderr",
+                stdout=batchdir / "batch_all_stdout",
+                stderr=batchdir / "batch_all_stderr",
             )
 
             # Exit on any script errors
@@ -514,8 +504,8 @@ fi
 """
 
                 # Determine job array indexes which should be submitted
-                jobarray_submit_script_file = jobarraydir / "submit_job_array.sh"
-                jobarray_script_file = jobarraydir / "job_array.sh"
+                jobarray_submit_script_file = jobarraydir / "job_array_submit.sh"
+                jobarray_script_file = jobarraydir / "job_array_script.sh"
                 jobarray_index_file = jobarraydir / "job_array_indexes"
                 batch_array_range = self.BATCHQ_ARRAY_RANGE.format(
                     n="$((batchq_array_count-1))"
@@ -565,9 +555,45 @@ batchq_ID=`echo "${{batchq_ID{self.BATCHQ_ID_REMOVE_SUFFIX}}}"`
 echo "info: submitted state job, batch ID ${{batchq_ID}}"
 """
 
-        # Write commands to top-level control scripts
-        ctrlscripts["submit"] += self.BATCHQ_SUBMIT_ALL.format(
-            script=all_jobs_submit_script_file
-        )
-        ctrlscripts["queue"] += self.BATCHQ_QUEUE.format(jobname=workflowname)
-        ctrlscripts["cancel"] += self.BATCHQ_CANCEL.format(jobname=workflowname)
+    def ctrl_commands(self, basebatchdir):
+
+        # Get batch system commands
+        submit, queue, cancel = self._batchq_ctrl_commands()
+
+        # Shell function to submit workflows in `basebatchdir` with IDs in $@
+        submit += f"""
+submit() {{
+    local scripts=
+    local ID=
+    for ID in $@; do
+        scripts="${{scripts}} {basebatchdir}/${{ID}}/batch_all_submit.sh"
+    done
+    batchq_submit ${{scripts}}
+}}
+"""
+
+        # Shell function to display all queued jobs from workflows in `basebatchdir` with IDs in $@
+        queue += """
+queue() {
+    local jobnames=
+    local ID=
+    for ID in $@; do
+        jobnames="${jobnames} awghr_${ID}"
+    done
+    batchq_queue ${jobnames}
+}
+"""
+
+        # Shell function to cancel all jobs from from workflows in `basebatchdir` with IDs in $@
+        cancel += """
+cancel() {
+    local jobnames=
+    local ID=
+    for ID in $@; do
+        jobnames="${jobnames} awghr_${ID}"
+    done
+    batchq_cancel ${jobnames}
+}
+"""
+
+        return submit, queue, cancel
