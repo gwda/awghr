@@ -141,11 +141,10 @@ def show_jobs(args):
                         job_args_counts[arg][val] = 0
                     job_args_counts[arg][val] += 1
 
-            # Argument is constant if it only has one value, and all jobs have that value
+            # Argument is constant if it only has one value
             for arg in job_args_counts:
                 if len(job_args_counts[arg]) == 1:
-                    if list(job_args_counts[arg].items())[0][1] == len(jobs):
-                        cache["constant_args"].add(arg)
+                    cache["constant_args"].add(arg)
 
     # Save cache
     pickle.dump(cache, cache_file.open("wb"))
