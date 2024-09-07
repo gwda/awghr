@@ -4,11 +4,12 @@ import math
 import os
 import re
 import shlex
+import shutil
 import sys
 from hashlib import blake2b
 from pathlib import Path
 from shutil import which
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from pint import Quantity, Unit
 
@@ -388,6 +389,9 @@ class Workflow:
 
         # Directory containing batch system scripts
         basebatchdir = self.workdir / "batch"
+        basebatchdir.mkdir(parents=True, exist_ok=True)
+
+        # Directory containing batch system scripts for this workflow
         batchdir = basebatchdir / self.ID
 
         # Name of file indicating workflow has been submitted
@@ -433,39 +437,64 @@ class Workflow:
         joboutputsfile = batchdir / "workflow_outputs"
         joboutputsfile.unlink(missing_ok=True)
 
-        # Get existing jobs in workflow directory, to check for duplicates
-        existing_jobs = {}
-        for existing_joblist_file in basebatchdir.glob("*/workflow_all_jobs"):
-            existing_joblist_workflow_ID = existing_joblist_file.parent.name
-            existing_joblist = [
-                Path(line) for line in existing_joblist_file.read_text().split()
-            ]
-            existing_jobs.update(
-                dict.fromkeys(existing_joblist, existing_joblist_workflow_ID)
+        # Check existing workflows for duplicates
+        for existing_workflow_ID in [
+            d.name for d in basebatchdir.iterdir() if d.is_dir()
+        ]:
+            existing_workflow_dir = basebatchdir / existing_workflow_ID
+
+            # Check whether workflow has been submitted
+            existing_workflow_submitted = (
+                existing_workflow_dir / "workflow_submitted"
+            ).is_file()
+
+            # Check for duplicate jobs
+            existing_workflow_jobs: Set[Path] = set()
+            existing_workflow_jobs_file = existing_workflow_dir / "workflow_all_jobs"
+            if existing_workflow_jobs_file.is_file():
+                existing_workflow_jobs.update(
+                    Path(line)
+                    for line in existing_workflow_jobs_file.read_text().split()
+                )
+            this_workflow_jobs = set(job["dir"] for job in self._jobs.values())
+            num_duplicate_jobs = len(existing_workflow_jobs & this_workflow_jobs)
+            all_duplicate_jobs = existing_workflow_jobs.issubset(this_workflow_jobs)
+
+            # Check for duplicate outputs
+            existing_workflow_outputs: Set[str] = set()
+            existing_workflow_outputs_file = existing_workflow_dir / "workflow_outputs"
+            if existing_workflow_outputs_file.is_file():
+                existing_workflow_outputs.update(
+                    existing_workflow_outputs_file.read_text().split()
+                )
+            this_workflow_outputs = set(
+                outp for outp in job["outfiles"] for job in self._jobs.values()
+            )
+            num_duplicate_outputs = len(
+                existing_workflow_outputs & this_workflow_outputs
+            )
+            all_duplicate_outputs = existing_workflow_outputs.issubset(
+                this_workflow_outputs
             )
 
-        # Get outputs of existing workflows, to check for duplicates
-        existing_outputs = {}
-        for existing_joboutputs_file in basebatchdir.glob("*/workflow_outputs"):
-            existing_joboutputs_workflow_ID = existing_joboutputs_file.parent.name
-            existing_joboutputs = existing_joboutputs_file.read_text().split()
-            existing_outputs.update(
-                dict.fromkeys(existing_joboutputs, existing_joboutputs_workflow_ID)
-            )
+            if (
+                not existing_workflow_submitted
+                and all_duplicate_jobs
+                and all_duplicate_outputs
+            ):
+
+                # Remove duplicate workflow
+                shutil.rmtree(existing_workflow_dir)
+                _logger.info("removed duplicate workflow %s", existing_workflow_ID)
+
+            elif num_duplicate_jobs > 0 or num_duplicate_outputs > 0:
+
+                # Raise error on partial job/output duplication with existing workflow
+                msg = f"this workflow duplicates {num_duplicate_jobs} jobs and {num_duplicate_outputs} outputs with existing workflow {existing_workflow_ID}"
+                raise WorkflowException(msg)
 
         log_make_jobs = ProgressLogger(_logger, "wrote %s job directories in workflow")
         for job in self._jobs.values():
-
-            # Check for duplicate jobs
-            if job["dir"] in existing_jobs:
-                msg = f"job {job['ID']} already exists in workflow {existing_jobs[job['dir']]}"
-                raise WorkflowException(msg)
-
-            # Check for duplicate outputs
-            for outp in job["outfiles"]:
-                if outp.name in existing_outputs:
-                    msg = f"output file '{outp}' of job {job['ID']} already existsi in workflow {existing_outputs[outp.name]}"
-                    raise WorkflowException(msg)
 
             # Make job directory
             job["dir"].mkdir(parents=True, exist_ok=True)

@@ -105,10 +105,10 @@ except WorkflowException:
 
 ws = [Workflow(name="multi3") for n in range(2)]
 
-for w, n in zip(ws, (5, 10)):
-    for i in range(n):
+for w, i0 in zip(ws, (0, 5)):
+    for i in range(i0, i0 + 10):
         w.add_job(
-            args=dict(index=i, n=n),
+            args=dict(index=i),
             cmds=["bash -c 'echo {index} > {_out}'"],
             time=1 * w.MIN,
             mem=10 * w.MB,
@@ -124,3 +124,19 @@ try:
     raise AssertionError(msg)
 except WorkflowException:
     pass
+
+ws = [Workflow(name="multi4") for n in range(2)]
+
+for w, n in zip(ws, (5, 10)):
+    for i in range(n):
+        w.add_job(
+            args=dict(index=i, n=n),
+            cmds=["bash -c 'echo {index} > {_out}'"],
+            time=1 * w.MIN,
+            mem=10 * w.MB,
+            disk=10 * w.MB,
+            outputs=["out_{index}.txt"],
+        )
+
+for w in ws:
+    w.write()
