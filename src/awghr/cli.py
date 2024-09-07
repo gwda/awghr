@@ -100,7 +100,14 @@ def show_jobs(args):
     cache = {}
     cache_file = args.workflow_dir / "jobs" / ".cache"
     if cache_file.is_file():
-        cache = pickle.load(cache_file.open("rb"))
+
+        # Check cache is not older than this source file
+        cache_mtime = cache_file.stat().st_mtime
+        cli_mtime = Path(__file__).stat().st_mtime
+        if cache_mtime > cli_mtime:
+            cache = pickle.load(cache_file.open("rb"))
+
+    # Check that cache includes required fields
     if "batchID" not in cache:
         cache["batchID"] = {}
     if "args" not in cache or "sorted_args" not in cache:
