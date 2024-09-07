@@ -81,8 +81,8 @@ for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
 
 ws = [Workflow(name="multi2") for n in range(2)]
 
-for w, n in zip(ws, (5, 10)):
-    for i in range(n):
+for w, (i0, n) in zip(ws, ((0, 10), (5, 10))):
+    for i in range(i0, n):
         w.add_job(
             args=dict(index=i),
             cmds=["bash -c 'echo {index} > {_out}'"],
@@ -103,10 +103,35 @@ except WorkflowException:
 
 # -- Test multiple workflows duplicating the same outputs
 
-ws = [Workflow(name="multi3") for n in range(2)]
+ws = [Workflow(name="multi3") for n in range(3)]
 
-for w, i0 in zip(ws, (0, 5)):
-    for i in range(i0, i0 + 10):
+for w, (i0, n) in zip(ws, ((0, 5), (5, 10), (0, 10))):
+    for i in range(i0, n):
+        w.add_job(
+            args=dict(index=i, i0=i0, n=n),
+            cmds=["bash -c 'echo {index} > {_out}'"],
+            time=1 * w.MIN,
+            mem=10 * w.MB,
+            disk=10 * w.MB,
+            outputs=["out_{index}.txt"],
+        )
+
+ws[0].write()
+ws[1].write()
+
+try:
+    ws[2].write()
+    msg = "should have raised a WorkflowException"
+    raise AssertionError(msg)
+except WorkflowException:
+    pass
+
+# -- Test workflows replacing previous workflows with same jobs/outputs
+
+ws = [Workflow(name="multi4") for n in range(3)]
+
+for w, (i0, n) in zip(ws, ((0, 5), (5, 10), (0, 10))):
+    for i in range(i0, n):
         w.add_job(
             args=dict(index=i),
             cmds=["bash -c 'echo {index} > {_out}'"],
@@ -116,21 +141,17 @@ for w, i0 in zip(ws, (0, 5)):
             outputs=["out_{index}.txt"],
         )
 
-ws[0].write()
+for w in ws:
+    w.write()
 
-try:
-    ws[1].write()
-    msg = "should have raised a WorkflowException"
-    raise AssertionError(msg)
-except WorkflowException:
-    pass
+# -- Test workflows replacing previous workflows with same jobs/outputs
 
-ws = [Workflow(name="multi4") for n in range(2)]
+ws = [Workflow(name="multi5") for n in range(2)]
 
-for w, n in zip(ws, (5, 10)):
-    for i in range(n):
+for w, (i0, n) in zip(ws, ((0, 5), (0, 10))):
+    for i in range(i0, n):
         w.add_job(
-            args=dict(index=i, n=n),
+            args=dict(index=i),
             cmds=["bash -c 'echo {index} > {_out}'"],
             time=1 * w.MIN,
             mem=10 * w.MB,

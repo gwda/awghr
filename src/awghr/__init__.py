@@ -389,9 +389,6 @@ class Workflow:
 
         # Directory containing batch system scripts
         basebatchdir = self.workdir / "batch"
-        basebatchdir.mkdir(parents=True, exist_ok=True)
-
-        # Directory containing batch system scripts for this workflow
         batchdir = basebatchdir / self.ID
 
         # Name of file indicating workflow has been submitted
@@ -423,24 +420,15 @@ class Workflow:
                     raise WorkflowException(msg)
                 out_final_files.add(out_file.name)
 
-        # Make directory for final output files
-        outfinaldir = self.workdir / "outputs"
-        outfinaldir.mkdir(parents=True, exist_ok=True)
-
-        # Name of file containing a list of all job directories
-        # - Remove any existing file
-        alljobsfile = batchdir / "workflow_all_jobs"
-        alljobsfile.unlink(missing_ok=True)
-
-        # Name of file containing a list of all output files
-        # - Remove any existing file
-        joboutputsfile = batchdir / "workflow_outputs"
-        joboutputsfile.unlink(missing_ok=True)
-
         # Check existing workflows for duplicates
-        for existing_workflow_ID in [
-            d.name for d in basebatchdir.iterdir() if d.is_dir()
-        ]:
+        existing_workflow_IDs = []
+        if basebatchdir.is_dir():
+            existing_workflow_IDs = [
+                d.name
+                for d in basebatchdir.iterdir()
+                if d.is_dir() and d.name != self.ID
+            ]
+        for existing_workflow_ID in existing_workflow_IDs:
             existing_workflow_dir = basebatchdir / existing_workflow_ID
 
             # Check whether workflow has been submitted
@@ -467,9 +455,9 @@ class Workflow:
                 existing_workflow_outputs.update(
                     existing_workflow_outputs_file.read_text().split()
                 )
-            this_workflow_outputs = set(
-                outp for outp in job["outfiles"] for job in self._jobs.values()
-            )
+            this_workflow_outputs = set()
+            for job in self._jobs.values():
+                this_workflow_outputs.update([outp.name for outp in job["outfiles"]])
             num_duplicate_outputs = len(
                 existing_workflow_outputs & this_workflow_outputs
             )
@@ -547,11 +535,13 @@ class Workflow:
         batchdir.mkdir(parents=True, exist_ok=True)
 
         # Write list of all job directories
+        alljobsfile = batchdir / "workflow_all_jobs"
         with FileLineWriter(alljobsfile) as f:
             for job in self._jobs.values():
                 f += job["dir"]
 
         # Write list of all output files
+        joboutputsfile = batchdir / "workflow_outputs"
         with FileLineWriter(joboutputsfile) as f:
             for job in self._jobs.values():
                 for outp in job["outfiles"]:
@@ -566,6 +556,10 @@ class Workflow:
         # - Remove any existing file
         workstatefile = batchdir / "workflow_state"
         workstatefile.unlink(missing_ok=True)
+
+        # Make directory for final output files
+        outfinaldir = self.workdir / "outputs"
+        outfinaldir.mkdir(parents=True, exist_ok=True)
 
         # Write batch system scripts
         self._workflow_writer(
