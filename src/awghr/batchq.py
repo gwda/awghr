@@ -17,16 +17,19 @@ class BatchQWorkflowWriter:
         "n_jobsubpermin": 300,
     }
 
-    # Job script header; should define the format() fields:
-    # - jobname: name of job
-    # - account: account to which job is charged
-    # - time_min: requested wall time in minutes
-    # - mem_MB: requested memory in MB
-    # - disk_MB: requested job scratch space in MB
-    # - ncpus: requested number of CPUs
-    # - stdout: redirect job standard output to this file
-    # - stderr: redirect job standard error to this file
+    # Job script header; should define the fields:
+    # - {jobname}: name of job
+    # - {account}: account to which job is charged
+    # - {time_min}: requested wall time in minutes
+    # - {mem_MB}: requested memory in MB
+    # - {disk_MB}: requested job scratch space in MB
+    # - {ncpus}: requested number of CPUs
+    # - {stdout}: redirect job standard output to this file
+    # - {stderr}: redirect job standard error to this file
     BATCHQ_HEADER: str
+
+    # Job script header for requesting {n} GPUs
+    BATCHQ_HEADER_NGPUS: str
 
     # Name of environment variable which gives
     # the batch system ID of the current job
@@ -177,6 +180,8 @@ class BatchQWorkflowWriter:
                     stderr=jobarraydir
                     / f"job_stderr_{self.BATCHQ_SUBMIT_ARRAY_INDEX_REPL}",
                 )
+                if job["ngpus"] > 0:
+                    f += self.BATCHQ_HEADER_NGPUS.format(n=job["ngpus"])
 
                 # Exit on any script errors
                 f += "set -e"

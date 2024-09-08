@@ -23,6 +23,8 @@ class SlurmWorkflowWriter(BatchQWorkflowWriter):
 #SBATCH --error={stderr}
 """
 
+    BATCHQ_HEADER_NGPUS = "#SBATCH --gres=gpu:{n}"
+
     BATCHQ_JOB_ID = "SLURM_JOB_ID"
 
     BATCHQ_JOB_ARRAY_ID_EXPR = "${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}"

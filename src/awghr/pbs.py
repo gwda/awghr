@@ -22,6 +22,8 @@ class PBSWorkflowWriter(BatchQWorkflowWriter):
 #PBS -k doe
 """
 
+    BATCHQ_HEADER_NGPUS = "#PBS -l gpus={n}"
+
     BATCHQ_JOB_ID = "PBS_JOBID"
 
     BATCHQ_JOB_ARRAY_ID_EXPR = "${PBS_JOBID}"

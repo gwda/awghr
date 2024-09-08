@@ -30,6 +30,8 @@ job_args = dict(
     time=1 * w.MIN,
     mem=10 * w.MB,
     disk=10 * w.MB,
+    ncpus=2,
+    ngpus=1,
     inputs=[Path("/usr/bin/true")],
     outputs=["out_{index}.txt"],
 )

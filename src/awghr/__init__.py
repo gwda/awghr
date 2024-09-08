@@ -72,6 +72,7 @@ class Workflow:
                                 #   * `_mem_MB`: requested memory in MB.
                                 #   * `_disk_MB`: requested temporary disk space in MB.
                                 #   * `_ncpus`: requested number of CPUs.
+                                #   * `_ngpus`: requested number of GPUs.
 
         # Section headings are arbitrary
         [host matching]     # This section matches the host `login1.example.com`
@@ -183,6 +184,7 @@ class Workflow:
         mem: Unit,
         disk: Unit,
         ncpus: int = 1,
+        ngpus: int = 0,
         needs: Optional[List[str]] = None,
         inputs: Optional[List[Union[Path, Tuple[str, str]]]] = None,
         outputs: List[str],
@@ -209,6 +211,7 @@ class Workflow:
                 * `_mem_MB`: requested memory in MB.
                 * `_disk_MB`: requested temporary disk space in MB.
                 * `_ncpus`: requested number of CPUs.
+                * `_ngpus`: requested number of GPUs.
             time (Unit):
                 Requested wall time of the job.
                 Use the pre-defined constants: `MIN`, `HOUR`, `DAY`.
@@ -221,6 +224,9 @@ class Workflow:
             ncpus (int):
                 Requested number of CPUs of the job.
                 Default is 1.
+            ngpus (int):
+                Requested number of GPUs of the job.
+                Default is 0.
             needs (Optional[List[str]]):
                 A list of IDs of prerequisite jobs in the same workflow.
             inputs (Optional[List[Union[Path, Tuple[str, str]]]]):
@@ -282,8 +288,9 @@ class Workflow:
         job["mem_MB"] = int(math.ceil(mem.to(self.MB).magnitude))
         job["disk_MB"] = int(math.ceil(disk.to(self.MB).magnitude))
         job["ncpus"] = ncpus
+        job["ngpus"] = ngpus
         job["resources"] = {
-            f"_{k}": job[k] for k in {"time_min", "mem_MB", "disk_MB", "ncpus"}
+            f"_{k}": job[k] for k in {"time_min", "mem_MB", "disk_MB", "ncpus", "ngpus"}
         }
 
         # Create job directory
