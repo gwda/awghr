@@ -16,7 +16,7 @@ class PBSWorkflowWriter(BatchQWorkflowWriter):
 #PBS -A {account}
 #PBS -l walltime={time_min}:00
 #PBS -l mem={mem_MB}MB
-#PBS -l ncpus={threads}
+#PBS -l ncpus={ncpus}
 #PBS -o {stdout}
 #PBS -e {stderr}
 #PBS -k doe

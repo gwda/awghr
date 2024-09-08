@@ -26,8 +26,8 @@ for i in range(10):
         cmds=[
             """
             bash -c '
-                if [ $MYTHREADS -ne 1 ]; then
-                    echo 'MYTHREADS!=1' >&2;
+                if [ $MYCPUS -ne 1 ]; then
+                    echo 'MYCPUS!=1' >&2;
                     exit 1;
                 fi;
                 echo $HOME;

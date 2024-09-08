@@ -18,7 +18,7 @@ class SlurmWorkflowWriter(BatchQWorkflowWriter):
 #SBATCH --mem={mem_MB}M
 #SBATCH --tmp={disk_MB}M
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task={threads}
+#SBATCH --cpus-per-task={ncpus}
 #SBATCH --output={stdout}
 #SBATCH --error={stderr}
 """

@@ -23,7 +23,7 @@ class BatchQWorkflowWriter:
     # - time_min: requested wall time in minutes
     # - mem_MB: requested memory in MB
     # - disk_MB: requested job scratch space in MB
-    # - threads: requested number of threads
+    # - ncpus: requested number of CPUs
     # - stdout: redirect job standard output to this file
     # - stderr: redirect job standard error to this file
     BATCHQ_HEADER: str
@@ -119,7 +119,7 @@ class BatchQWorkflowWriter:
         # Bundle jobs by order, dependencies, and resources
         job_bundles = {}
         for job in jobs.values():
-            job_bundle_ID = "{needs_ID}_{time_min}_{mem_MB}_{disk_MB}_{threads}".format(
+            job_bundle_ID = "{needs_ID}_{time_min}_{mem_MB}_{disk_MB}_{ncpus}".format(
                 **job
             )
             job_bundle_key = (job["order"], job_bundle_ID)
@@ -171,7 +171,7 @@ class BatchQWorkflowWriter:
                     time_min=job["time_min"],
                     mem_MB=job["mem_MB"],
                     disk_MB=job["disk_MB"],
-                    threads=job["threads"],
+                    ncpus=job["ncpus"],
                     stdout=jobarraydir
                     / f"job_stdout_{self.BATCHQ_SUBMIT_ARRAY_INDEX_REPL}",
                     stderr=jobarraydir
@@ -321,7 +321,7 @@ fi
                 time_min=submit_time_min,
                 mem_MB=10,
                 disk_MB=10,
-                threads=1,
+                ncpus=1,
                 stdout=batchdir / "batch_workstate_stdout",
                 stderr=batchdir / "batch_workstate_stderr",
             )
@@ -379,7 +379,7 @@ fi
                 time_min=submit_time_min,
                 mem_MB=10,
                 disk_MB=10,
-                threads=1,
+                ncpus=1,
                 stdout=batchdir / "batch_all_stdout",
                 stderr=batchdir / "batch_all_stderr",
             )

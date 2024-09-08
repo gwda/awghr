@@ -71,7 +71,7 @@ class Workflow:
                                 #   * `_time_min`: requested wall time in minutes.
                                 #   * `_mem_MB`: requested memory in MB.
                                 #   * `_disk_MB`: requested temporary disk space in MB.
-                                #   * `_threads`: requested number of threads.
+                                #   * `_ncpus`: requested number of CPUs.
 
         # Section headings are arbitrary
         [host matching]     # This section matches the host `login1.example.com`
@@ -182,7 +182,7 @@ class Workflow:
         time: Unit,
         mem: Unit,
         disk: Unit,
-        threads: int = 1,
+        ncpus: int = 1,
         needs: Optional[List[str]] = None,
         inputs: Optional[List[Union[Path, Tuple[str, str]]]] = None,
         outputs: List[str],
@@ -208,7 +208,7 @@ class Workflow:
                 * `_time_min`: requested wall time in minutes.
                 * `_mem_MB`: requested memory in MB.
                 * `_disk_MB`: requested temporary disk space in MB.
-                * `_threads`: requested number of threads.
+                * `_ncpus`: requested number of CPUs.
             time (Unit):
                 Requested wall time of the job.
                 Use the pre-defined constants: `MIN`, `HOUR`, `DAY`.
@@ -218,8 +218,8 @@ class Workflow:
             disk (Unit):
                 Requested temporary disk space of the job.
                 Use the pre-defined constants: `MB`, `GB`.
-            threads (int):
-                Requested number of threads of the job.
+            ncpus (int):
+                Requested number of CPUs of the job.
                 Default is 1.
             needs (Optional[List[str]]):
                 A list of IDs of prerequisite jobs in the same workflow.
@@ -281,9 +281,9 @@ class Workflow:
         job["time_min"] = int(math.ceil(time.to(self.MIN).magnitude))
         job["mem_MB"] = int(math.ceil(mem.to(self.MB).magnitude))
         job["disk_MB"] = int(math.ceil(disk.to(self.MB).magnitude))
-        job["threads"] = threads
+        job["ncpus"] = ncpus
         job["resources"] = {
-            f"_{k}": job[k] for k in {"time_min", "mem_MB", "disk_MB", "threads"}
+            f"_{k}": job[k] for k in {"time_min", "mem_MB", "disk_MB", "ncpus"}
         }
 
         # Create job directory
