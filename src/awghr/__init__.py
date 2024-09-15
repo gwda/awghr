@@ -436,16 +436,18 @@ class Workflow:
                 if d.is_dir() and d.name != self.ID
             ]
         for existing_workflow_ID in existing_workflow_IDs:
-            existing_workflow_dir = basebatchdir / existing_workflow_ID
+            existing_workflow_batchdir = basebatchdir / existing_workflow_ID
 
             # Check whether workflow has been submitted
             existing_workflow_submitted = (
-                existing_workflow_dir / "workflow_submitted"
+                existing_workflow_batchdir / "workflow_submitted"
             ).is_file()
 
             # Check for duplicate jobs
             existing_workflow_jobs: Set[Path] = set()
-            existing_workflow_jobs_file = existing_workflow_dir / "workflow_all_jobs"
+            existing_workflow_jobs_file = (
+                existing_workflow_batchdir / "workflow_all_jobs"
+            )
             if existing_workflow_jobs_file.is_file():
                 existing_workflow_jobs.update(
                     Path(line)
@@ -457,7 +459,9 @@ class Workflow:
 
             # Check for duplicate outputs
             existing_workflow_outputs: Set[str] = set()
-            existing_workflow_outputs_file = existing_workflow_dir / "workflow_outputs"
+            existing_workflow_outputs_file = (
+                existing_workflow_batchdir / "workflow_outputs"
+            )
             if existing_workflow_outputs_file.is_file():
                 existing_workflow_outputs.update(
                     existing_workflow_outputs_file.read_text().split()
@@ -479,7 +483,7 @@ class Workflow:
             ):
 
                 # Remove duplicate workflow
-                shutil.rmtree(existing_workflow_dir)
+                shutil.rmtree(existing_workflow_batchdir)
                 _logger.info("removed duplicate workflow %s", existing_workflow_ID)
 
             elif num_duplicate_jobs > 0 or num_duplicate_outputs > 0:
