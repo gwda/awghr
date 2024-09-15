@@ -542,8 +542,10 @@ class Workflow:
             log_make_jobs.update()
         log_make_jobs.finish()
 
-        # Make batch system script directory
-        batchdir.mkdir(parents=True, exist_ok=True)
+        # Make clean batch system script directory
+        if batchdir.exists():
+            shutil.rmtree(batchdir)
+        batchdir.mkdir(parents=True, exist_ok=False)
 
         # Write list of all job directories
         alljobsfile = batchdir / "workflow_all_jobs"
