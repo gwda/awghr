@@ -30,7 +30,7 @@ EOF
 # Download and install HTCondor
 RUN --mount=type=cache,target=/var/lib/apt/lists,sharing=locked --mount=type=cache,target=/var/cache/apt,sharing=locked <<EOF
 set -e
-curl -fsSL https://get.htcondor.org | /bin/bash -s -- --no-dry-run --channel stable
+curl -fsSL https://get.htcondor.org | sed 's/CHANNEL_DIR=[0-9][0-9.]*$/CHANNEL_DIR=23.0/' | /bin/bash -s -- --no-dry-run --channel stable
 condor_off
 EOF
 
