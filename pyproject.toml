@@ -1,21 +1,22 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=64.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "awghr"
 version = "0.1"
 description = "A(nother) Workflow Generator for High-throughput computeRing"
-readme = "README.md"
-requires-python = ">=3.10"
-license = { file = "LICENSE" }
 authors = [
     { name = "Karl Wette", email = "karl.wette@anu.edu.au" },
 ]
+requires-python = ">=3.10"
 dependencies = [
     "pint>=0.24.0",
     "tqdm>=4.66.5",
 ]
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 
 [project.scripts]
 awghr = "awghr.cli:cli"
