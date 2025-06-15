@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 - 2025 Karl Wette
+#
+# SPDX-License-Identifier: MIT
+
 # syntax=docker/dockerfile:1
 
 FROM ubuntu:22.04 AS build

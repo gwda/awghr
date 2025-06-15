@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 - 2025 Karl Wette
+#
+# SPDX-License-Identifier: MIT
+
 set -e
 
 source /testing/test/.runnerrc

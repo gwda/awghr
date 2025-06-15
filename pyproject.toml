@@ -16,7 +16,7 @@ dependencies = [
 ]
 readme = "README.md"
 license = "MIT"
-license-files = ["LICENSE"]
+license-files = ["LICENSES/MIT.txt"]
 
 [project.scripts]
 awghr = "awghr.cli:cli"
@@ -29,6 +29,9 @@ select = [
     "EM",
     "F",
 ]
+
+[tool.auto-reuse.styles]
+".Dockerfile" = "python"
 
 [tool.ppqs.defaults]
 print-header = true

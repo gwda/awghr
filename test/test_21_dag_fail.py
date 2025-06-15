@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 - 2025 Karl Wette
+#
+# SPDX-License-Identifier: MIT
+
 import logging
 import shlex
 import subprocess

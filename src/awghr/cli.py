@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 Karl Wette
+#
+# SPDX-License-Identifier: MIT
+
 import argparse
 import json
 import pickle

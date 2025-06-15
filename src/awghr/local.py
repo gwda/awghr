@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 Karl Wette
+#
+# SPDX-License-Identifier: MIT
+
 import logging
 from typing import Any, Dict
 
