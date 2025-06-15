@@ -20,3 +20,47 @@ license-files = ["LICENSE"]
 
 [project.scripts]
 awghr = "awghr.cli:cli"
+
+[tool.ppqs.defaults]
+print-header = true
+
+[tool.ppqs.scripts.init]
+description = "Initialise project"
+script = """
+python -m pip install -r requirements-dev.txt
+pre-commit install
+python -m pip install -e .
+ppqs docker init
+"""
+
+[tool.ppqs.scripts.lint]
+description = "Perform linting checks"
+script = """
+pre-commit run -a
+"""
+
+[tool.ppqs.scripts.build]
+description = "Build project"
+script = """
+ppqs clean
+python -m build
+"""
+
+[tool.ppqs.scripts.docker]
+description = "Manage Docker containers needed for testing"
+script = """
+python docker/tasks.py ...
+"""
+
+[tool.ppqs.scripts.test]
+description = "Run tests"
+script = [
+    ["ppqs", "build"],
+    ["ppqs", "docker", "test"],
+    ["coverage", "combine", "--rcfile=test/coverage.cfg", "--data-file=.coverage", ["test", ".coverage-*"]],
+    ["coverage", "report", "--rcfile=test/coverage.cfg", "--data-file=.coverage"],
+]
+
+[tool.ppqs.scripts.clean]
+description = "Clean up build files"
+script = "git clean -Xdf"

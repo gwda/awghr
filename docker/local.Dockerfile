@@ -17,6 +17,7 @@ apt-get -y upgrade
 apt-get -y install \
     less \
     nano \
+    python3-pip \
     python3.10 \
     python3.10-venv \
     ;

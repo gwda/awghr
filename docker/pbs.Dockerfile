@@ -34,8 +34,9 @@ apt-get -y install \
     postgresql-contrib \
     postgresql-server-dev-all \
     python3-dev \
+    python3-pip \
     python3.10 \
-    python3.10-dev \
+    python3.10-venv \
     swig \
     tcl-dev \
     tk-dev \

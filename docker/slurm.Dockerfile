@@ -94,6 +94,7 @@ apt-get -y install \
     libyaml-0-2 \
     nano \
     perl \
+    python3-pip \
     python3.10 \
     python3.10-venv \
     systemctl \
