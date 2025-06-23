@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+"""A(nother) Workflow Generator for High-throughput computeRing."""
+
 import json
 import logging
 import math
@@ -40,8 +42,7 @@ _logger = logging.getLogger(__name__)
 
 
 class Workflow:
-    """
-    Generate a workflow.
+    """Generate a workflow.
 
     Attributes:
         workdir (Path):
@@ -117,8 +118,7 @@ class Workflow:
         account: Optional[str] = None,
         basedir: Optional[Path] = None,
     ):
-        """
-        Create a new workflow.
+        """Create a new workflow.
 
         Args:
             name (str):
@@ -194,8 +194,7 @@ class Workflow:
         outputs: List[str],
         final: Optional[bool] = None,
     ) -> str:
-        """
-        Add a new job to the workflow.
+        """Add a new job to the workflow.
 
         Args:
             args (Dict[str, Any]):
@@ -381,15 +380,11 @@ class Workflow:
         return job_ID
 
     def __getitem__(self, key: Tuple[str, str]) -> Any:
-        """
-        Retrieve the value of a job argument.
-        """
+        """Retrieve the value of a job argument."""
         return self._jobs[key[0]]["args"][key[1]]
 
     def write(self) -> None:
-        """
-        Write workflow files and directories.
-        """
+        """Write workflow files and directories."""
 
         # Log progress
         self._log_add_jobs.finish()
@@ -598,7 +593,7 @@ class Workflow:
         all_workflow_IDs_str = " ".join(all_workflow_IDs)
 
         # Get top-level control script commands
-        submit, queue, cancel = self._workflow_writer.ctrl_commands(basebatchdir)
+        submit, queue, cancel = self._workflow_writer._ctrl_commands(basebatchdir)
 
         # Write top-level control script: submit all jobs
         with FileLineWriter(self.workdir / "submit", executable=True) as f:

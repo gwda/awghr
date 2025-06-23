@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+"""Workflow configuration."""
+
 import os
 from configparser import ConfigParser
 from pathlib import Path
@@ -39,6 +41,7 @@ def read_config(
     tags: Optional[List[str]] = None,
     select_batch_system: Optional[str] = None,
 ):
+    """Read configuration."""
 
     cfg: Dict[str, Any] = {}
     batch_system_cfg: Dict[str, Any] = {}
@@ -225,6 +228,7 @@ def read_config(
 
 
 def show_config(args):
+    """Show configuration."""
 
     # Read configuration
     cfg = read_config(tags=args.tags, select_batch_system=args.batch)

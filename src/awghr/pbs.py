@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+"""PBS workflows."""
+
 import subprocess
 from typing import Any, Dict
 
@@ -9,8 +11,8 @@ from .batchq import BatchQWorkflowWriter
 from .util import BatchSystemException
 
 
-# Write PBS workflow
 class PBSWorkflowWriter(BatchQWorkflowWriter):
+    """Write PBS workflow."""
 
     # PBS-specific configuration keys
     KEYS: Dict[str, Any] = {}

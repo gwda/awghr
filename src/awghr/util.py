@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+"""Utility functions."""
+
 import os
 import re
 import stat
@@ -14,29 +16,34 @@ _ureg = UnitRegistry()
 
 
 class WorkflowException(Exception):
-    """Raise for workflow generation errors"""
+    """Raise for workflow generation errors."""
 
 
 class ConfigException(Exception):
-    """Raise for configuration errors"""
+    """Raise for configuration errors."""
 
 
 class BatchSystemException(Exception):
-    """Raise for batch system errors"""
+    """Raise for batch system errors."""
 
 
-# Generate job directory from job ID:
-# basedir
-# └── subdirs 00/ to ff/ (max 256)
-#     └── subdirs 00/ to ff/ (max 256)
-#         └── subdirs of remaining job ID/
-#             └── job files
 def job_dir_from_ID(basedir: Path, job_ID: str):
+    """Generate job directory from job ID.
+
+    Job directory structure:
+    ```
+    basedir
+    └── subdirs 00/ to ff/ (max 256)
+        └── subdirs 00/ to ff/ (max 256)
+            └── subdirs of remaining job ID/
+                └── job files
+    ```
+    """
     return basedir / job_ID[0:2] / job_ID[2:4] / job_ID[4:]
 
 
-# List of job files, which may be indexed with regular expressions
 class JobFileList:
+    """List of job files, which may be indexed with regular expressions."""
 
     def __init__(self, _name, _list):
         self._name = _name
@@ -56,8 +63,8 @@ class JobFileList:
         return " ".join(f_lst)
 
 
-# Log progress at progressively longer intervals
 class ProgressLogger:
+    """Log progress at progressively longer intervals."""
 
     def __init__(self, logger, msg):
         self._logger = logger
@@ -68,6 +75,7 @@ class ProgressLogger:
         self._ddt_print_prog = 5
 
     def update(self):
+        """Update log progress."""
         self._count += 1
         dt = time.time() - self._t0
         if dt > self._dt_print_prog:  # pragma: no cover
@@ -77,6 +85,7 @@ class ProgressLogger:
             self._dt_print_prog += self._ddt_print_prog
 
     def finish(self):
+        """Finish log progress."""
         dt = time.time() - self._t0
         r = (self._count / _ureg.Quantity(dt, "second")).to_compact()
         self._logger.info(
@@ -86,8 +95,8 @@ class ProgressLogger:
         )
 
 
-# Convenience class for writing lines to a text file
 class FileLineWriter:
+    """Convenience class for writing lines to a text file."""
 
     def __init__(self, filepath: Path, *, executable: bool = False):
         self._filepath = filepath

@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+"""Command-line parser."""
+
 import argparse
 import json
 import pickle
@@ -20,11 +22,11 @@ from .config import show_config
 from .util import _ureg
 
 
-def resolved_path(value):
+def _resolved_path(value):
     return Path(value).resolve(strict=True)
 
 
-def positive_int(value):
+def _positive_int(value):
     value = int(value)
     if value <= 0:
         msg = f"'{value}' is not a positive integer"
@@ -32,7 +34,7 @@ def positive_int(value):
     return value
 
 
-def show_stdouterr(prefix, stdfile, grep_regex, last_n_lines):
+def _show_stdouterr(prefix, stdfile, grep_regex, last_n_lines):
 
     # Store lines in deque
     last_lines = deque()
@@ -73,7 +75,7 @@ def show_stdouterr(prefix, stdfile, grep_regex, last_n_lines):
         print(prefix, line)
 
 
-def show_jobs(args):
+def _show_jobs(args):
 
     # Check for workflows
     job_list_files = list(args.workflow_dir.glob("batch/*/workflow_all_jobs"))
@@ -256,7 +258,7 @@ def show_jobs(args):
         if args.output:
             job_stdout = job / "job_stdout"
             if job_stdout.is_file():
-                show_stdouterr(
+                _show_stdouterr(
                     prefix.format("OUT"),
                     job_stdout,
                     args.grep_regex,
@@ -267,7 +269,7 @@ def show_jobs(args):
         if args.error:
             job_stderr = job / "job_stderr"
             if job_stderr.is_file():
-                show_stdouterr(
+                _show_stdouterr(
                     prefix.format("ERR"),
                     job_stderr,
                     args.grep_regex,
@@ -278,6 +280,7 @@ def show_jobs(args):
 
 
 def cli(*argv: str):
+    """Command-line parser entry point."""
 
     # Build command-line argument parser
     parser = argparse.ArgumentParser(
@@ -293,7 +296,7 @@ def cli(*argv: str):
         "-d",
         "--workflow-dir",
         metavar="DIR",
-        type=resolved_path,
+        type=_resolved_path,
         default=Path.cwd(),
         help="set workflow directory to DIR",
     )
@@ -393,7 +396,7 @@ def cli(*argv: str):
         "--last",
         metavar="N",
         dest="last_n_lines",
-        type=positive_int,
+        type=_positive_int,
         default=10,
         help="show the last N lines of standard output/error (default: 10)",
     )
@@ -405,7 +408,7 @@ def cli(*argv: str):
         const=0,
         help="show the full standard output/error",
     )
-    parser_show_jobs.set_defaults(subcommand=show_jobs)
+    parser_show_jobs.set_defaults(subcommand=_show_jobs)
 
     # Add show configuration sub-command
     parser_show_config = subparsers.add_parser(

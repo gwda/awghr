@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+"""Manage Docker containers needed for testing."""
+
 import argparse
 import inspect
 import subprocess
@@ -10,14 +12,13 @@ from subprocess import DEVNULL
 
 
 def run(cmd, check=True, **kwargs):
+    """Run a command."""
     print("---", "command:", *cmd)
     return subprocess.run(cmd, **kwargs)
 
 
 def build(docker_files):
-    """
-    Build Docker images.
-    """
+    """Build Docker images."""
 
     for docker_file in docker_files:
         name = docker_file.stem
@@ -43,9 +44,7 @@ def build(docker_files):
 
 
 def push(docker_files):
-    """
-    Push Docker images.
-    """
+    """Push Docker images."""
 
     run("docker", "login")
 
@@ -62,9 +61,7 @@ def push(docker_files):
 
 
 def init(docker_files):
-    """
-    Create Docker containers for testing.
-    """
+    """Create Docker containers for testing."""
 
     for docker_file in docker_files:
         name = docker_file.stem
@@ -102,9 +99,7 @@ def init(docker_files):
 
 
 def debug(docker_file):
-    """
-    Debug a Docker container.
-    """
+    """Debug a Docker container."""
 
     name = docker_file.stem
 
@@ -139,9 +134,7 @@ def debug(docker_file):
 
 
 def test(docker_files, test_scripts):
-    """
-    Run tests inside Docker containers.
-    """
+    """Run tests inside Docker containers."""
 
     runnerrc = Path("test") / ".runnerrc"
     runnerrc.write_text(

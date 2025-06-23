@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+"""Slurm workflows."""
+
 import subprocess
 from typing import Any, Dict
 
@@ -9,8 +11,8 @@ from .batchq import BatchQWorkflowWriter
 from .util import BatchSystemException
 
 
-# Write Slurm workflow
 class SlurmWorkflowWriter(BatchQWorkflowWriter):
+    """Write Slurm workflow."""
 
     # Slurm-specific configuration keys
     KEYS: Dict[str, Any] = {}

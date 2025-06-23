@@ -2,6 +2,11 @@
 #
 # SPDX-License-Identifier: MIT
 
+"""Generic batch workflows.
+
+Generic workflow writer for PBS/Slurm/etc. style batch systems.
+"""
+
 import logging
 import math
 from typing import Any, Dict
@@ -11,8 +16,8 @@ from .util import FileLineWriter, ProgressLogger, job_dir_from_ID
 _logger = logging.getLogger(__name__)
 
 
-# Generic workflow writer for PBS/Slurm/etc. style batch systems
 class BatchQWorkflowWriter:
+    """Write generic batch workflow."""
 
     # Configuration keys for generic workflow
     KEYS: Dict[str, Any] = {
@@ -118,6 +123,7 @@ class BatchQWorkflowWriter:
         workstatefile,
         submittedfile,
     ):
+        """Write workflow."""
 
         # Guestimate runtime for submission and workstate jobs
         # - At least 10 minutes
@@ -564,7 +570,7 @@ batchq_ID=`echo "${{batchq_ID{self.BATCHQ_ID_REMOVE_SUFFIX}}}"`
 echo "info: submitted state job, batch ID ${{batchq_ID}}"
 """
 
-    def ctrl_commands(self, basebatchdir):
+    def _ctrl_commands(self, basebatchdir):
 
         # Get batch system commands
         submit, queue, cancel = self._batchq_ctrl_commands()
