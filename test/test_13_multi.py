@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+"""Test running multiple workflows in the same directory."""
+
 import logging
 import subprocess
 import sys

@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+"""Test workflow configuration."""
+
 from pathlib import Path
 
 import awghr.config

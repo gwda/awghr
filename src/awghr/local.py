@@ -22,6 +22,7 @@ class LocalWorkflowWriter:
     KEYS: Dict[str, Any] = {}
 
     def __init__(self, batchsyscfg):
+        """Initialise workflow writer."""
 
         # No configuration needed
         pass

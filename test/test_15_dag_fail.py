@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+"""Test running a DAG workflow that fails and then recovers."""
+
 import logging
 import shlex
 import subprocess

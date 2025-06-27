@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+"""Test running a simple workflow."""
+
 import logging
 import subprocess
 import sys

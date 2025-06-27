@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+"""Test running a workflow where some jobs are skipped."""
+
 import json
 import logging
 import shlex

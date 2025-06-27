@@ -107,6 +107,7 @@ class BatchQWorkflowWriter:
     max_array_size: int
 
     def __init__(self, batchsyscfg):
+        """Initialise workflow writer."""
 
         # Store rate jobs can be submitted per minute
         self.job_submit_per_min = float(batchsyscfg["n_jobsubpermin"])

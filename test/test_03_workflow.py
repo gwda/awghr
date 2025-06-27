@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+"""Test workflow generation."""
+
 import logging
 import sys
 from pathlib import Path

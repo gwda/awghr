@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+"""Test command-line interface help."""
+
 from awghr.cli import cli
 
 for args in (

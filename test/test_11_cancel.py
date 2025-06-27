@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+"""Test running a workflow that is cancelled and them resumed."""
+
 import logging
 import subprocess
 import sys
