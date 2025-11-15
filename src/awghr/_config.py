@@ -202,7 +202,7 @@ def read_config(
                     key_cfg[key] = val
 
                 elif key.endswith("list"):
-                    val = parser[section][key].split()
+                    val = parser[section][key].strip().split("\n")
                     vals = key_cfg.get(key, [])
                     for v in val:
                         if v not in vals:

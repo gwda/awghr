@@ -239,7 +239,8 @@ def parsing_list():
         awghr._config._general_cfg = {"mylist": None}
         src = """
 [DEFAULT]
-mylist = a
+mylist =
+    a
 """
         cfg = read_config(src)
         assert cfg["mylist"] == ["a"]
@@ -247,7 +248,9 @@ mylist = a
 [DEFAULT]
 mylist = a
 [more items]
-mylist = b c
+mylist =
+    b
+    c
 """
         cfg = read_config(src)
         assert cfg["mylist"] == ["a", "b", "c"]
@@ -255,9 +258,12 @@ mylist = b c
 [DEFAULT]
 mylist = a
 [more items]
-mylist = b c
+mylist = b
+    c
 [even more items]
-mylist = e d
+mylist =
+    e
+    d
 """
         cfg = read_config(src)
         assert cfg["mylist"] == ["a", "b", "c", "e", "d"]

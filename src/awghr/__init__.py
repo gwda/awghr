@@ -174,7 +174,7 @@ class Workflow:
                         self._env[var] = os.environ[var]
         for env in cfg["envlist"]:
             if "=" in env:
-                var, val = env.split("=", maxsplit=1)
+                var, val = (s.strip() for s in env.split("=", maxsplit=1))
                 self._env[var] = val
 
         # Log details
