@@ -151,7 +151,7 @@ class Workflow:
         try:
             basedir = basedir.resolve(strict=True)
         except (FileNotFoundError, RuntimeError):
-            msg = f"Base directory '{basedir}' is not a directory"
+            msg = f"base directory '{basedir}' is not a directory"
             raise WorkflowException(msg)
 
         # Set workflow directory

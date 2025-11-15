@@ -66,11 +66,11 @@ def read_config(
                                 assert batch_key not in batch_keys
                                 batch_keys[batch_key] = batch_key_val
             else:
-                msg = f"Both '{cfg['batch_system']}' and '{batch_system}' batch systems appear to be present"
+                msg = f"both '{cfg['batch_system']}' and '{batch_system}' batch systems appear to be present"
                 raise ConfigException(msg)
     if "batch_system" not in cfg:
         if select_batch_system is not None and select_batch_system != "local":
-            msg = f"Batch system '{select_batch_system}' not found"
+            msg = f"batch system '{select_batch_system}' not found"
             raise ConfigException(msg)
         else:
 
@@ -129,7 +129,7 @@ def read_config(
 
                     # `match` must be a known match system
                     if match not in batch_system_names:
-                        msg = f"Unknown batch system '{match}' in section '{section}'"
+                        msg = f"unknown batch system '{match}' in section '{section}'"
                         raise ConfigException(msg)
                     if match == cfg["batch_system"]:
                         batch_system_section = cfg["batch_system"]
@@ -149,7 +149,7 @@ def read_config(
                             use_section = False
 
                 else:
-                    msg = f"Unknown section target '{target}'"
+                    msg = f"unknown section target '{target}'"
                     raise ConfigException(msg)
 
         if use_section:
@@ -163,7 +163,7 @@ def read_config(
                 if key not in _general_cfg and (
                     batch_system_section is None or key not in batch_keys
                 ):
-                    msg = f"Unknown section key '[{section}].{key}'"
+                    msg = f"unknown section key '[{section}].{key}'"
                     raise ConfigException(msg)
 
                 # Decide which dictionary to add key to
@@ -179,7 +179,7 @@ def read_config(
                         val = parser.getboolean(section, key)
                     except ValueError:
                         val = parser[section][key]
-                        msg = f"Section key value '[{section}].{key}'='{val}' is not a valid boolean"
+                        msg = f"section key value '[{section}].{key}'='{val}' is not a valid boolean"
                         raise ConfigException(msg)
                     key_cfg[key] = val
 
@@ -188,7 +188,7 @@ def read_config(
                         val = parser.getint(section, key)
                     except ValueError:
                         val = parser[section][key]
-                        msg = f"Section key value '[{section}].{key}'='{val}' is not a valid integer"
+                        msg = f"section key value '[{section}].{key}'='{val}' is not a valid integer"
                         raise ConfigException(msg)
                     key_cfg[key] = val
 
@@ -197,7 +197,7 @@ def read_config(
                     try:
                         val = val.expanduser().resolve(strict=True)
                     except (FileNotFoundError, RuntimeError):
-                        msg = f"Section key value '[{section}].{key}'='{val}' is not a directory"
+                        msg = f"section key value '[{section}].{key}'='{val}' is not a directory"
                         raise ConfigException(msg)
                     key_cfg[key] = val
 
@@ -218,7 +218,7 @@ def read_config(
         if key not in cfg:
             cfg[key] = _general_cfg[key]
             if cfg[key] is None:
-                msg = f"Configuration key '{key}' is undefined"
+                msg = f"configuration key '{key}' is undefined"
                 raise ConfigException(msg)
     for key in batch_keys:
         if key not in batch_system_cfg:
