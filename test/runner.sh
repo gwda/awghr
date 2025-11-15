@@ -34,6 +34,12 @@ export COVERAGE_RCFILE="/testing/test/coverage.cfg"
 export COVERAGE_FILE="/testing/.coverage-${batch_system}"
 coverage erase
 
+echo "===== $0: configuration"
+(
+    export AWGHR_CFGFILE="/testing/test/awghr.cfg"
+    coverage run -a /testing/venv/bin/awghr config --batch="${batch_system}"
+)
+
 baseworkdir="/testing/workdir"
 rm -rf "${baseworkdir}"
 

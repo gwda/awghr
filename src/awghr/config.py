@@ -18,15 +18,16 @@ from .util import ConfigException
 
 # Known batch systems:
 # - name of batch system
+# - description of batch system
 # - characteristic executable used to identify batch system
 # - function which writes workflow specific to batch system
-_batch_systems: List[Tuple[str, str, Any]] = [
-    ("pbs", "qmgr", PBSWorkflowWriter),
-    ("slurm", "scontrol", SlurmWorkflowWriter),
+_batch_systems: List[Tuple[str, str, str, Any]] = [
+    ("pbs", "Portable Batch System and its derivatives", "qmgr", PBSWorkflowWriter),
+    ("slurm", "Slurm Workload Manager", "scontrol", SlurmWorkflowWriter),
 ]
 
-# Configuration keys and their default values
-_keys: Dict[str, Any] = {
+# General configuration keys and their default values
+_general_cfg: Dict[str, Any] = {
     "account": None,
     "basedir": Path.cwd(),
     "envlist": "",
@@ -47,13 +48,11 @@ def read_config(
     batch_system_cfg: Dict[str, Any] = {}
 
     # Names of batch systems
-    batch_system_names = set(
-        batch_system for batch_system, batch_exec, workflow_writer in _batch_systems
-    )
+    batch_system_names = set(batch_system for batch_system, _, _, _ in _batch_systems)
 
     # Determine batch system
     batch_keys = {}
-    for batch_system, batch_exec, workflow_writer in _batch_systems:
+    for batch_system, _, batch_exec, workflow_writer in _batch_systems:
         if which(batch_exec) is not None or batch_system == select_batch_system:
             if "batch_system" not in cfg:
                 cfg["batch_system"] = batch_system
@@ -70,18 +69,25 @@ def read_config(
                 msg = f"Both '{cfg['batch_system']}' and '{batch_system}' batch systems appear to be present"
                 raise ConfigException(msg)
     if "batch_system" not in cfg:
+        if select_batch_system is not None and select_batch_system != "local":
+            msg = f"Batch system '{select_batch_system}' not found"
+            raise ConfigException(msg)
+        else:
 
-        # If not batch system present, use local workflow writer
-        cfg["batch_system"] = "local"
-        cfg["workflow_writer"] = LocalWorkflowWriter
+            # If not batch system present, use local workflow writer
+            cfg["batch_system"] = "local"
+            cfg["workflow_writer"] = LocalWorkflowWriter
 
-        # Default configuration for local workflow
-        cfg["account"] = "local"
+            # Default configuration for local workflow
+            cfg["account"] = "local"
 
     # Read configuration
     parser = ConfigParser()
     if src is None:
-        src_file = Path(os.environ["HOME"]) / ".awghr.cfg"
+        if "AWGHR_CFGFILE" in os.environ:
+            src_file = Path(os.environ["AWGHR_CFGFILE"])
+        else:
+            src_file = Path(os.environ["HOME"]) / ".awghr.cfg"
         parser.read(src_file, encoding="utf-8")
     else:
         parser.read_string(src)
@@ -154,14 +160,14 @@ def read_config(
                     continue
 
                 # Check for valid key
-                if key not in _keys and (
+                if key not in _general_cfg and (
                     batch_system_section is None or key not in batch_keys
                 ):
                     msg = f"Unknown section key '[{section}].{key}'"
                     raise ConfigException(msg)
 
                 # Decide which dictionary to add key to
-                if key in _keys:
+                if key in _general_cfg:
                     key_cfg = cfg
                 else:
                     key_cfg = batch_system_cfg
@@ -208,9 +214,9 @@ def read_config(
                     key_cfg[key] = val
 
     # Check all keys are present
-    for key in _keys:
+    for key in _general_cfg:
         if key not in cfg:
-            cfg[key] = _keys[key]
+            cfg[key] = _general_cfg[key]
             if cfg[key] is None:
                 msg = f"Configuration key '{key}' is undefined"
                 raise ConfigException(msg)
@@ -230,15 +236,32 @@ def read_config(
 def show_config(args):
     """Show configuration."""
 
+    # Helper function to print a dictionary with alignment
+    def print_aligned(d):
+        m = max(len(k) for k in d.keys())
+        for k, v in sorted(d.items()):
+            print(f"    {k:<{m}} : {v}")
+
     # Read configuration
     cfg = read_config(tags=args.tags, select_batch_system=args.batch)
 
+    # Print supported batch systems
+    print("Supported batch systems:")
+    print_aligned(
+        {
+            batch_system: batch_system_desc
+            for batch_system, batch_system_desc, _, _ in _batch_systems
+            + [("local", "Runs workflow on local computer", "", None)]
+        }
+    )
+
     # Show general configuration
     print("General configuration:")
-    for key in sorted(_keys.keys()):
-        print(f"    {key}: {cfg[key]}")
+    print_aligned({k: cfg[k] for k in _general_cfg})
 
     # Show batch system configuration
     print(f"Batch system configuration for: {cfg['batch_system']}")
-    for key in sorted(cfg["batch_system_cfg"].keys()):
-        print(f"    {key}: {cfg['batch_system_cfg'][key]}")
+    if cfg["batch_system_cfg"]:
+        print_aligned(cfg["batch_system_cfg"])
+    else:
+        print("    none")

@@ -178,6 +178,7 @@ class Workflow:
         _logger.info("workflow name: %s", self._name)
         _logger.info("workflow account: %s", self._account)
         _logger.info("workflow directory: %s", self.workdir)
+        _logger.info("batch system: %s", cfg["batch_system"])
 
     def add_job(
         self,
