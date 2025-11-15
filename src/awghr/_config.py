@@ -37,6 +37,11 @@ _general_cfg: Dict[str, Any] = {
 _override_host = None
 
 
+def batch_system_names():
+    """Names of batch systems."""
+    return set(batch_system for batch_system, _, _, _ in _batch_systems)
+
+
 def read_config(
     src: Optional[str] = None,
     tags: Optional[List[str]] = None,
@@ -46,9 +51,6 @@ def read_config(
 
     cfg: Dict[str, Any] = {}
     batch_system_cfg: Dict[str, Any] = {}
-
-    # Names of batch systems
-    batch_system_names = set(batch_system for batch_system, _, _, _ in _batch_systems)
 
     # Determine batch system
     batch_keys = {}
@@ -128,7 +130,7 @@ def read_config(
                 elif target == "batch":
 
                     # `match` must be a known match system
-                    if match not in batch_system_names:
+                    if match not in batch_system_names():
                         msg = f"unknown batch system '{match}' in section '{section}'"
                         raise ConfigException(msg)
                     if match == cfg["batch_system"]:

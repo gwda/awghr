@@ -20,7 +20,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from pint import Quantity, Unit
 
-from ._config import read_config
+from ._config import batch_system_names, read_config
 from ._util import (
     FileLineWriter,
     JobFileList,
@@ -161,6 +161,7 @@ class Workflow:
         # Initialise internal variables
         self._name = name
         self._account = account
+        self._batch_system = cfg["batch_system"]
         self._workflow_writer = cfg["workflow_writer"](
             batchsyscfg=cfg["batch_system_cfg"]
         )
@@ -186,7 +187,7 @@ class Workflow:
         _logger.info("workflow name: %s", self._name)
         _logger.info("workflow account: %s", self._account)
         _logger.info("workflow directory: %s", self.workdir)
-        _logger.info("batch system: %s", cfg["batch_system"])
+        _logger.info("batch system: %s", self._batch_system)
 
     def add_job(
         self,
@@ -201,6 +202,7 @@ class Workflow:
         needs: Optional[List[str]] = None,
         inputs: Optional[List[Union[Path, Tuple[str, str]]]] = None,
         outputs: List[str],
+        batchopt: Optional[Dict[str, Dict[str, str]]] = None,
         final: Optional[bool] = None,
     ) -> str:
         """Add a new job to the workflow.
@@ -278,6 +280,17 @@ class Workflow:
                 * ``_id``: the unique string representing the job.
 
                 Output files will be staged out of the working directory of the job.
+
+            batchopt (Optional[Dict[str, Dict[str, str]]]):
+                Batch system-specific configuration options.
+                These options are given as nested dictionaries.
+                The key of the first dictionary is the batch system the option applies to;
+                its value is a dictionary of options for the given batch system.
+
+                The batch system of the computer cluster where the workflow is
+                being generated is determined automatically. Only options given
+                for this batch system are used; other options are silently
+                ignored.
 
             final (Optional[bool]):
                 If true, output files from this job will be copied to the final
@@ -423,6 +436,22 @@ class Workflow:
                 )
 
             job["cmds"].append(cmd)
+
+        # Add batch system-specific options
+        job["batchopt"] = {}
+        if batchopt:
+            unknown_batch_systems = [
+                batch_system
+                for batch_system in batchopt
+                if batch_system not in batch_system_names()
+            ]
+            if unknown_batch_systems:
+                msg = "unknown batch system(s) '{}'".format(
+                    "', '".join(unknown_batch_systems)
+                )
+                raise WorkflowException(msg)
+            if self._batch_system in batchopt:
+                job["batchopt"] = batchopt[self._batch_system]
 
         # Add job to workflow
         self._jobs[job_ID] = job
