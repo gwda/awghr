@@ -225,7 +225,7 @@ def read_config(
             batch_system_cfg[key] = batch_keys[key]
             if batch_system_cfg[key] is None:
                 msg = f"{cfg['batch_system']}-specific configuration key '{key}' is undefined"
-                raise ConfigException()
+                raise ConfigException(msg)
 
     # Store batch system-specific configuration
     cfg["batch_system_cfg"] = batch_system_cfg
