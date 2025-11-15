@@ -5,6 +5,8 @@ path = [
     ".gitignore",
     ".pre-commit-config.yaml",
     "README.md",
+    "doc/*.py",
+    "doc/*.rst",
     "pyproject.toml",
     "requirements-dev.txt",
     "test/*.cfg",

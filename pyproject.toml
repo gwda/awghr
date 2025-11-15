@@ -38,6 +38,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
+"doc/*.py" = ["D"]
 "test/**/*.py" = ["D103"]
 
 [tool.ruff.lint.pydocstyle]
@@ -50,6 +51,28 @@ skip-checking-raises = true
 
 [tool.auto-reuse.styles]
 ".Dockerfile" = "python"
+
+[tool.sphinx-pyproject]
+project = "awghr"
+language = "en"
+html_theme = "alabaster"
+extensions = [
+    "autoapi.extension",
+    "sphinx.ext.autodoc",
+    "sphinx.ext.napoleon",
+]
+autoapi_dirs = ["../src"]
+autoapi_root = "api"
+autoapi_keep_files = true
+autoapi_options = [
+     "members",
+     "inherited-members",
+     "special-members",
+     "show-inheritance",
+     "show-module-summary",
+]
+autoapi_member_order = "groupwise"
+autodoc_typehints = "description"
 
 [tool.ppqs.defaults]
 print-header = true
@@ -74,6 +97,13 @@ description = "Build project"
 script = """
 ppqs clean
 python -m build
+"""
+
+[tool.ppqs.scripts.doc]
+description = "Build documentation"
+script = """
+rm -rf html/
+sphinx-build --builder html doc/ html/
 """
 
 [tool.ppqs.scripts.docker]

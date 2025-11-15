@@ -49,7 +49,7 @@ class Workflow:
             Working directory where workflow will be written.
         ID (str):
             A unique string representing the workflow.
-            Only available after `write()` has been called.
+            Only available after ``write()`` has been called.
         MIN (Quantity):
             Constant, representing 1 minute.
         HOUR (Quantity):
@@ -62,39 +62,39 @@ class Workflow:
             Constant, representing 10^9 bytes.
 
     Configuration:
-        Default workflow configurations are retrieved from `~/.awghr.cfg`.
+        Default workflow configurations are retrieved from :literal:`~/.awghr.cfg`.
 
-        This is a `ConfigParser`-style configuration file with the following syntax:
-        ```
-        [DEFAULT]           # This section match all batch systems/hosts/tags
-        account = ...           # Default value of `account` argument passed to Workflow()
-        basedir = ...           # Default value of `basedir` argument passed to Workflow()
-        envlist =               # List of environment variables to save/set in job script:
-            *PATH               # - Save any variables matching this regular expression.
-            VAR=val             # - Set variable to the given value.
-            ...                 #   May contain `{format}` strings which will be filled by:
-                                #   * `_time_min`: requested wall time in minutes.
-                                #   * `_mem_MB`: requested memory in MB.
-                                #   * `_disk_MB`: requested temporary disk space in MB.
-                                #   * `_ncpus`: requested number of CPUs.
-                                #   * `_ngpus`: requested number of GPUs.
+        This is a ``ConfigParser``-style configuration file with the following syntax::
 
-        # Section headings are arbitrary
-        [host matching]     # This section matches the host `login1.example.com`
-        match host = login1.example.com
-        match host = .example.com
-        match host = login1
-        match host = login
-        ...
+            [DEFAULT]           # This section match all batch systems/hosts/tags
+            account = ...           # Default value of ``account`` argument passed to Workflow()
+            basedir = ...           # Default value of ``basedir`` argument passed to Workflow()
+            envlist =               # List of environment variables to save/set in job script:
+                *PATH               # - Save any variables matching this regular expression.
+                VAR=val             # - Set variable to the given value.
+                ...                 #   May contain ``{format}`` strings which will be filled by:
+                                    #   * ``_time_min``: requested wall time in minutes.
+                                    #   * ``_mem_MB``: requested memory in MB.
+                                    #   * ``_disk_MB``: requested temporary disk space in MB.
+                                    #   * ``_ncpus``: requested number of CPUs.
+                                    #   * ``_ngpus``: requested number of GPUs.
 
-        [batch matching]    # This section matches a given batch system
-        match batch = ...
-        # Batch system matching sections may include system-specific keys
+            # Section headings are arbitrary
+            [host matching]     # This section matches the host ``login1.example.com``
+            match host = login1.example.com
+            match host = .example.com
+            match host = login1
+            match host = login
+            ...
 
-        [tag matching]      # This section matches a tag in the `tags` list passed to Workflow()
-        match tag = ...
-        ...
-        ```
+            [batch matching]    # This section matches a given batch system
+            match batch = ...
+            # Batch system matching sections may include system-specific keys
+
+            [tag matching]      # This section matches a tag in the ``tags`` list passed to Workflow()
+            match tag = ...
+            ...
+
     """
 
     # Attributes
@@ -123,14 +123,17 @@ class Workflow:
         Args:
             name (str):
                 Name of workflow.
+
             tags (Optional[List[str]]):
-                List of tags, used to retrieve default arguments from `~/.awghr.cfg`.
+                List of tags, used to retrieve default arguments from :literal:`~/.awghr.cfg`.
+
             account (Optional[str]):
                 Accounting tag the workflow should be charged against.
-                If not given, use the default value retrieved from `~/.awghr.cfg`.
+                If not given, use the default value retrieved from :literal:`~/.awghr.cfg`.
+
             basedir (Optional[Path]):
                 Base workflow directory; this workflow will be written to subdirectory.
-                If not given, use the default value retrieved from `~/.awghr.cfg`,
+                If not given, use the default value retrieved from :literal:`~/.awghr.cfg`,
                 or else the current directory.
         """
 
@@ -201,53 +204,69 @@ class Workflow:
             args (Dict[str, Any]):
                 Arguments and their values which uniquely identify the job.
                 Argument names cannot begin with an underscore.
+
             cmds (List[str]):
                 A list of commands to execute.
-                May contain `{format}` strings which will be filled by:
-                * the dictionary supplied in `args`;
-                * `_in`: input file(s) supplied in `inputs`, separated by spaces.
-                * `_in[re]`: the input file(s) supplied in `inputs` that
-                  match the regular expression `re`, separated by spaces.
-                * `_out`: output file(s) supplied in `outputs`, separated by spaces.
-                * `_out[re]`: the output file(s) supplied in `outputs` that
-                  match the regular expression `re`, separated by spaces.
-                * `_time_min`: requested wall time in minutes.
-                * `_mem_MB`: requested memory in MB.
-                * `_disk_MB`: requested temporary disk space in MB.
-                * `_ncpus`: requested number of CPUs.
-                * `_ngpus`: requested number of GPUs.
+                May contain ``{format}`` strings which will be filled by:
+
+                * the dictionary supplied in ``args``;
+                * ``_in``: input file(s) supplied in ``inputs``, separated by spaces.
+                * ``_in[re]``: the input file(s) supplied in ``inputs`` that
+                  match the regular expression ``re``, separated by spaces.
+                * ``_out``: output file(s) supplied in ``outputs``, separated by spaces.
+                * ``_out[re]``: the output file(s) supplied in ``outputs`` that
+                  match the regular expression ``re``, separated by spaces.
+                * ``_time_min``: requested wall time in minutes.
+                * ``_mem_MB``: requested memory in MB.
+                * ``_disk_MB``: requested temporary disk space in MB.
+                * ``_ncpus``: requested number of CPUs.
+                * ``_ngpus``: requested number of GPUs.
+
             time (Unit):
                 Requested wall time of the job.
-                Use the pre-defined constants: `MIN`, `HOUR`, `DAY`.
+                Use the pre-defined constants: ``MIN``, ``HOUR``, ``DAY``.
+
             mem (Unit):
                 Requested memory of the job.
-                Use the pre-defined constants: `MB`, `GB`.
+                Use the pre-defined constants: ``MB``, ``GB``.
+
             disk (Unit):
                 Requested temporary disk space of the job.
-                Use the pre-defined constants: `MB`, `GB`.
+                Use the pre-defined constants: ``MB``, ``GB``.
+
             ncpus (int):
                 Requested number of CPUs of the job.
                 Default is 1.
+
             ngpus (int):
                 Requested number of GPUs of the job.
                 Default is 0.
+
             needs (Optional[List[str]]):
                 A list of IDs of prerequisite jobs in the same workflow.
+
             inputs (Optional[List[Union[Path, Tuple[str, str]]]]):
                 A list of input files, either:
+
                 * a path to a file not generated by the workflow; or
                 * a tuple (job ID, file name) representing a file generated
                   by a previous job in the same workflow.
-                  May contain `{format}` strings which will be filled by:
-                  * the dictionary supplied in `args` to the previous job;
-                  * `_id`: the unique string representing the previous job.
+                  May contain ``{format}`` strings which will be filled by:
+
+                  * the dictionary supplied in ``args`` to the previous job;
+                  * ``_id``: the unique string representing the previous job.
+
                 Input files will be staged to the working directory of the job.
+
             outputs (List[str]):
                 A list of output files generated by the job.
-                May contain `{format}` strings which will be filled by:
-                * the dictionary supplied in `args`;
-                * `_id`: the unique string representing the job.
+                May contain ``{format}`` strings which will be filled by:
+
+                * the dictionary supplied in ``args``;
+                * ``_id``: the unique string representing the job.
+
                 Output files will be staged out of the working directory of the job.
+
             final (Optional[bool]):
                 If true, output files from this job will be copied to the final
                 workflow directory. If not given, all jobs which are not dependencies
