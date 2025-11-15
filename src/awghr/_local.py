@@ -31,6 +31,7 @@ class LocalWorkflowWriter(WorkflowWriter):
         *,
         ID,
         batchdir,
+        workflowname,
         account,
         jobs,
         outfinaldir,
@@ -193,7 +194,7 @@ fi
                 f += "exit 0"
                 f += ")"
 
-    def get_ctrl_commands(self, *, basebatchdir) -> Tuple[str, str, str]:
+    def get_ctrl_commands(self, *, workflowname, basebatchdir) -> Tuple[str, str, str]:
         """Get top-level control script commands."""
 
         # Shell function to submit workflows in `basebatchdir` with IDs in $@

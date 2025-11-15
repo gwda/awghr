@@ -599,6 +599,7 @@ class Workflow:
         self._workflow_writer.write_workflow(
             ID=self.ID,
             batchdir=batchdir,
+            workflowname=self._name,
             account=self._account,
             jobs=self._jobs,
             outfinaldir=outfinaldir,
@@ -616,7 +617,7 @@ class Workflow:
 
         # Get top-level control script commands
         submit, queue, cancel = self._workflow_writer.get_ctrl_commands(
-            basebatchdir=basebatchdir
+            workflowname=self._name, basebatchdir=basebatchdir
         )
 
         # Write top-level control script: submit all jobs

@@ -42,6 +42,7 @@ class WorkflowWriter(ABC):
         *,
         ID,
         batchdir,
+        workflowname,
         account,
         jobs,
         outfinaldir,
@@ -52,7 +53,7 @@ class WorkflowWriter(ABC):
         """Write workflow."""
 
     @abstractmethod
-    def get_ctrl_commands(self, *, basebatchdir) -> Tuple[str, str, str]:
+    def get_ctrl_commands(self, *, workflowname, basebatchdir) -> Tuple[str, str, str]:
         """Get top-level control script commands."""
 
 

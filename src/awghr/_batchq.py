@@ -124,6 +124,7 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
         *,
         ID,
         batchdir,
+        workflowname,
         account,
         jobs,
         outfinaldir,
@@ -187,7 +188,7 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
 
                 # Write job script header
                 f += self.BATCHQ_HEADER.format(
-                    jobname=f"awghr_{ID}",
+                    jobname=f"{workflowname}_{ID}",
                     account=account,
                     time_min=job["time_min"],
                     mem_MB=job["mem_MB"],
@@ -339,7 +340,7 @@ fi
 
             # Write job script header
             f += self.BATCHQ_HEADER.format(
-                jobname=f"awghr_{ID}_state",
+                jobname=f"{workflowname}_{ID}_state",
                 account=account,
                 time_min=submit_time_min,
                 mem_MB=10,
@@ -397,7 +398,7 @@ fi
 
             # Write job script header
             f += self.BATCHQ_HEADER.format(
-                jobname=f"awghr_{ID}",
+                jobname=f"{workflowname}_{ID}",
                 account=account,
                 time_min=submit_time_min,
                 mem_MB=10,
@@ -578,7 +579,7 @@ batchq_ID=`echo "${{batchq_ID{self.BATCHQ_ID_REMOVE_SUFFIX}}}"`
 echo "info: submitted state job, batch ID ${{batchq_ID}}"
 """
 
-    def get_ctrl_commands(self, *, basebatchdir) -> Tuple[str, str, str]:
+    def get_ctrl_commands(self, *, workflowname, basebatchdir) -> Tuple[str, str, str]:
         """Get top-level control script commands."""
 
         # Get batch system commands
@@ -597,27 +598,27 @@ submit() {{
 """
 
         # Shell function to display all queued jobs from workflows in `basebatchdir` with IDs in $@
-        queue += """
-queue() {
+        queue += f"""
+queue() {{
     local jobnames=
     local ID=
     for ID in $@; do
-        jobnames="${jobnames} awghr_${ID}"
+        jobnames="${{jobnames}} {workflowname}_${{ID}}"
     done
-    batchq_queue ${jobnames}
-}
+    batchq_queue ${{jobnames}}
+}}
 """
 
         # Shell function to cancel all jobs from from workflows in `basebatchdir` with IDs in $@
-        cancel += """
-cancel() {
+        cancel += f"""
+cancel() {{
     local jobnames=
     local ID=
     for ID in $@; do
-        jobnames="${jobnames} awghr_${ID}"
+        jobnames="${{jobnames}} {workflowname}_${{ID}}"
     done
-    batchq_cancel ${jobnames}
-}
+    batchq_cancel ${{jobnames}}
+}}
 """
 
         return submit, queue, cancel
