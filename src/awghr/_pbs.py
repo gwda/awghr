@@ -7,8 +7,8 @@
 import subprocess
 from typing import Any, Dict
 
-from .batchq import BatchQWorkflowWriter
-from .util import BatchSystemException
+from ._batchq import BatchQWorkflowWriter
+from ._util import BatchSystemException
 
 
 class PBSWorkflowWriter(BatchQWorkflowWriter):

@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 
 from awghr import Workflow
-from awghr.cli import cli
+from awghr._cli import cli
 
 # Set up logging
 logging.basicConfig(

@@ -6,9 +6,9 @@
 
 from pathlib import Path
 
-import awghr.config
-from awghr.cli import cli
-from awghr.config import ConfigException, _batch_systems, read_config
+import awghr._config
+from awghr._cli import cli
+from awghr._config import ConfigException, _batch_systems, read_config
 
 default_src = """
 [DEFAULT SLURM]
@@ -84,8 +84,8 @@ account = acct
 @test
 def missing_required_key():
     try:
-        _general_cfg = awghr.config._general_cfg
-        awghr.config._general_cfg = {"required": None}
+        _general_cfg = awghr._config._general_cfg
+        awghr._config._general_cfg = {"required": None}
         src = default_src
         src += """
 [DEFAULT]
@@ -97,7 +97,7 @@ def missing_required_key():
     except ConfigException:
         pass
     finally:
-        awghr.config._general_cfg = _general_cfg
+        awghr._config._general_cfg = _general_cfg
 
 
 @test
@@ -118,10 +118,10 @@ dummy = xyz
 @test
 def parsing_bool():
     try:
-        _batch_systems = awghr.config._batch_systems
-        awghr.config._batch_systems = [("dummy", "dummy", "true", None)]
-        _general_cfg = awghr.config._general_cfg
-        awghr.config._general_cfg = {"why?": None, "why not?": None, "could be?": True}
+        _batch_systems = awghr._config._batch_systems
+        awghr._config._batch_systems = [("dummy", "dummy", "true", None)]
+        _general_cfg = awghr._config._general_cfg
+        awghr._config._general_cfg = {"why?": None, "why not?": None, "could be?": True}
         src = """
 [DEFAULT]
 why? = true
@@ -132,14 +132,14 @@ why not? = no
         assert not cfg["why not?"]
         assert cfg["could be?"]
     finally:
-        awghr.config._batch_systems = _batch_systems
-        awghr.config._general_cfg = _general_cfg
+        awghr._config._batch_systems = _batch_systems
+        awghr._config._general_cfg = _general_cfg
 
     try:
-        _batch_systems = awghr.config._batch_systems
-        awghr.config._batch_systems = [("dummy", "dummy", "true", None)]
-        _general_cfg = awghr.config._general_cfg
-        awghr.config._general_cfg = {"why?": None}
+        _batch_systems = awghr._config._batch_systems
+        awghr._config._batch_systems = [("dummy", "dummy", "true", None)]
+        _general_cfg = awghr._config._general_cfg
+        awghr._config._general_cfg = {"why?": None}
         src = """
 [DEFAULT]
 why? = because
@@ -150,17 +150,17 @@ why? = because
     except ConfigException:
         pass
     finally:
-        awghr.config._batch_systems = _batch_systems
-        awghr.config._general_cfg = _general_cfg
+        awghr._config._batch_systems = _batch_systems
+        awghr._config._general_cfg = _general_cfg
 
 
 @test
 def parsing_int():
     try:
-        _batch_systems = awghr.config._batch_systems
-        awghr.config._batch_systems = [("dummy", "dummy", "true", None)]
-        _general_cfg = awghr.config._general_cfg
-        awghr.config._general_cfg = {"n_letters": None, "n_words": None, "n_pages": 3}
+        _batch_systems = awghr._config._batch_systems
+        awghr._config._batch_systems = [("dummy", "dummy", "true", None)]
+        _general_cfg = awghr._config._general_cfg
+        awghr._config._general_cfg = {"n_letters": None, "n_words": None, "n_pages": 3}
         src = """
 [DEFAULT]
 n_letters = 6
@@ -171,14 +171,14 @@ n_words = 23
         assert cfg["n_words"] == 23
         assert cfg["n_pages"] == 3
     finally:
-        awghr.config._batch_systems = _batch_systems
-        awghr.config._general_cfg = _general_cfg
+        awghr._config._batch_systems = _batch_systems
+        awghr._config._general_cfg = _general_cfg
 
     try:
-        _batch_systems = awghr.config._batch_systems
-        awghr.config._batch_systems = [("dummy", "dummy", "true", None)]
-        _general_cfg = awghr.config._general_cfg
-        awghr.config._general_cfg = {"n_letters": None}
+        _batch_systems = awghr._config._batch_systems
+        awghr._config._batch_systems = [("dummy", "dummy", "true", None)]
+        _general_cfg = awghr._config._general_cfg
+        awghr._config._general_cfg = {"n_letters": None}
         src = """
 [DEFAULT]
 n_letters = abc
@@ -189,17 +189,17 @@ n_letters = abc
     except ConfigException:
         pass
     finally:
-        awghr.config._batch_systems = _batch_systems
-        awghr.config._general_cfg = _general_cfg
+        awghr._config._batch_systems = _batch_systems
+        awghr._config._general_cfg = _general_cfg
 
 
 @test
 def parsing_dir():
     try:
-        _batch_systems = awghr.config._batch_systems
-        awghr.config._batch_systems = [("dummy", "dummy", "true", None)]
-        _general_cfg = awghr.config._general_cfg
-        awghr.config._general_cfg = {"srcdir": None, "destdir": Path.cwd()}
+        _batch_systems = awghr._config._batch_systems
+        awghr._config._batch_systems = [("dummy", "dummy", "true", None)]
+        _general_cfg = awghr._config._general_cfg
+        awghr._config._general_cfg = {"srcdir": None, "destdir": Path.cwd()}
         src = f"""
 [DEFAULT]
 srcdir = {Path.cwd()}
@@ -208,14 +208,14 @@ srcdir = {Path.cwd()}
         assert cfg["srcdir"] == Path.cwd()
         assert cfg["destdir"] == Path.cwd()
     finally:
-        awghr.config._batch_systems = _batch_systems
-        awghr.config._general_cfg = _general_cfg
+        awghr._config._batch_systems = _batch_systems
+        awghr._config._general_cfg = _general_cfg
 
     try:
-        _batch_systems = awghr.config._batch_systems
-        awghr.config._batch_systems = [("dummy", "dummy", "true", None)]
-        _general_cfg = awghr.config._general_cfg
-        awghr.config._general_cfg = {"srcdir": None}
+        _batch_systems = awghr._config._batch_systems
+        awghr._config._batch_systems = [("dummy", "dummy", "true", None)]
+        _general_cfg = awghr._config._general_cfg
+        awghr._config._general_cfg = {"srcdir": None}
         src = """
 [DEFAULT]
 srcdir = /nonexistent
@@ -226,17 +226,17 @@ srcdir = /nonexistent
     except ConfigException:
         pass
     finally:
-        awghr.config._batch_systems = _batch_systems
-        awghr.config._general_cfg = _general_cfg
+        awghr._config._batch_systems = _batch_systems
+        awghr._config._general_cfg = _general_cfg
 
 
 @test
 def parsing_list():
     try:
-        _batch_systems = awghr.config._batch_systems
-        awghr.config._batch_systems = [("dummy", "dummy", "true", None)]
-        _general_cfg = awghr.config._general_cfg
-        awghr.config._general_cfg = {"mylist": None}
+        _batch_systems = awghr._config._batch_systems
+        awghr._config._batch_systems = [("dummy", "dummy", "true", None)]
+        _general_cfg = awghr._config._general_cfg
+        awghr._config._general_cfg = {"mylist": None}
         src = """
 [DEFAULT]
 mylist = a
@@ -262,14 +262,14 @@ mylist = e d
         cfg = read_config(src)
         assert cfg["mylist"] == ["a", "b", "c", "e", "d"]
     finally:
-        awghr.config._batch_systems = _batch_systems
-        awghr.config._general_cfg = _general_cfg
+        awghr._config._batch_systems = _batch_systems
+        awghr._config._general_cfg = _general_cfg
 
 
 @test
 def parsing_host_target():
     try:
-        awghr.config._override_host = "a1.b.c.d"
+        awghr._config._override_host = "a1.b.c.d"
         for host, account in (
             ("a1.b.c.d", "localhost"),
             ("a", "localhost"),
@@ -294,14 +294,14 @@ account = localhost
             cfg = read_config(src)
             assert cfg["account"] == account, (cfg["account"], account, host)
     finally:
-        awghr.config._override_host = None
+        awghr._config._override_host = None
 
 
 @test
 def parsing_batch_target():
     try:
-        _batch_systems = awghr.config._batch_systems
-        awghr.config._batch_systems = [("dummy", "dummy", "true", None)]
+        _batch_systems = awghr._config._batch_systems
+        awghr._config._batch_systems = [("dummy", "dummy", "true", None)]
         src = """
 [DEFAULT]
 account = acct
@@ -313,7 +313,7 @@ account = anybatch
         cfg = read_config(src)
         assert cfg["account"] == "anybatch"
     finally:
-        awghr.config._batch_systems = _batch_systems
+        awghr._config._batch_systems = _batch_systems
 
     try:
         src = default_src
@@ -398,8 +398,8 @@ def check_batch_system_keys():
         KEYS = {"test": "def"}
 
     try:
-        _batch_systems = awghr.config._batch_systems
-        awghr.config._batch_systems = [("dummy", "dummy", "true", DummyWorkflowWriter)]
+        _batch_systems = awghr._config._batch_systems
+        awghr._config._batch_systems = [("dummy", "dummy", "true", DummyWorkflowWriter)]
         src = """
 [DEFAULT]
 account = acct
@@ -411,11 +411,11 @@ test = abc
         cfg = read_config(src)
         assert cfg["batch_system_cfg"]["test"] == "abc"
     finally:
-        awghr.config._batch_systems = _batch_systems
+        awghr._config._batch_systems = _batch_systems
 
     try:
-        _batch_systems = awghr.config._batch_systems
-        awghr.config._batch_systems = [("dummy", "dummy", "true", DummyWorkflowWriter)]
+        _batch_systems = awghr._config._batch_systems
+        awghr._config._batch_systems = [("dummy", "dummy", "true", DummyWorkflowWriter)]
         src = """
 [DEFAULT]
 account = acct
@@ -423,14 +423,14 @@ account = acct
         cfg = read_config(src)
         assert cfg["batch_system_cfg"]["test"] == "def"
     finally:
-        awghr.config._batch_systems = _batch_systems
+        awghr._config._batch_systems = _batch_systems
 
     class DummyWorkflowWriter2:
         KEYS = {"test": None}
 
     try:
-        _batch_systems = awghr.config._batch_systems
-        awghr.config._batch_systems = [
+        _batch_systems = awghr._config._batch_systems
+        awghr._config._batch_systems = [
             ("dummy", "dummy", "true", DummyWorkflowWriter2)
         ]
         src = """
@@ -443,7 +443,7 @@ account = acct
     except ConfigException:
         pass
     finally:
-        awghr.config._batch_systems = _batch_systems
+        awghr._config._batch_systems = _batch_systems
 
 
 @test

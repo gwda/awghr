@@ -19,8 +19,8 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from pint import Quantity, Unit
 
-from .config import read_config
-from .util import (
+from ._config import read_config
+from ._util import (
     FileLineWriter,
     JobFileList,
     ProgressLogger,

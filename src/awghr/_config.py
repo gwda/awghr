@@ -11,10 +11,10 @@ from shutil import which
 from socket import getfqdn
 from typing import Any, Dict, List, Optional, Tuple
 
-from .local import LocalWorkflowWriter
-from .pbs import PBSWorkflowWriter
-from .slurm import SlurmWorkflowWriter
-from .util import ConfigException
+from ._local import LocalWorkflowWriter
+from ._pbs import PBSWorkflowWriter
+from ._slurm import SlurmWorkflowWriter
+from ._util import ConfigException
 
 # Known batch systems:
 # - name of batch system
@@ -33,7 +33,7 @@ _general_cfg: Dict[str, Any] = {
     "envlist": "",
 }
 
-# Override host name for tests in test_config.py
+# Override host name for tests in test_02_config.py
 _override_host = None
 
 

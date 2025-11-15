@@ -18,8 +18,8 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from .config import show_config
-from .util import _ureg
+from ._config import show_config
+from ._util import _ureg
 
 
 def _resolved_path(value):

@@ -4,7 +4,7 @@
 
 """Test command-line interface help."""
 
-from awghr.cli import cli
+from awghr._cli import cli
 
 for args in (
     ("--help",),

@@ -10,7 +10,7 @@ Runs jobs on local machine for debugging purposes.
 import logging
 from typing import Any, Dict
 
-from .util import FileLineWriter, job_dir_from_ID
+from ._util import FileLineWriter, job_dir_from_ID
 
 _logger = logging.getLogger(__name__)
 

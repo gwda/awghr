@@ -11,7 +11,7 @@ import logging
 import math
 from typing import Any, Dict
 
-from .util import FileLineWriter, ProgressLogger, job_dir_from_ID
+from ._util import FileLineWriter, ProgressLogger, job_dir_from_ID
 
 _logger = logging.getLogger(__name__)
 

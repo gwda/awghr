@@ -19,7 +19,7 @@ license = "MIT"
 license-files = ["LICENSES/MIT.txt"]
 
 [project.scripts]
-awghr = "awghr.cli:cli"
+awghr = "awghr._cli:cli"
 
 [tool.ruff]
 fix = true
