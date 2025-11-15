@@ -5,6 +5,7 @@
 """Test workflow generation."""
 
 import logging
+import os
 import sys
 from pathlib import Path
 from typing import Any, Dict
@@ -31,7 +32,9 @@ except WorkflowException:
     pass
 
 # Add job
-job_batchopt: Dict[str, Any] = dict()
+job_batchopt: Dict[str, Any] = dict(
+    htcondor=dict(sub=dict(condor_test_opt="anotherval"))
+)
 job_args = dict(
     args=dict(index=0),
     cmds=["/usr/bin/true"],
@@ -218,6 +221,22 @@ except WorkflowException:
 finally:
     del w._jobs[bad_job]
 
+# Try to add a job with options for an unknown batch system
+try:
+    bad_job = w.add_job(
+        args=dict(index=999),
+        cmds=["true"],
+        time=1 * w.MIN,
+        mem=10 * w.MB,
+        disk=10 * w.MB,
+        outputs=["out_0.txt"],
+        batchopt=dict(dummy=dict(k=1)),
+    )
+    msg = "should have raised a WorkflowException"
+    raise AssertionError(msg)
+except WorkflowException:
+    pass
+
 # Write workflow
 w.write()
 
@@ -235,3 +254,38 @@ except WorkflowException:
     pass
 finally:
     submittedfile.unlink()
+
+# Batch system specific options
+
+if w.batch_system == "htcondor":  # HTCondor
+
+    # Try to add a job with a duplicate submit file option
+    try:
+        bad_job = w.add_job(
+            args=dict(index=999),
+            cmds=["true"],
+            time=1 * w.MIN,
+            mem=10 * w.MB,
+            disk=10 * w.MB,
+            outputs=["dummy.txt"],
+            batchopt=dict(htcondor=dict(sub=dict(executable="dummy"))),
+        )
+        w.write()
+        msg = "should have raised a WorkflowException"
+        raise AssertionError(msg)
+    except WorkflowException:
+        pass
+    finally:
+        del w._jobs[bad_job]
+
+    # Check that submit file options are written out
+    for sub_opt, sub_val in job_batchopt["htcondor"]["sub"].items():
+        sub_opt_str = "{} = {}".format(sub_opt, sub_val).lower()
+        sub_opt_found = False
+        for root, dirs, files in os.walk(w.workdir):
+            for fname in files:
+                if fname == "job_condor.sub":
+                    for line in (Path(root) / fname).open("r"):
+                        if sub_opt_str in line.lower():
+                            sub_opt_found = True
+        assert sub_opt_found

@@ -731,15 +731,18 @@ msg=
 for ID in ${{workflow_IDs}}; do
     state_file="{basebatchdir}/${{ID}}/workflow_state"
     if test -f "${{state_file}}"; then
-        echo "info: workflow ${{ID}} has already been run"
-    else
-        sub_file="{basebatchdir}/${{ID}}/workflow_submitted"
-        echo SUBMITTED > ${{sub_file}}
-        if test "X${{msg}}" != X; then
-            msg="s${{msg}}"
+        workstate=`cat ${{state_file}}`
+        if test "X${{workstate}}" = XSUCCESS; then
+            echo "info: workflow ${{ID}} has already been successfully run"
+            continue
         fi
-        msg="${{msg}} ${{ID}}"
     fi
+    sub_file="{basebatchdir}/${{ID}}/workflow_submitted"
+    echo SUBMITTED > ${{sub_file}}
+    if test "X${{msg}}" != X; then
+        msg="s${{msg}}"
+    fi
+    msg="${{msg}} ${{ID}}"
 done
 if test "X${{msg}}" != X; then
     echo "info: submitted all jobs in workflow${{msg}}"

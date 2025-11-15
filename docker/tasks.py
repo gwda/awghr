@@ -147,9 +147,6 @@ def test(docker_files, test_scripts):
     for docker_file in docker_files:
         name = docker_file.stem
 
-        if name == "htcondor":
-            continue
-
         run(
             "docker",
             "stop",

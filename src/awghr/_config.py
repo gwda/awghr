@@ -11,6 +11,7 @@ from shutil import which
 from socket import getfqdn
 from typing import Any, Dict, List, Optional, Tuple
 
+from ._htcondor import HTCondorWorkflowWriter
 from ._local import LocalWorkflowWriter
 from ._pbs import PBSWorkflowWriter
 from ._slurm import SlurmWorkflowWriter
@@ -22,6 +23,7 @@ from ._util import ConfigException, WorkflowWriter
 # - characteristic executable used to identify batch system
 # - function which writes workflow specific to batch system
 _batch_systems: List[Tuple[str, str, str, type[WorkflowWriter]]] = [
+    ("htcondor", "HTCondor", "condor_q", HTCondorWorkflowWriter),
     ("pbs", "Portable Batch System and its derivatives", "qmgr", PBSWorkflowWriter),
     ("slurm", "Slurm Workload Manager", "scontrol", SlurmWorkflowWriter),
 ]
