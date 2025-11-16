@@ -8,7 +8,9 @@ import os
 import re
 import stat
 import time
+from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import Tuple
 
 from pint import UnitRegistry
 
@@ -25,6 +27,33 @@ class ConfigException(Exception):
 
 class BatchSystemException(Exception):
     """Raise for batch system errors."""
+
+
+class WorkflowWriter(ABC):
+    """Workflow writer base class."""
+
+    def __init__(self, *, batchsyscfg) -> None:
+        """Initialise workflow writer."""
+        pass
+
+    @abstractmethod
+    def write_workflow(
+        self,
+        *,
+        ID,
+        batchdir,
+        account,
+        jobs,
+        outfinaldir,
+        failedjobfile,
+        workstatefile,
+        submittedfile,
+    ) -> None:
+        """Write workflow."""
+
+    @abstractmethod
+    def get_ctrl_commands(self, *, basebatchdir) -> Tuple[str, str, str]:
+        """Get top-level control script commands."""
 
 
 def job_dir_from_ID(basedir: Path, job_ID: str):

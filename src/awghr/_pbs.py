@@ -5,7 +5,7 @@
 """PBS workflows."""
 
 import subprocess
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 
 from ._batchq import BatchQWorkflowWriter
 from ._util import BatchSystemException
@@ -73,10 +73,10 @@ class PBSWorkflowWriter(BatchQWorkflowWriter):
     # optional and is removed for brevity.
     BATCHQ_ID_REMOVE_SUFFIX = "%%.*"
 
-    def __init__(self, batchsyscfg):
+    def __init__(self, *, batchsyscfg):
         """Initialise workflow writer."""
 
-        super().__init__(batchsyscfg)
+        super().__init__(batchsyscfg=batchsyscfg)
 
         # Store location of job scratch directory
         self.jobfs = batchsyscfg["jobfs"]
@@ -103,7 +103,8 @@ class PBSWorkflowWriter(BatchQWorkflowWriter):
                 msg = "could not determine maximum size of PBS job array"
                 raise BatchSystemException(msg)
 
-    def _batchq_ctrl_commands(self):
+    def batchq_ctrl_commands(self) -> Tuple[str, str, str]:
+        """Get top-level batch control script commands."""
 
         # Command to submit workflow scripts in $@
         submit = """

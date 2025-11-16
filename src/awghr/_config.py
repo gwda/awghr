@@ -14,14 +14,14 @@ from typing import Any, Dict, List, Optional, Tuple
 from ._local import LocalWorkflowWriter
 from ._pbs import PBSWorkflowWriter
 from ._slurm import SlurmWorkflowWriter
-from ._util import ConfigException
+from ._util import ConfigException, WorkflowWriter
 
 # Known batch systems:
 # - name of batch system
 # - description of batch system
 # - characteristic executable used to identify batch system
 # - function which writes workflow specific to batch system
-_batch_systems: List[Tuple[str, str, str, Any]] = [
+_batch_systems: List[Tuple[str, str, str, type[WorkflowWriter]]] = [
     ("pbs", "Portable Batch System and its derivatives", "qmgr", PBSWorkflowWriter),
     ("slurm", "Slurm Workload Manager", "scontrol", SlurmWorkflowWriter),
 ]

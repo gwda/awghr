@@ -8,26 +8,25 @@ Runs jobs on local machine for debugging purposes.
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 
-from ._util import FileLineWriter, job_dir_from_ID
+from ._util import FileLineWriter, WorkflowWriter, job_dir_from_ID
 
 _logger = logging.getLogger(__name__)
 
 
-class LocalWorkflowWriter:
+class LocalWorkflowWriter(WorkflowWriter):
     """Write local workflow."""
 
     # Configuration keys for local workflow
     KEYS: Dict[str, Any] = {}
 
-    def __init__(self, batchsyscfg):
+    def __init__(self, *, batchsyscfg):
         """Initialise workflow writer."""
 
-        # No configuration needed
-        pass
+        super().__init__(batchsyscfg=batchsyscfg)
 
-    def __call__(
+    def write_workflow(
         self,
         *,
         ID,
@@ -38,7 +37,7 @@ class LocalWorkflowWriter:
         failedjobfile,
         workstatefile,
         submittedfile,
-    ):
+    ) -> None:
         """Write workflow."""
 
         # Write script to run all jobs
@@ -194,7 +193,8 @@ fi
                 f += "exit 0"
                 f += ")"
 
-    def _ctrl_commands(self, basebatchdir):
+    def get_ctrl_commands(self, *, basebatchdir) -> Tuple[str, str, str]:
+        """Get top-level control script commands."""
 
         # Shell function to submit workflows in `basebatchdir` with IDs in $@
         submit = f"""

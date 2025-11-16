@@ -160,7 +160,9 @@ class Workflow:
         # Initialise internal variables
         self._name = name
         self._account = account
-        self._workflow_writer = cfg["workflow_writer"](cfg["batch_system_cfg"])
+        self._workflow_writer = cfg["workflow_writer"](
+            batchsyscfg=cfg["batch_system_cfg"]
+        )
         self._workflow_hash = blake2b(digest_size=8, usedforsecurity=False)
         self._jobs: Dict[str, Dict[str, Any]] = {}
         self._log_add_jobs = ProgressLogger(_logger, "added %s jobs to workflow")
@@ -594,7 +596,7 @@ class Workflow:
         outfinaldir.mkdir(parents=True, exist_ok=True)
 
         # Write batch system scripts
-        self._workflow_writer(
+        self._workflow_writer.write_workflow(
             ID=self.ID,
             batchdir=batchdir,
             account=self._account,
@@ -613,7 +615,9 @@ class Workflow:
         all_workflow_IDs_str = " ".join(all_workflow_IDs)
 
         # Get top-level control script commands
-        submit, queue, cancel = self._workflow_writer._ctrl_commands(basebatchdir)
+        submit, queue, cancel = self._workflow_writer.get_ctrl_commands(
+            basebatchdir=basebatchdir
+        )
 
         # Write top-level control script: submit all jobs
         with FileLineWriter(self.workdir / "submit", executable=True) as f:

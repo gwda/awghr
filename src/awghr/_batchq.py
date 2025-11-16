@@ -9,14 +9,15 @@ Generic workflow writer for PBS/Slurm/etc. style batch systems.
 
 import logging
 import math
-from typing import Any, Dict
+from abc import ABC, abstractmethod
+from typing import Any, Dict, Tuple
 
-from ._util import FileLineWriter, ProgressLogger, job_dir_from_ID
+from ._util import FileLineWriter, ProgressLogger, WorkflowWriter, job_dir_from_ID
 
 _logger = logging.getLogger(__name__)
 
 
-class BatchQWorkflowWriter:
+class BatchQWorkflowWriter(WorkflowWriter, ABC):
     """Write generic batch workflow."""
 
     # Configuration keys for generic workflow
@@ -106,13 +107,19 @@ class BatchQWorkflowWriter:
     # Maximum size of job array
     max_array_size: int
 
-    def __init__(self, batchsyscfg):
+    @abstractmethod
+    def batchq_ctrl_commands(self) -> Tuple[str, str, str]:
+        """Get top-level batch control script commands."""
+
+    def __init__(self, *, batchsyscfg):
         """Initialise workflow writer."""
+
+        super().__init__(batchsyscfg=batchsyscfg)
 
         # Store rate jobs can be submitted per minute
         self.job_submit_per_min = float(batchsyscfg["n_jobsubpermin"])
 
-    def __call__(
+    def write_workflow(
         self,
         *,
         ID,
@@ -123,7 +130,7 @@ class BatchQWorkflowWriter:
         failedjobfile,
         workstatefile,
         submittedfile,
-    ):
+    ) -> None:
         """Write workflow."""
 
         # Guestimate runtime for submission and workstate jobs
@@ -131,7 +138,7 @@ class BatchQWorkflowWriter:
         submit_time_min = max(10, math.ceil(len(jobs) / self.job_submit_per_min))
 
         # Bundle jobs by order, dependencies, and resources
-        job_bundles = {}
+        job_bundles: Dict[Tuple[int, str], Any] = {}
         for job in jobs.values():
             job_bundle_ID = "{needs_ID}_{time_min}_{mem_MB}_{disk_MB}_{ncpus}".format(
                 **job
@@ -571,10 +578,11 @@ batchq_ID=`echo "${{batchq_ID{self.BATCHQ_ID_REMOVE_SUFFIX}}}"`
 echo "info: submitted state job, batch ID ${{batchq_ID}}"
 """
 
-    def _ctrl_commands(self, basebatchdir):
+    def get_ctrl_commands(self, *, basebatchdir) -> Tuple[str, str, str]:
+        """Get top-level control script commands."""
 
         # Get batch system commands
-        submit, queue, cancel = self._batchq_ctrl_commands()
+        submit, queue, cancel = self.batchq_ctrl_commands()
 
         # Shell function to submit workflows in `basebatchdir` with IDs in $@
         submit += f"""
