@@ -11,7 +11,7 @@ from pathlib import Path
 from subprocess import DEVNULL
 
 
-def run(cmd, check=True, **kwargs):
+def run(*cmd, check=True, **kwargs):
     """Run a command."""
     print("---", "command:", *cmd)
     return subprocess.run(cmd, **kwargs)
@@ -24,22 +24,20 @@ def build(docker_files):
         name = docker_file.stem
 
         run(
-            [
-                "docker",
-                "buildx",
-                "build",
-                "--allow",
-                "network.host",
-                "--build-arg",
-                f"BUILDKIT_SANDBOX_HOSTNAME={name}-ubuntu-host",
-                "--add-host",
-                f"{name}-ubuntu-host:host-gateway",
-                "--file",
-                str(docker_file),
-                "--tag",
-                f"kwwette/testing-batch-system:{name}",
-                str(docker_file.parent),
-            ]
+            "docker",
+            "buildx",
+            "build",
+            "--allow",
+            "network.host",
+            "--build-arg",
+            f"BUILDKIT_SANDBOX_HOSTNAME={name}-ubuntu-host",
+            "--add-host",
+            f"{name}-ubuntu-host:host-gateway",
+            "--file",
+            str(docker_file),
+            "--tag",
+            f"kwwette/testing-batch-system:{name}",
+            str(docker_file.parent),
         )
 
 
@@ -67,33 +65,35 @@ def init(docker_files):
         name = docker_file.stem
 
         run(
-            ["docker", "stop", f"awghr-testing-{name}"],
+            "docker",
+            "stop",
+            f"awghr-testing-{name}",
             check=False,
             stdout=DEVNULL,
             stderr=DEVNULL,
         )
 
         run(
-            ["docker", "rm", f"awghr-testing-{name}"],
+            "docker",
+            "rm",
+            f"awghr-testing-{name}",
             check=False,
             stdout=DEVNULL,
             stderr=DEVNULL,
         )
 
         run(
-            [
-                "docker",
-                "create",
-                "-it",
-                "--hostname",
-                f"{name}-ubuntu-host",
-                "--name",
-                f"awghr-testing-{name}",
-                f"kwwette/testing-batch-system:{name}",
-                "/bin/bash",
-                "/testing/test/runner.sh",
-                name,
-            ],
+            "docker",
+            "create",
+            "-it",
+            "--hostname",
+            f"{name}-ubuntu-host",
+            "--name",
+            f"awghr-testing-{name}",
+            f"kwwette/testing-batch-system:{name}",
+            "/bin/bash",
+            "/testing/test/runner.sh",
+            name,
             stdout=DEVNULL,
         )
 
@@ -104,29 +104,32 @@ def debug(docker_file):
     name = docker_file.stem
 
     image = run(
-        ["docker", "commit", f"awghr-testing-{name}"],
+        "docker",
+        "commit",
+        f"awghr-testing-{name}",
         capture_output=True,
         encoding="utf-8",
     ).stdout.strip()
 
     try:
         run(
-            [
-                "docker",
-                "run",
-                "-it",
-                "--hostname",
-                f"{name}-ubuntu-host",
-                "--entrypoint",
-                "/usr/local/bin/entrypoint",
-                image,
-                "/bin/bash",
-            ]
+            "docker",
+            "run",
+            "-it",
+            "--hostname",
+            f"{name}-ubuntu-host",
+            "--entrypoint",
+            "/usr/local/bin/entrypoint",
+            image,
+            "/bin/bash",
         )
 
     finally:
         run(
-            ["docker", "image", "rm", image],
+            "docker",
+            "image",
+            "rm",
+            image,
             check=False,
             stdout=DEVNULL,
             stderr=DEVNULL,
@@ -148,7 +151,9 @@ def test(docker_files, test_scripts):
             continue
 
         run(
-            ["docker", "stop", f"awghr-testing-{name}"],
+            "docker",
+            "stop",
+            f"awghr-testing-{name}",
             check=False,
             stdout=DEVNULL,
             stderr=DEVNULL,
@@ -156,24 +161,27 @@ def test(docker_files, test_scripts):
 
         for d in ("dist", "test"):
             run(
-                ["docker", "cp", f"{d}/.", f"awghr-testing-{name}:/testing/{d}"],
+                "docker",
+                "cp",
+                f"{d}/.",
+                f"awghr-testing-{name}:/testing/{d}",
                 stdout=DEVNULL,
             )
 
-        run(["docker", "start", "-ai", f"awghr-testing-{name}"])
+        run("docker", "start", "-ai", f"awghr-testing-{name}")
 
         run(
-            [
-                "docker",
-                "cp",
-                f"awghr-testing-{name}:/testing/.coverage-{name}",
-                f"test/.coverage-{name}",
-            ],
+            "docker",
+            "cp",
+            f"awghr-testing-{name}:/testing/.coverage-{name}",
+            f"test/.coverage-{name}",
             stdout=DEVNULL,
         )
 
         run(
-            ["docker", "stop", f"awghr-testing-{name}"],
+            "docker",
+            "stop",
+            f"awghr-testing-{name}",
             check=False,
             stdout=DEVNULL,
             stderr=DEVNULL,
