@@ -12,6 +12,7 @@ import re
 import shlex
 import shutil
 import sys
+import textwrap
 from hashlib import blake2b
 from pathlib import Path
 from shutil import which
@@ -211,6 +212,13 @@ class Workflow:
 
             cmds (List[str]):
                 A list of commands to execute.
+
+                If a command starts with ``!bash``, it is treated as a shell script.
+                Otherwise, it is treated as a single command.
+                In the latter case only, the command executable (first argument) is
+                checked against the list of input files (``inputs``); if present, the
+                path is adjusted to point to a local copy of the executable.
+
                 May contain ``{format}`` strings which will be filled by:
 
                 * the dictionary supplied in ``args``;
@@ -377,23 +385,44 @@ class Workflow:
         for key in ("infiles", "outfiles"):
             job[key] = [path.resolve() for path in job[key]]
 
-        # Format and store commands
-        cmdargs = dict(args)
-        cmdargs["_in"] = JobFileList("_in", [p.name for p in job["infiles"]])
-        cmdargs["_out"] = JobFileList("_out", [p.name for p in job["outfiles"]])
+        # Parse and store commands
+        format_cmd = dict(args)
+        format_cmd["_in"] = JobFileList("_in", [p.name for p in job["infiles"]])
+        format_cmd["_out"] = JobFileList("_out", [p.name for p in job["outfiles"]])
         job["cmds"] = []
-        for format_cmd in cmds:
-            format_cmd = format_cmd.format(**cmdargs, **job["resources"])
-            format_cmd = re.sub(r"\n\s*", " ", format_cmd)
-            job["cmds"].append(shlex.split(format_cmd))
+        for cmd in cmds:
 
-        # Determine full path to executables
-        for cmd in job["cmds"]:
-            execpath = which(cmd[0])
-            if execpath is None:
-                msg = f"executable '{cmd[0]}' cannot be found"
-                raise WorkflowException(msg)
-            cmd[0] = Path(execpath)
+            # Remove whitespace
+            cmd = textwrap.dedent(cmd).strip()
+
+            # Format arguments
+            cmd = cmd.format(**format_cmd, **job["resources"])
+
+            if cmd.split(maxsplit=1)[0] == "!bash":  # Treat `cmd` as a bash script
+                cmd = cmd[5:].strip()
+
+            else:  # Treat `cmd` as a single command
+
+                # Split into executable and arguments
+                cmd_split = shlex.split(cmd)
+
+                # Determine full path to executables
+                exec_str = which(cmd_split[0])
+                if exec_str is None:
+                    msg = f"executable '{cmd_split[0]}' cannot be found"
+                    raise WorkflowException(msg)
+                exec_path = Path(exec_str)
+                if exec_path in job["infiles"]:
+                    cmd_split[0] = "./" + exec_path.name
+                else:
+                    cmd_split[0] = str(exec_path)
+
+                # Rejoin executable and arguments
+                cmd = " ".join(
+                    [cmd_split[0]] + [shlex.quote(str(arg)) for arg in cmd_split[1:]]
+                )
+
+            job["cmds"].append(cmd)
 
         # Add job to workflow
         self._jobs[job_ID] = job
@@ -558,12 +587,7 @@ class Workflow:
 
                 # Write job commands
                 for cmd in job["cmds"]:
-                    quotedargs = [shlex.quote(str(arg)) for arg in cmd]
-                    if cmd[0].resolve() in job["infiles"]:
-                        quotedargs[0] = "./" + cmd[0].name
-                    else:
-                        quotedargs[0] = str(cmd[0])
-                    f += " ".join(quotedargs)
+                    f += cmd
 
         # Make clean batch system script directory
         if batchdir.exists():

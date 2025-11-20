@@ -28,7 +28,7 @@ for i in range(10):
     w = ws[i % 2]
     w.add_job(
         args=dict(index=i),
-        cmds=["bash -c 'echo {index} > {_out}'"],
+        cmds=["!bash echo {index} > {_out}"],
         time=1 * w.MIN,
         mem=10 * w.MB,
         disk=10 * w.MB,
@@ -91,7 +91,7 @@ for w, (i0, n) in zip(ws, ((0, 10), (5, 10))):
     for i in range(i0, n):
         w.add_job(
             args=dict(index=i),
-            cmds=["bash -c 'echo {index} > {_out}'"],
+            cmds=["!bash echo {index} > {_out}"],
             time=1 * w.MIN,
             mem=10 * w.MB,
             disk=10 * w.MB,
@@ -115,7 +115,7 @@ for w, (i0, n) in zip(ws, ((0, 5), (5, 10), (0, 10))):
     for i in range(i0, n):
         w.add_job(
             args=dict(index=i, i0=i0, n=n),
-            cmds=["bash -c 'echo {index} > {_out}'"],
+            cmds=["!bash echo {index} > {_out}"],
             time=1 * w.MIN,
             mem=10 * w.MB,
             disk=10 * w.MB,
@@ -140,7 +140,7 @@ for w, (i0, n) in zip(ws, ((0, 5), (5, 10), (0, 10))):
     for i in range(i0, n):
         w.add_job(
             args=dict(index=i),
-            cmds=["bash -c 'echo {index} > {_out}'"],
+            cmds=["!bash echo {index} > {_out}"],
             time=1 * w.MIN,
             mem=10 * w.MB,
             disk=10 * w.MB,
@@ -158,7 +158,7 @@ for w, (i0, n) in zip(ws, ((0, 5), (0, 10))):
     for i in range(i0, n):
         w.add_job(
             args=dict(index=i),
-            cmds=["bash -c 'echo {index} > {_out}'"],
+            cmds=["!bash echo {index} > {_out}"],
             time=1 * w.MIN,
             mem=10 * w.MB,
             disk=10 * w.MB,

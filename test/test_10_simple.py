@@ -31,18 +31,17 @@ for i in range(10):
         args=dict(index=i, const=10),
         cmds=[
             """
-            bash -c '
-                if [ $MYCPUS -ne 1 ]; then
-                    echo 'MYCPUS!=1' >&2;
-                    exit 1;
-                fi;
-                echo $HOME;
-                echo ${{TESTVAR}}1 >&2;
-                echo ${{TESTVAR}}2 >&2;
-                echo ${{TESTVAR}}3 >&2;
-                echo xyz >&2;
-                echo `cat {_in[prefix]}`{index} > out_{index}.txt
-            '
+            !bash
+            if [ $MYCPUS -ne 1 ]; then
+                echo 'MYCPUS!=1' >&2
+                exit 1
+            fi
+            echo $HOME
+            echo ${{TESTVAR}}1 >&2
+            echo ${{TESTVAR}}2 >&2
+            echo ${{TESTVAR}}3 >&2
+            echo xyz >&2
+            echo `cat {_in[prefix]}`{index} > out_{index}.txt
             """
         ],
         time=1 * w.MIN,

@@ -25,7 +25,7 @@ w = Workflow(name="cancel")
 
 w.add_job(
     args=dict(sleep=1000),
-    cmds=["bash -c 'sleep {sleep}; echo DONE > {_out}'"],
+    cmds=["!bash sleep {sleep}; echo DONE > {_out}"],
     time=1 * w.HOUR,
     mem=10 * w.MB,
     disk=10 * w.MB,
