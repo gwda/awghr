@@ -10,6 +10,14 @@ LABEL name="Testing HTCondor batch system" maintainer="Karl Wette"
 
 WORKDIR /tmp
 
+# Configure test user
+RUN <<EOF
+set -e
+mkdir -p /testing
+groupadd testuser
+useradd -g testuser -d /testing -s /bin/bash testuser
+EOF
+
 # Install prerequisites
 ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
@@ -63,7 +71,9 @@ trap 'status=\$?; systemctl stop condor; exit \${status}' EXIT INT TERM
 while ! pidof condor_collector >/dev/null; do
     sleep 0.5
 done
-"\$@"
+chown -R testuser:testuser /testing
+chmod -R u+rwX,ug+rw /testing
+su testuser -l -P -c "\$*"
 EOF
 RUN chmod 0755 /usr/local/bin/entrypoint
 ENTRYPOINT ["/usr/local/bin/entrypoint"]
@@ -72,6 +82,7 @@ CMD ["/bin/bash"]
 # Run a simple test
 COPY <<EOF /tmp/condor.sub
 universe = vanilla
+initialdir = /tmp
 executable = /usr/bin/echo
 arguments = "condor:\$(Process)"
 output = condor.out.\$(Process)
@@ -81,12 +92,12 @@ queue 3
 EOF
 COPY <<EOF /tmp/condor.sh
 set -e
-condor_submit condor.sub
-condor_wait condor.log
+condor_submit /tmp/condor.sub
+condor_wait /tmp/condor.log
 EOF
 RUN <<EOF
 set -e
-entrypoint /bin/bash condor.sh
+entrypoint /bin/bash /tmp/condor.sh
 for n in 0 1 2; do
     test "X`cat condor.err.${n}`" = "X"
     test "X`cat condor.out.${n}`" = "Xcondor:${n}"
@@ -94,9 +105,10 @@ done
 rm -rf /tmp/*
 EOF
 
-# Create testing directory
-RUN <<EOF
-mkdir -p /testing
-chmod 0777 /testing
-EOF
+# Configure test user environment
 WORKDIR /testing
+COPY <<EOF .bashrc
+umask 002
+export PS1='\\[\\e[1m\\]\\h:\\w\\[\\e[0m\\] \$ '
+alias ls='ls --color=always'
+EOF

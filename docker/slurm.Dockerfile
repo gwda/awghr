@@ -67,6 +67,14 @@ LABEL name="Testing Slurm batch system" maintainer="Karl Wette"
 
 WORKDIR /tmp
 
+# Configure test user
+RUN <<EOF
+set -e
+mkdir -p /testing
+groupadd testuser
+useradd -g testuser -d /testing -s /bin/bash testuser
+EOF
+
 # Install prerequisites
 ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
@@ -167,10 +175,11 @@ set -e
 groupadd slurm
 useradd -g slurm -d /nonexistent -s /usr/sbin/nologin slurm
 chown slurm:slurm /usr/local/etc/slurm.conf /usr/local/etc/cgroup.conf
-chmod 0400 /usr/local/etc/slurm.conf /usr/local/etc/cgroup.conf
+chmod 0444 /usr/local/etc/slurm.conf /usr/local/etc/cgroup.conf
 mkdir -p /var/spool/slurmd /var/spool/slurmctld
 chown slurm:slurm /var/spool/slurmd /var/spool/slurmctld
-chmod 0700 /var/spool/slurmd /var/spool/slurmctld
+chmod 0755 /var/spool/slurmd
+chmod 0700 /var/spool/slurmctld
 EOF
 
 # Create entrypoint
@@ -184,18 +193,20 @@ fi
 scancel --me --full --hurry
 scontrol update nodename=localhost state=down reason=shutdown
 _shutdown_slurm() {
-    status=$?
+    status=\$?
     scancel --me --full --hurry
     scontrol update nodename=localhost state=down reason=shutdown
     systemctl stop slurmctld slurmd
-    exit ${status}
+    exit \${status}
 }
 trap _shutdown_slurm EXIT INT TERM
 if ! scontrol update nodename=localhost state=idle; then
     echo "ERROR: could not run scontrol" >&2
     exit 1
 fi
-"\$@"
+chown -R testuser:testuser /testing
+chmod -R u+rwX,ug+rw /testing
+su testuser -l -P -c "\$*"
 EOF
 RUN chmod 0755 /usr/local/bin/entrypoint
 ENTRYPOINT ["/usr/local/bin/entrypoint"]
@@ -208,13 +219,13 @@ COPY <<EOF /tmp/slurm.sh
 #SBATCH --time=10:00
 #SBATCH --mem=10MB
 #SBATCH --tmp=10MB
-#SBATCH --output=slurm.out.%a
-#SBATCH --error=slurm.err.%a
+#SBATCH --output=/tmp/slurm.out.%a
+#SBATCH --error=/tmp/slurm.err.%a
 echo "slurm:\${SLURM_ARRAY_TASK_ID}"
 EOF
 RUN <<EOF
 set -e
-entrypoint sbatch --wait slurm.sh
+entrypoint sbatch --wait /tmp/slurm.sh
 for n in 0 1 2; do
     test "X`cat slurm.err.${n}`" = "X"
     test "X`cat slurm.out.${n}`" = "Xslurm:${n}"
@@ -222,9 +233,10 @@ done
 rm -rf /tmp/*
 EOF
 
-# Create testing directory
-RUN <<EOF
-mkdir -p /testing
-chmod 0777 /testing
-EOF
+# Configure test user environment
 WORKDIR /testing
+COPY <<EOF .bashrc
+umask 002
+export PS1='\\[\\e[1m\\]\\h:\\w\\[\\e[0m\\] \$ '
+alias ls='ls --color=always'
+EOF

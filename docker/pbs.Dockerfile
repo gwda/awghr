@@ -79,6 +79,14 @@ LABEL name="Testing PBS batch system" maintainer="Karl Wette"
 
 WORKDIR /tmp
 
+# Configure test user
+RUN <<EOF
+set -e
+mkdir -p /testing
+groupadd testuser
+useradd -g testuser -d /testing -s /bin/bash testuser
+EOF
+
 # Install prerequisites
 ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
@@ -139,8 +147,6 @@ EOF
 # Configure OpenPBS
 RUN --network=host <<EOF
 set -e
-groupadd pbsuser
-useradd -g pbsuser -d /tmp -s /bin/bash pbsuser
 chmod 4755 /usr/local/sbin/pbs_iff /usr/local/sbin/pbs_rcp
 /etc/init.d/pbs start || true
 qmgr -c "set server flatuid=true,max_array_size=10"
@@ -176,7 +182,9 @@ while true; do
             ;;
     esac
 done
-su pbsuser -l -P -c "\$*"
+chown -R testuser:testuser /testing
+chmod -R u+rwX,ug+rw /testing
+su testuser -l -P -c "\$*"
 EOF
 RUN chmod 0755 /usr/local/bin/entrypoint
 ENTRYPOINT ["/usr/local/bin/entrypoint"]
@@ -188,8 +196,8 @@ COPY <<EOF /tmp/pbs.sh
 #PBS -J 0-2
 #PBS -l walltime=10:00
 #PBS -l mem=10MB
-#PBS -o pbs.out.^array_index^
-#PBS -e pbs.err.^array_index^
+#PBS -o /tmp/pbs.out.^array_index^
+#PBS -e /tmp/pbs.err.^array_index^
 echo "pbs:\${PBS_ARRAY_INDEX}"
 EOF
 RUN --network=host <<EOF
@@ -202,10 +210,10 @@ done
 rm -rf /tmp/*
 EOF
 
-# Create testing directory
-RUN <<EOF
-mkdir -p /testing
-chmod 0777 /testing
-usermod -d /testing pbsuser
-EOF
+# Configure test user environment
 WORKDIR /testing
+COPY <<EOF .bashrc
+umask 002
+export PS1='\\[\\e[1m\\]\\h:\\w\\[\\e[0m\\] \$ '
+alias ls='ls --color=always'
+EOF
