@@ -16,7 +16,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(levelname)s %(asctime)s %(name)s : %(message)s",
 )
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(Path(__file__).name)
 
 # Create workflow
 w = Workflow(name="add_job")

@@ -21,7 +21,7 @@ jobfs = /tmp
 
 
 def test(f):
-    print(f"----- {__file__}: unit test {f.__name__}", flush=True)
+    print("----- {}: unit test {}".format(Path(__file__).name, f.__name__), flush=True)
     f()
 
 

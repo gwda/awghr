@@ -7,6 +7,7 @@
 import logging
 import subprocess
 import sys
+from pathlib import Path
 
 from awghr import Workflow
 
@@ -16,7 +17,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(levelname)s %(asctime)s %(name)s : %(message)s",
 )
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(Path(__file__).name)
 
 w = Workflow(name="dag", tags=["maxarray"])
 
