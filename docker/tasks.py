@@ -14,7 +14,7 @@ from subprocess import DEVNULL
 def run(*cmd, check=True, **kwargs):
     """Run a command."""
     print("---", "command:", *cmd)
-    return subprocess.run(cmd, **kwargs)
+    return subprocess.run(cmd, check=check, **kwargs)
 
 
 def build(docker_files):
