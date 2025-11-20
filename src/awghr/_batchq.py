@@ -169,9 +169,12 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
                 job_arrays[job_array_key] = job_array
 
         # Write job arrays
-        log_make_job_arrays = ProgressLogger(_logger, "wrote %s job arrays in workflow")
         job_ID_to_job_array_ID_index = {}
-        for (_, job_array_ID), job_array in sorted(job_arrays.items()):
+        for (_, job_array_ID), job_array in ProgressLogger(
+            sorted(job_arrays.items()),
+            logger=_logger,
+            msg="wrote %s job arrays in workflow",
+        ):
 
             # Make job array directory
             jobarraydir = job_dir_from_ID(batchdir / "job_arrays", job_array_ID)
@@ -328,9 +331,6 @@ fi
 
                 # end: Select which job in job array to run
                 f += "esac"
-
-            log_make_job_arrays.update()
-        log_make_job_arrays.finish()
 
         # Write submission script to check all jobs have succeeded
         workstate_submit_script_file = batchdir / "batch_workstate_submit.sh"

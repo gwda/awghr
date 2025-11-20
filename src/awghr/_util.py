@@ -97,8 +97,13 @@ class JobFileList:
 class ProgressLogger:
     """Log progress at progressively longer intervals."""
 
-    def __init__(self, logger, msg):
+    def __init__(self, items=None, *, logger, msg):
         """Initialise progress logger."""
+        if items is not None:
+            self._items = list(items)
+            self._total = len(items)
+        else:
+            self._total = 0
         self._logger = logger
         self._msg = msg
         self._count = 0
@@ -125,6 +130,19 @@ class ProgressLogger:
             "a total of " + str(self._count),
             format(r, "0.1f~"),
         )
+
+    def __iter__(self):
+        """Use as an iterator over `items`."""
+        return self
+
+    def __next__(self):
+        """Get next item in `items`."""
+        assert self._items is not None
+        self.update()
+        if self._count > self._total:
+            raise StopIteration
+        else:
+            return self._items[self._count - 1]
 
 
 class FileLineWriter:

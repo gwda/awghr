@@ -165,7 +165,9 @@ class Workflow:
         )
         self._workflow_hash = blake2b(digest_size=8, usedforsecurity=False)
         self._jobs: Dict[str, Dict[str, Any]] = {}
-        self._log_add_jobs = ProgressLogger(_logger, "added %s jobs to workflow")
+        self._log_add_jobs = ProgressLogger(
+            logger=_logger, msg="added %s jobs to workflow"
+        )
 
         # Process environment variables
         self._env = {}
@@ -513,8 +515,11 @@ class Workflow:
                 msg = f"this workflow duplicates {num_duplicate_jobs} jobs and {num_duplicate_outputs} outputs with existing workflow {existing_workflow_ID}"
                 raise WorkflowException(msg)
 
-        log_make_jobs = ProgressLogger(_logger, "wrote %s job directories in workflow")
-        for job in self._jobs.values():
+        for job in ProgressLogger(
+            self._jobs.values(),
+            logger=_logger,
+            msg="wrote %s job directories in workflow",
+        ):
 
             # Make job directory
             job["dir"].mkdir(parents=True, exist_ok=True)
@@ -559,9 +564,6 @@ class Workflow:
                     else:
                         quotedargs[0] = str(cmd[0])
                     f += " ".join(quotedargs)
-
-            log_make_jobs.update()
-        log_make_jobs.finish()
 
         # Make clean batch system script directory
         if batchdir.exists():
