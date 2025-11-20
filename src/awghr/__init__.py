@@ -710,14 +710,21 @@ fi
 submit ${{workflow_IDs}}
 msg=
 for ID in ${{workflow_IDs}}; do
-    sub_file="{basebatchdir}/${{ID}}/workflow_submitted"
-    echo SUBMITTED > ${{sub_file}}
-    if test "X${{msg}}" != X; then
-        msg="s${{msg}}"
+    state_file="{basebatchdir}/${{ID}}/workflow_state"
+    if test -f "${{state_file}}"; then
+        echo "info: workflow ${{ID}} has already been run"
+    else
+        sub_file="{basebatchdir}/${{ID}}/workflow_submitted"
+        echo SUBMITTED > ${{sub_file}}
+        if test "X${{msg}}" != X; then
+            msg="s${{msg}}"
+        fi
+        msg="${{msg}} ${{ID}}"
     fi
-    msg="${{msg}} ${{ID}}"
 done
-echo "info: submitted all jobs in workflow${{msg}}"
+if test "X${{msg}}" != X; then
+    echo "info: submitted all jobs in workflow${{msg}}"
+fi
 """
 
         # Write top-level control script: display all queued jobs
