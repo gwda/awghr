@@ -218,13 +218,13 @@ queue() {{
     local stdoutfiles=
     local ID=
     for ID in $@; do
-        local stdoutfile="{basebatchdir}/${{ID}}/batch_all_stdoutfile"
+        local stdoutfile="{basebatchdir}/${{ID}}/batch_all_stdout"
         if test -f "${{stdoutfile}}"; then
             stdoutfiles="${{stdoutfiles}} ${{stdoutfile}}"
         fi
     done
     if test "X${{stdoutfiles}}" != X; then
-        tail -F ${{stdoutfiles}}
+        tail ${{stdoutfiles}}
     fi
 }}
 """
