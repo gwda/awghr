@@ -95,6 +95,7 @@ subprocess.run([w.workdir / "submit"], check=True)
 subprocess.run([w.workdir / "wait"], check=True)
 state = statefile.read_text().strip()
 assert state == "SUCCESS"
+assert not submittedfile.is_file()
 
 for i in range(10):
     outfile = w.workdir / "outputs" / f"out_{i}.txt"
