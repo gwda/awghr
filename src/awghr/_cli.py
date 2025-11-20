@@ -256,25 +256,27 @@ def _show_jobs(args):
 
         # Show standard output
         if args.output:
-            job_stdout = job / "job_stdout"
-            if job_stdout.is_file():
-                _show_stdouterr(
-                    prefix.format("OUT"),
-                    job_stdout,
-                    args.grep_regex,
-                    args.last_n_lines,
-                )
+            for job_stdout_names in ("job_stdout_pre", "job_stdout", "job_stdout_post"):
+                job_stdout = job / job_stdout_names
+                if job_stdout.is_file():
+                    _show_stdouterr(
+                        prefix.format("OUT"),
+                        job_stdout,
+                        args.grep_regex,
+                        args.last_n_lines,
+                    )
 
         # Show standard error
         if args.error:
-            job_stderr = job / "job_stderr"
-            if job_stderr.is_file():
-                _show_stdouterr(
-                    prefix.format("ERR"),
-                    job_stderr,
-                    args.grep_regex,
-                    args.last_n_lines,
-                )
+            for job_stderr_names in ("job_stderr_pre", "job_stderr", "job_stderr_post"):
+                job_stderr = job / job_stderr_names
+                if job_stderr.is_file():
+                    _show_stdouterr(
+                        prefix.format("ERR"),
+                        job_stderr,
+                        args.grep_regex,
+                        args.last_n_lines,
+                    )
 
         sys.stdout.flush()
 
