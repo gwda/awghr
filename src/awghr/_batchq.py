@@ -381,6 +381,7 @@ if test "X${{jobstate%%/*}}" != XSUCCESS; then
     fi
 fi
 """
+
             # Write workflow state
             f += f"""echo "${{workstate}}" > '{workstatefile}'"""
 
