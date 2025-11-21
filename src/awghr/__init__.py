@@ -46,19 +46,35 @@ class Workflow:
     """Generate a workflow.
 
     Attributes:
+        name (str):
+            Name of workflow.
+
+        account (Optional[str]):
+            Accounting tag the workflow should be charged against.
+            If not given, use the default value retrieved from :literal:`~/.awghr.cfg`.
+
         workdir (Path):
             Working directory where workflow will be written.
+
+        batch_system (str):
+            The batch system of the computer cluster where the workflow is being generated.
+
         ID (str):
             A unique string representing the workflow.
             Only available after ``write()`` has been called.
+
         MIN (Quantity):
             Constant, representing 1 minute.
+
         HOUR (Quantity):
             Constant, representing 60 minutes.
+
         DAY (Quantity):
             Constant, representing 1440 minutes.
+
         MB (Quantity):
             Constant, representing 10^6 bytes.
+
         GB (Quantity):
             Constant, representing 10^9 bytes.
 
@@ -99,7 +115,10 @@ class Workflow:
     """
 
     # Attributes
+    name: str
+    account: Optional[str]
     workdir: Path
+    batch_system: str
     ID: str = "0" * 16
 
     # Useful units of time
@@ -155,13 +174,13 @@ class Workflow:
             msg = f"base directory '{basedir}' is not a directory"
             raise WorkflowException(msg)
 
-        # Set workflow directory
+        # Set attributes
         self.workdir = basedir / name
+        self.name = name
+        self.account = account
+        self.batch_system = cfg["batch_system"]
 
-        # Initialise internal variables
-        self._name = name
-        self._account = account
-        self._batch_system = cfg["batch_system"]
+        # Set internal variables
         self._workflow_writer = cfg["workflow_writer"](
             batchsyscfg=cfg["batch_system_cfg"]
         )
@@ -184,10 +203,10 @@ class Workflow:
                 self._env[var] = val
 
         # Log details
-        _logger.info("workflow name: %s", self._name)
-        _logger.info("workflow account: %s", self._account)
+        _logger.info("workflow name: %s", self.name)
+        _logger.info("workflow account: %s", self.account)
         _logger.info("workflow directory: %s", self.workdir)
-        _logger.info("batch system: %s", self._batch_system)
+        _logger.info("batch system: %s", self.batch_system)
 
     def add_job(
         self,
@@ -450,8 +469,8 @@ class Workflow:
                     "', '".join(unknown_batch_systems)
                 )
                 raise WorkflowException(msg)
-            if self._batch_system in batchopt:
-                job["batchopt"] = batchopt[self._batch_system]
+            if self.batch_system in batchopt:
+                job["batchopt"] = batchopt[self.batch_system]
 
         # Add job to workflow
         self._jobs[job_ID] = job
@@ -654,8 +673,8 @@ class Workflow:
         self._workflow_writer.write_workflow(
             ID=self.ID,
             batchdir=batchdir,
-            workflowname=self._name,
-            account=self._account,
+            workflowname=self.name,
+            account=self.account,
             jobs=self._jobs,
             outfinaldir=outfinaldir,
             failedjobfile=failedjobfile,
@@ -672,7 +691,7 @@ class Workflow:
 
         # Get top-level control script commands
         submit, queue, cancel = self._workflow_writer.get_ctrl_commands(
-            workflowname=self._name, basebatchdir=basebatchdir
+            workflowname=self.name, basebatchdir=basebatchdir
         )
 
         # Write top-level control script: submit all jobs
