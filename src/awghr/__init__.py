@@ -202,7 +202,7 @@ class Workflow:
         needs: Optional[List[str]] = None,
         inputs: Optional[List[Union[Path, Tuple[str, str]]]] = None,
         outputs: List[str],
-        batchopt: Optional[Dict[str, Dict[str, str]]] = None,
+        batchopt: Optional[Dict[str, Any]] = None,
         final: Optional[bool] = None,
     ) -> str:
         """Add a new job to the workflow.
@@ -281,7 +281,7 @@ class Workflow:
 
                 Output files will be staged out of the working directory of the job.
 
-            batchopt (Optional[Dict[str, Dict[str, str]]]):
+            batchopt (Optional[Dict[str, Any]]):
                 Batch system-specific configuration options.
                 These options are given as nested dictionaries.
                 The key of the first dictionary is the batch system the option applies to;

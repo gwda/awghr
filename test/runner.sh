@@ -8,7 +8,11 @@ source /testing/test/.runnerrc
 
 batch_system="$1"
 
-echo "===== $0: set up batch system: ${batch_system}"
+log() {
+    echo "===== $0: ${batch_system}: $@"
+}
+
+log "set up batch system"
 case "${batch_system}" in
     pbs)
         ( qdel `qselect` >/dev/null 2>&1 ) || true
@@ -20,13 +24,13 @@ case "${batch_system}" in
         ;;
 esac
 
-echo "===== $0: set up virtual environment"
+log "set up virtual environment"
 if test ! -f /testing/venv/bin/activate; then
     python3 -m venv /testing/venv
 fi
 source /testing/venv/bin/activate
 
-echo "===== $0: install packages"
+log "install packages"
 python3 -m pip install -r /testing/test/requirements-test.txt
 python3 -m pip install --force-reinstall /testing/dist/*.whl
 
@@ -34,7 +38,7 @@ export COVERAGE_RCFILE="/testing/test/coverage.cfg"
 export COVERAGE_FILE="/testing/.coverage-${batch_system}"
 coverage erase
 
-echo "===== $0: configuration"
+log "configuration"
 (
     export AWGHR_CFGFILE="/testing/test/awghr.cfg"
     coverage run -a /testing/venv/bin/awghr config --batch="${batch_system}"
@@ -45,7 +49,7 @@ rm -rf "${baseworkdir}"
 
 for TESTFILE in ${TESTFILES}; do
     TEST=`expr "X${TESTFILE}" : "^Xtest/test_[0-9][0-9]_\(.*\)\.py"`
-    echo "===== $0: test: ${TEST}"
+    log "test: ${TEST}"
     workdir="${baseworkdir}/${TEST}"
     mkdir -p "${workdir}"
     cp "/testing/test/awghr.cfg" "${workdir}/.awghr.cfg"
@@ -58,11 +62,11 @@ for TESTFILE in ${TESTFILES}; do
     )
     status=$?
     if test ${status} -eq 0; then
-        echo "===== $0: PASS: ${TEST}"
+        log "PASS: ${TEST}"
     else
-        echo "===== $0: FAIL: ${TEST}"
+        log "FAIL: ${TEST}"
         exit 1
     fi
 done
 
-echo "===== $0: SUCCESS for ${batch_system}"
+log "SUCCESS"

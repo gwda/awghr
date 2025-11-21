@@ -7,6 +7,7 @@
 import logging
 import sys
 from pathlib import Path
+from typing import Any, Dict
 
 from awghr import Workflow, WorkflowException
 
@@ -30,6 +31,7 @@ except WorkflowException:
     pass
 
 # Add job
+job_batchopt: Dict[str, Any] = dict()
 job_args = dict(
     args=dict(index=0),
     cmds=["/usr/bin/true"],
@@ -40,6 +42,7 @@ job_args = dict(
     ngpus=1,
     inputs=[Path("/usr/bin/true")],
     outputs=["out_{index}.txt"],
+    batchopt=job_batchopt,
 )
 w.add_job(**job_args)
 
@@ -60,6 +63,7 @@ try:
         mem=10 * w.MB,
         disk=10 * w.MB,
         outputs=["dummy.txt"],
+        batchopt=job_batchopt,
     )
     msg = "should have raised a WorkflowException"
     raise AssertionError(msg)
@@ -75,6 +79,7 @@ try:
         mem=10 * w.MB,
         disk=10 * w.MB,
         outputs=["dummy.txt"],
+        batchopt=job_batchopt,
     )
     msg = "should have raised a WorkflowException"
     raise AssertionError(msg)
@@ -91,6 +96,7 @@ try:
         disk=10 * w.MB,
         inputs=[Path("./dummy.txt"), Path("./dummy.txt")],
         outputs=["dummy.txt"],
+        batchopt=job_batchopt,
     )
     msg = "should have raised a WorkflowException"
     raise AssertionError(msg)
@@ -107,6 +113,7 @@ try:
         disk=10 * w.MB,
         inputs=[Path("./non-existent.txt")],
         outputs=["dummy.txt"],
+        batchopt=job_batchopt,
     )
     msg = "should have raised a WorkflowException"
     raise AssertionError(msg)
@@ -122,6 +129,7 @@ try:
         mem=10 * w.MB,
         disk=10 * w.MB,
         outputs=["dummy.txt"],
+        batchopt=job_batchopt,
     )
     msg = "should have raised a WorkflowException"
     raise AssertionError(msg)
@@ -136,6 +144,7 @@ try:
         disk=10 * w.MB,
         inputs=[Path("/usr/bin/true")],
         outputs=["dummy.txt"],
+        batchopt=job_batchopt,
     )
     msg = "should have raised a WorkflowException"
     raise AssertionError(msg)
@@ -152,6 +161,7 @@ try:
         disk=10 * w.MB,
         inputs=[("non-existent-job", "dummy")],
         outputs=["dummy.txt"],
+        batchopt=job_batchopt,
     )
     msg = "should have raised a WorkflowException"
     raise AssertionError(msg)
@@ -166,6 +176,7 @@ try:
         disk=10 * w.MB,
         needs=["non-existent-job"],
         outputs=["dummy.txt"],
+        batchopt=job_batchopt,
     )
     msg = "should have raised a WorkflowException"
     raise AssertionError(msg)
@@ -181,6 +192,7 @@ try:
         mem=10 * w.MB,
         disk=10 * w.MB,
         outputs=["dummy.txt", "dummy.txt"],
+        batchopt=job_batchopt,
     )
     msg = "should have raised a WorkflowException"
     raise AssertionError(msg)
@@ -195,6 +207,7 @@ bad_job = w.add_job(
     mem=10 * w.MB,
     disk=10 * w.MB,
     outputs=["out_0.txt"],
+    batchopt=job_batchopt,
 )
 try:
     w.write()
