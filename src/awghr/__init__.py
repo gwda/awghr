@@ -749,7 +749,7 @@ allworkstate=SUCCESS
 for ID in {all_workflow_IDs_str}; do
     state_file="{basebatchdir}/${{ID}}/workflow_state"
     workstate=`cat ${{state_file}}`
-    echo "workflow state: ${{allworkstate}} (${{ID}})"
+    echo "workflow state: ${{workstate}} (${{ID}})"
     if test "X${{workstate}}" != XSUCCESS; then
         allworkstate=FAILED
     fi
