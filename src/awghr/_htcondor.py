@@ -250,6 +250,8 @@ fi
                 sub["REQUEST_MEMORY"] = "{}M".format(job["mem_MB"])
                 sub["REQUEST_DISK"] = "{}M".format(job["disk_MB"])
                 sub["REQUEST_CPUS"] = job["ncpus"]
+                if job["ngpus"] > 0:
+                    sub["REQUEST_GPUS"] = job["ngpus"]
 
                 # - Extra HTCondor job submit file options
                 submit_opt = self.default_submit_opt.copy()
