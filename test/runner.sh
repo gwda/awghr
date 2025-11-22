@@ -26,13 +26,13 @@ esac
 
 log "set up virtual environment"
 if test ! -f /testing/venv/bin/activate; then
-    python3 -m venv /testing/venv
+    python -m venv /testing/venv
 fi
 source /testing/venv/bin/activate
 
 log "install packages"
-python3 -m pip install -r /testing/test/requirements-test.txt
-python3 -m pip install --force-reinstall /testing/dist/*.whl
+pip install -r /testing/test/requirements-test.txt
+pip install --force-reinstall /testing/dist/*.whl
 
 export COVERAGE_RCFILE="/testing/test/coverage.cfg"
 export COVERAGE_FILE="/testing/.coverage-${batch_system}"
