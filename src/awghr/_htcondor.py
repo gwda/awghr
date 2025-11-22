@@ -408,9 +408,12 @@ queue() {{
     constraint="( DAGManJobId != 0 ) && ( ${{constraint}} )"
     condor_q -constraint "${{constraint}}"
     if test "X${{dagman_outs}}" != X; then
-        local cols=`tput cols 2>/dev/null || echo 96`
-        local awk_script='BEGIN {{ C -= 24 }} {{ if (length($0) > C) {{ print substr($0, 0, C), "..." }} else {{ print }} }}'
-        tail -v -n 5 ${{dagman_outs}} | awk -v "C=${{cols}}" "${{awk_script}}"
+        local awk_script='{{ print }}'
+        if test -t; then
+            local cols=`tput cols 2>/dev/null || echo 96`
+            awk_script="BEGIN {{ C = ${{cols}} - 24 }} "'{{ if (length($0) > C) {{ print substr($0, 0, C), "..." }} else {{ print }} }}'
+        fi
+        tail -v -n 5 ${{dagman_outs}} | awk "${{awk_script}}"
     fi
 }}
 """
