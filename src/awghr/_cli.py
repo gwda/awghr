@@ -123,7 +123,7 @@ def _show_jobs(args):
         cache["constant_args"] = None
 
     # Add information that will not change while workflow is running to cache
-    for job in tqdm(jobs, desc="Cacheing ", leave=False):
+    for job in tqdm(jobs, desc="Cacheing ", disable=None, leave=False):
 
         # Add job batch IDs to cache
         if job not in cache["batchID"]:
@@ -170,7 +170,7 @@ def _show_jobs(args):
     filtered_jobs = []
     jobstate_cache = {}
     jobstate_last_modified_cache = {}
-    for job in tqdm(jobs, desc="Filtering", leave=False):
+    for job in tqdm(jobs, desc="Filtering", disable=None, leave=False):
 
         # Filter jobs by batch system ID
         if args.batch_ID:  # pragma: no cover
