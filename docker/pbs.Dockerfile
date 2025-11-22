@@ -166,7 +166,6 @@ if ! systemctl restart pbs; then
     echo "ERROR: could not start OpenPBS" >&2
     exit 1
 fi
-trap 'status=\$?; systemctl stop pbs; exit \${status}' EXIT INT TERM
 while true; do
     sleep 0.2
     nodeparams=`( pbsnodes -F dsv pbs-ubuntu-host || true ) 2>/dev/null`
