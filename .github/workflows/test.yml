@@ -1,0 +1,118 @@
+name: Test package
+
+on:
+  push:
+    branches:
+      - "*"
+  pull_request:
+    branches:
+      - "*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
+          - "3.14"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Initialise project
+        uses: nick-fields/retry@v2
+        with:
+          timeout_minutes: 5
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: |
+            python -m pip install --upgrade pip
+            python -m pip install ppqs
+            python -m pip install -r requirements-dev.txt
+            pre-commit install
+            python -m pip install -e .
+
+      - name: Perform linting checks
+        run: |
+          ppqs lint
+
+      - name: Build project
+        run: |
+          ppqs build
+
+      - name: Clean up build files
+        run: |
+          ppqs clean
+
+  test:
+    runs-on: ubuntu-latest
+
+    needs: build
+
+    strategy:
+      fail-fast: false
+      matrix:
+        batch-system:
+          - "htcondor"
+          - "local"
+          - "pbs"
+          - "slurm"
+
+    container:
+      image: docker://kwwette/testing-batch-system:${{ matrix.batch-system }}
+      options: --hostname ${{ matrix.batch-system }}-ubuntu-host
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialise project
+        uses: nick-fields/retry@v2
+        with:
+          timeout_minutes: 5
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: |
+            python -m pip install -r requirements-dev.txt
+
+      - name: Build project
+        run: |
+          python -m build
+
+      - name: Setup tests
+        run: |
+          mkdir -p /testing/dist
+          cp dist/*.whl /testing/dist
+          testfiles=`echo test/test_*.py`
+          echo "TESTFILES='${testfiles}'" > test/.runnerrc
+          echo "----- test/.runnerrc"
+          cat test/.runnerrc
+          echo "-----"
+          cp -r test/ /testing/test
+
+      - name: Run tests
+        run: |
+          cd /testing
+          /usr/local/bin/entrypoint /bin/bash ./test/runner.sh ${{ matrix.batch-system }}
+
+  all-done:
+    runs-on: ubuntu-latest
+
+    needs: [build, test]
+
+    steps:
+      - name: All done
+        run: |
+          echo All done
