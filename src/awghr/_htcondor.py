@@ -142,6 +142,11 @@ echo UNKNOWN > '{jobbatchID_file}'
 echo RUNNING > '{jobstate_file}'
 """
 
+                    # Remove standard output and error from any previous job
+                    job_stdout_file = job["dir"] / "job_stdout"
+                    job_stderr_file = job["dir"] / "job_stderr"
+                    f += f"rm -f '{job_stdout_file}' '{job_stderr_file}'"
+
                 # Write job post script
                 job_post_file = job["dir"] / "job_condor_post.sh"
                 with FileLineWriter(job_post_file) as f:
@@ -296,6 +301,9 @@ SCRIPT POST {job_DAG_ID} /bin/bash {job_post_file} $JOBID $RETURN
 
                 # Exit on any script errors
                 f += "set -e"
+
+                # Ensure list of directories of failed jobs does not exist
+                f += f"rm -f '{failedjobfile}'"
 
                 # Default to success
                 f += "workstate=SUCCESS"
