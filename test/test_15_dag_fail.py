@@ -5,6 +5,7 @@
 """Test running a DAG workflow that fails and then recovers."""
 
 import logging
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -141,9 +142,25 @@ while True:
     assert joblistfile.is_file()
     statefile = w.workdir / "batch" / w.ID / "workflow_state"
     assert statefile.is_file()
-    if len(fail_files) > 0:
-        failedjoblistfile = w.workdir / "batch" / w.ID / "workflow_failed_jobs"
-        assert joblistfile.is_file()
+
+    failedjoblistfile = w.workdir / "batch" / w.ID / "workflow_failed_jobs"
+    if len(fail_files) == 0:
+        assert not failedjoblistfile.is_file()
+    else:
+        assert failedjoblistfile.is_file()
+        logger.info("check that failed files are correctly listed")
+        for jobdir in [
+            Path(line) for line in failedjoblistfile.read_text().splitlines()
+        ]:
+            stdout_file = jobdir / "job_stdout"
+            stderr_file = jobdir / "job_stderr"
+            if stdout_file.is_file() and stderr_file.is_file():
+                stdout = stdout_file.read_text().strip()
+                stderr = stderr_file.read_text().strip()
+                assert stdout == ""
+                assert re.search(r"FAIL[012] exists!$", stderr) is not None
+            else:
+                assert (not stdout_file.is_file()) and (not stderr_file.is_file())
 
     expected_state = "FAILED" if len(fail_files) > 0 else "SUCCESS"
     logger.info(

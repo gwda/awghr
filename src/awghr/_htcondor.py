@@ -142,6 +142,11 @@ echo UNKNOWN > '{jobbatchID_file}'
 echo RUNNING > '{jobstate_file}'
 """
 
+                    # Remove standard output and error from any previous job
+                    job_stdout_file = job["dir"] / "job_stdout"
+                    job_stderr_file = job["dir"] / "job_stderr"
+                    f += f"rm -f '{job_stdout_file}' '{job_stderr_file}'"
+
                 # Write job post script
                 job_post_file = job["dir"] / "job_condor_post.sh"
                 with FileLineWriter(job_post_file) as f:
@@ -250,6 +255,8 @@ fi
                 sub["REQUEST_MEMORY"] = "{}M".format(job["mem_MB"])
                 sub["REQUEST_DISK"] = "{}M".format(job["disk_MB"])
                 sub["REQUEST_CPUS"] = job["ncpus"]
+                if job["ngpus"] > 0:
+                    sub["REQUEST_GPUS"] = job["ngpus"]
 
                 # - Extra HTCondor job submit file options
                 submit_opt = self.default_submit_opt.copy()
@@ -294,6 +301,9 @@ SCRIPT POST {job_DAG_ID} /bin/bash {job_post_file} $JOBID $RETURN
 
                 # Exit on any script errors
                 f += "set -e"
+
+                # Ensure list of directories of failed jobs does not exist
+                f += f"rm -f '{failedjobfile}'"
 
                 # Default to success
                 f += "workstate=SUCCESS"
