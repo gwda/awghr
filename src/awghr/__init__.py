@@ -18,7 +18,7 @@ from shutil import which
 from textwrap import dedent
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
-from pint import Quantity, Unit
+from pint import Quantity
 
 from ._config import batch_system_names, read_config
 from ._util import (
@@ -26,7 +26,6 @@ from ._util import (
     JobFileList,
     ProgressLogger,
     WorkflowException,
-    _ureg,
     job_dir_from_ID,
 )
 
@@ -62,21 +61,6 @@ class Workflow:
         ID (str):
             A unique string representing the workflow.
             Only available after ``write()`` has been called.
-
-        MIN (Quantity):
-            Constant, representing 1 minute.
-
-        HOUR (Quantity):
-            Constant, representing 60 minutes.
-
-        DAY (Quantity):
-            Constant, representing 1440 minutes.
-
-        MB (Quantity):
-            Constant, representing 10^6 bytes.
-
-        GB (Quantity):
-            Constant, representing 10^9 bytes.
 
     Configuration:
         Default workflow configurations are retrieved from :literal:`~/.awghr.cfg`.
@@ -120,15 +104,6 @@ class Workflow:
     workdir: Path
     batch_system: str
     ID: str = "0" * 16
-
-    # Useful units of time
-    MIN: Quantity = _ureg.Quantity(1.0, "minute")
-    HOUR: Quantity = _ureg.Quantity(1.0, "hour")
-    DAY: Quantity = _ureg.Quantity(1.0, "day")
-
-    # Useful units of size
-    MB: Quantity = _ureg.Quantity(1.0, "megabyte")
-    GB: Quantity = _ureg.Quantity(1.0, "gigabyte")
 
     def __init__(
         self,
@@ -213,9 +188,9 @@ class Workflow:
         *,
         args: Dict[str, Any],
         cmds: List[str],
-        time: Unit,
-        mem: Unit,
-        disk: Unit,
+        time: Tuple[float, str],
+        mem: Tuple[float, str],
+        disk: Tuple[float, str],
         ncpus: int = 1,
         ngpus: int = 0,
         needs: Optional[List[str]] = None,
@@ -255,17 +230,14 @@ class Workflow:
                 * ``_ncpus``: requested number of CPUs.
                 * ``_ngpus``: requested number of GPUs.
 
-            time (Unit):
-                Requested wall time of the job.
-                Use the pre-defined constants: ``MIN``, ``HOUR``, ``DAY``.
+            time (Tuple[float, str]):
+                Requested wall time of the job: ``(magnitude, "unit")``
 
-            mem (Unit):
-                Requested memory of the job.
-                Use the pre-defined constants: ``MB``, ``GB``.
+            mem (Tuple[float, str]):
+                Requested memory of the job: ``(magnitude, "unit")``
 
-            disk (Unit):
-                Requested temporary disk space of the job.
-                Use the pre-defined constants: ``MB``, ``GB``.
+            disk (Tuple[float, str]):
+                Requested temporary disk space of the job: ``(magnitude, "unit")``
 
             ncpus (int):
                 Requested number of CPUs of the job.
@@ -351,9 +323,15 @@ class Workflow:
         job["args_json"] = args_json
 
         # Normalise and store resource requests
-        job["time_min"] = int(math.ceil(time.to(self.MIN).magnitude))
-        job["mem_MB"] = int(math.ceil(mem.to(self.MB).magnitude))
-        job["disk_MB"] = int(math.ceil(disk.to(self.MB).magnitude))
+        job["time_min"] = int(
+            math.ceil(Quantity(time[0], time[1]).to("minute").magnitude)
+        )
+        job["mem_MB"] = int(
+            math.ceil(Quantity(mem[0], mem[1]).to("megabyte").magnitude)
+        )
+        job["disk_MB"] = int(
+            math.ceil(Quantity(disk[0], disk[1]).to("megabyte").magnitude)
+        )
         job["ncpus"] = ncpus
         job["ngpus"] = ngpus
         job["resources"] = {

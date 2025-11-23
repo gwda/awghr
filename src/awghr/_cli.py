@@ -16,10 +16,10 @@ from contextlib import redirect_stdout
 from datetime import datetime
 from pathlib import Path
 
+from pint import Quantity
 from tqdm import tqdm
 
 from ._config import show_config
-from ._util import _ureg
 
 
 def _resolved_path(value):
@@ -251,7 +251,7 @@ def _show_jobs(args):
             for f in sorted(
                 job.iterdir(), key=lambda j: (not j.name.startswith("job_"), j)
             ):
-                f_size = _ureg.Quantity(f.stat().st_size, "byte").to_compact()
+                f_size = Quantity(f.stat().st_size, "byte").to_compact()
                 print(prefix.format("FILE"), f, "SIZE", format(f_size, "0.1f~"))
 
         # Show standard output

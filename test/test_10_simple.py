@@ -44,9 +44,9 @@ for i in range(10):
             echo `cat {_in[prefix]}`{index} > out_{index}.txt
             """
         ],
-        time=1 * w.MIN,
-        mem=10 * w.MB,
-        disk=10 * w.MB,
+        time=(1, "min"),
+        mem=(10, "MB"),
+        disk=(10, "MB"),
         inputs=[infile],
         outputs=["out_{index}.txt"],
     )

@@ -35,12 +35,12 @@ except WorkflowException:
 job_batchopt: Dict[str, Any] = dict(
     htcondor=dict(sub=dict(condor_test_opt="anotherval"))
 )
-job_args = dict(
+job_args: Dict[str, Any] = dict(
     args=dict(index=0),
     cmds=["/usr/bin/true"],
-    time=1 * w.MIN,
-    mem=10 * w.MB,
-    disk=10 * w.MB,
+    time=(1, "min"),
+    mem=(10, "MB"),
+    disk=(10, "MB"),
     ncpus=2,
     ngpus=1,
     inputs=[Path("/usr/bin/true")],
@@ -62,9 +62,9 @@ try:
     w.add_job(
         args=dict(_not_allowed=True),
         cmds=["true"],
-        time=1 * w.MIN,
-        mem=10 * w.MB,
-        disk=10 * w.MB,
+        time=(1, "min"),
+        mem=(10, "MB"),
+        disk=(10, "MB"),
         outputs=["dummy.txt"],
         batchopt=job_batchopt,
     )
@@ -78,9 +78,9 @@ try:
     w.add_job(
         args=dict(index=999),
         cmds=["./does-not-exist"],
-        time=1 * w.MIN,
-        mem=10 * w.MB,
-        disk=10 * w.MB,
+        time=(1, "min"),
+        mem=(10, "MB"),
+        disk=(10, "MB"),
         outputs=["dummy.txt"],
         batchopt=job_batchopt,
     )
@@ -94,9 +94,9 @@ try:
     w.add_job(
         args=dict(index=999),
         cmds=["true"],
-        time=1 * w.MIN,
-        mem=10 * w.MB,
-        disk=10 * w.MB,
+        time=(1, "min"),
+        mem=(10, "MB"),
+        disk=(10, "MB"),
         inputs=[Path("./dummy.txt"), Path("./dummy.txt")],
         outputs=["dummy.txt"],
         batchopt=job_batchopt,
@@ -111,9 +111,9 @@ try:
     w.add_job(
         args=dict(index=999),
         cmds=["true"],
-        time=1 * w.MIN,
-        mem=10 * w.MB,
-        disk=10 * w.MB,
+        time=(1, "min"),
+        mem=(10, "MB"),
+        disk=(10, "MB"),
         inputs=[Path("./non-existent.txt")],
         outputs=["dummy.txt"],
         batchopt=job_batchopt,
@@ -128,9 +128,9 @@ try:
     w.add_job(
         args=dict(index=999),
         cmds=["echo {_in}"],
-        time=1 * w.MIN,
-        mem=10 * w.MB,
-        disk=10 * w.MB,
+        time=(1, "min"),
+        mem=(10, "MB"),
+        disk=(10, "MB"),
         outputs=["dummy.txt"],
         batchopt=job_batchopt,
     )
@@ -142,9 +142,9 @@ try:
     w.add_job(
         args=dict(index=999),
         cmds=["echo {_in[false]}"],
-        time=1 * w.MIN,
-        mem=10 * w.MB,
-        disk=10 * w.MB,
+        time=(1, "min"),
+        mem=(10, "MB"),
+        disk=(10, "MB"),
         inputs=[Path("/usr/bin/true")],
         outputs=["dummy.txt"],
         batchopt=job_batchopt,
@@ -159,9 +159,9 @@ try:
     w.add_job(
         args=dict(index=999),
         cmds=["true"],
-        time=1 * w.MIN,
-        mem=10 * w.MB,
-        disk=10 * w.MB,
+        time=(1, "min"),
+        mem=(10, "MB"),
+        disk=(10, "MB"),
         inputs=[("non-existent-job", "dummy")],
         outputs=["dummy.txt"],
         batchopt=job_batchopt,
@@ -174,9 +174,9 @@ try:
     w.add_job(
         args=dict(index=999),
         cmds=["true"],
-        time=1 * w.MIN,
-        mem=10 * w.MB,
-        disk=10 * w.MB,
+        time=(1, "min"),
+        mem=(10, "MB"),
+        disk=(10, "MB"),
         needs=["non-existent-job"],
         outputs=["dummy.txt"],
         batchopt=job_batchopt,
@@ -191,9 +191,9 @@ try:
     w.add_job(
         args=dict(index=999),
         cmds=["true"],
-        time=1 * w.MIN,
-        mem=10 * w.MB,
-        disk=10 * w.MB,
+        time=(1, "min"),
+        mem=(10, "MB"),
+        disk=(10, "MB"),
         outputs=["dummy.txt", "dummy.txt"],
         batchopt=job_batchopt,
     )
@@ -206,9 +206,9 @@ except WorkflowException:
 bad_job = w.add_job(
     args=dict(index=999),
     cmds=["true"],
-    time=1 * w.MIN,
-    mem=10 * w.MB,
-    disk=10 * w.MB,
+    time=(1, "min"),
+    mem=(10, "MB"),
+    disk=(10, "MB"),
     outputs=["out_0.txt"],
     batchopt=job_batchopt,
 )
@@ -226,9 +226,9 @@ try:
     bad_job = w.add_job(
         args=dict(index=999),
         cmds=["true"],
-        time=1 * w.MIN,
-        mem=10 * w.MB,
-        disk=10 * w.MB,
+        time=(1, "min"),
+        mem=(10, "MB"),
+        disk=(10, "MB"),
         outputs=["out_0.txt"],
         batchopt=dict(dummy=dict(k=1)),
     )
@@ -264,9 +264,9 @@ if w.batch_system == "htcondor":  # HTCondor
         bad_job = w.add_job(
             args=dict(index=999),
             cmds=["true"],
-            time=1 * w.MIN,
-            mem=10 * w.MB,
-            disk=10 * w.MB,
+            time=(1, "min"),
+            mem=(10, "MB"),
+            disk=(10, "MB"),
             outputs=["dummy.txt"],
             batchopt=dict(htcondor=dict(sub=dict(executable="dummy"))),
         )

@@ -14,9 +14,7 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Tuple
 
-from pint import UnitRegistry
-
-_ureg = UnitRegistry()
+from pint import Quantity
 
 
 class WorkflowException(Exception):
@@ -118,7 +116,7 @@ class ProgressLogger:
         self._count += 1
         dt = time.time() - self._t0
         if dt > self._dt_print_prog:  # pragma: no cover
-            r = (self._count / _ureg.Quantity(dt, "second")).to_compact()
+            r = (self._count / Quantity(dt, "second")).to_compact()
             self._logger.info(self._msg + " (%s)", str(self._count), format(r, "0.1f~"))
             self._ddt_print_prog += 5
             self._dt_print_prog += self._ddt_print_prog
@@ -126,7 +124,7 @@ class ProgressLogger:
     def finish(self):
         """Finish log progress."""
         dt = time.time() - self._t0
-        r = (self._count / _ureg.Quantity(dt, "second")).to_compact()
+        r = (self._count / Quantity(dt, "second")).to_compact()
         self._logger.info(
             self._msg + " (%s)",
             "a total of " + str(self._count),

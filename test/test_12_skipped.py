@@ -37,9 +37,9 @@ for exit_code in (0, 77):
                 else "exit {exit_code}"
             ),
         ],
-        time=1 * w.MIN,
-        mem=10 * w.MB,
-        disk=10 * w.MB,
+        time=(1, "min"),
+        mem=(10, "MB"),
+        disk=(10, "MB"),
         outputs=["file{exit_code}.txt"],
     )
 
@@ -86,9 +86,9 @@ j1 = w.add_job(
     cmds=[
         "!bash echo DONE > file{exit_code}.txt; exit {exit_code}",
     ],
-    time=1 * w.MIN,
-    mem=10 * w.MB,
-    disk=10 * w.MB,
+    time=(1, "min"),
+    mem=(10, "MB"),
+    disk=(10, "MB"),
     outputs=["file{exit_code}.txt"],
 )
 w.add_job(
@@ -96,9 +96,9 @@ w.add_job(
     cmds=[
         "!bash echo DONE > file{exit_code}.txt; exit {exit_code}",
     ],
-    time=1 * w.MIN,
-    mem=10 * w.MB,
-    disk=10 * w.MB,
+    time=(1, "min"),
+    mem=(10, "MB"),
+    disk=(10, "MB"),
     needs=[j1],
     outputs=["file{exit_code}.txt"],
 )
