@@ -18,15 +18,15 @@ class PBSWorkflowWriter(BatchQWorkflowWriter):
     KEYS: Dict[str, Any] = {}
 
     BATCHQ_HEADER = """
-#PBS -N {jobname}
-#PBS -A {account}
-#PBS -l walltime={time_min}:00
-#PBS -l mem={mem_MB}MB
-#PBS -l ncpus={ncpus}
-#PBS -o {stdout}
-#PBS -e {stderr}
-#PBS -k doe
-"""
+    #PBS -N {jobname}
+    #PBS -A {account}
+    #PBS -l walltime={time_min}:00
+    #PBS -l mem={mem_MB}MB
+    #PBS -l ncpus={ncpus}
+    #PBS -o {stdout}
+    #PBS -e {stderr}
+    #PBS -k doe
+    """
 
     BATCHQ_HEADER_NGPUS = "#PBS -l gpus={n}"
 
@@ -108,46 +108,46 @@ class PBSWorkflowWriter(BatchQWorkflowWriter):
 
         # Command to submit workflow scripts in $@
         submit = """
-batchq_submit() {
-    local script=
-    for script in $@; do
-        qsub ${script} >/dev/null
-    done
-}
-"""
+        batchq_submit() {
+            local script=
+            for script in $@; do
+                qsub ${script} >/dev/null
+            done
+        }
+        """
 
         # Command to display all queued jobs with names in $@
         queue = """
-batchq_queue() {
-    local allbatchIDs=
-    local jobname=
-    for jobname in $@; do
-        local batchIDs=`qselect -N ${jobname}`
-        if test "X${batchIDs}" != X; then
-            allbatchIDs="${allbatchIDs} ${batchIDs}"
-        fi
-    done
-    if test "X${allbatchIDs}" != X; then
-        qstat -w -T ${allbatchIDs} 2>/dev/null || true
-    fi
-}
-"""
+        batchq_queue() {
+            local allbatchIDs=
+            local jobname=
+            for jobname in $@; do
+                local batchIDs=`qselect -N ${jobname}`
+                if test "X${batchIDs}" != X; then
+                    allbatchIDs="${allbatchIDs} ${batchIDs}"
+                fi
+            done
+            if test "X${allbatchIDs}" != X; then
+                qstat -w -T ${allbatchIDs} 2>/dev/null || true
+            fi
+        }
+        """
 
         # Command to cancel all jobs with names in $@
         cancel = """
-batchq_cancel() {
-    local allbatchIDs=
-    local jobname=
-    for jobname in $@; do
-        local batchIDs=`qselect -N ${jobname}`
-        if test "X${batchIDs}" != X; then
-            allbatchIDs="${allbatchIDs} ${batchIDs}"
-        fi
-    done
-    if test "X${allbatchIDs}" != X; then
-        qdel ${allbatchIDs} || true
-    fi
-}
-"""
+        batchq_cancel() {
+            local allbatchIDs=
+            local jobname=
+            for jobname in $@; do
+                local batchIDs=`qselect -N ${jobname}`
+                if test "X${batchIDs}" != X; then
+                    allbatchIDs="${allbatchIDs} ${batchIDs}"
+                fi
+            done
+            if test "X${allbatchIDs}" != X; then
+                qdel ${allbatchIDs} || true
+            fi
+        }
+        """
 
         return submit, queue, cancel

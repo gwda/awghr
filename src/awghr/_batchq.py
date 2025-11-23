@@ -215,29 +215,29 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
 
                 # Write shell function fail() for reporting errors
                 f += """
-function fail() {
-    echo 'FAIL:' "$@" >&2
-    exit 1
-}
-"""
+                function fail() {
+                    echo 'FAIL:' "$@" >&2
+                    exit 1
+                }
+                """
 
                 # Parse job array indexes to find which job to run based on batch index
                 jobarray_index_file = jobarraydir / "job_array_indexes"
                 batch_index = f"${{{self.BATCHQ_ARRAY_INDEX}}}"
                 f += f"""
-set -- `cat '{jobarray_index_file}'`
-batchq_array_count="$1"
-shift
-if test {batch_index} -lt 0 || test {batch_index} -ge ${{batchq_array_count}}; then
-    fail "{self.BATCHQ_ARRAY_INDEX}={batch_index} must be in the range 0--$((batchq_array_count-1))"
-fi
-batchq_array_index=0
-while test ${{batchq_array_index}} -lt {batch_index}; do
-    shift
-    : $((++batchq_array_index))
-done
-batchq_job_index="$1"
-"""
+                set -- `cat '{jobarray_index_file}'`
+                batchq_array_count="$1"
+                shift
+                if test {batch_index} -lt 0 || test {batch_index} -ge ${{batchq_array_count}}; then
+                    fail "{self.BATCHQ_ARRAY_INDEX}={batch_index} must be in the range 0--$((batchq_array_count-1))"
+                fi
+                batchq_array_index=0
+                while test ${{batchq_array_index}} -lt {batch_index}; do
+                    shift
+                    : $((++batchq_array_index))
+                done
+                batchq_job_index="$1"
+                """
 
                 # Change to job scratch directory
                 f += f"""test -d "{self.jobfs}" || mkdir -p "{self.jobfs}" || fail 'Could not make scratch directory {self.jobfs}'"""
@@ -264,23 +264,23 @@ batchq_job_index="$1"
                     # - for signals, exit with 128+<signal number>
                     jobstate_file = job["dir"] / "job_state"
                     f += f"""
-function trap_state() {{
-    local status=$1
-    if test ${{status}} -eq 0; then
-        echo SUCCESS > '{jobstate_file}'
-        exit 0
-    elif test ${{status}} -eq 77; then
-        echo SUCCESS/SKIPPED > '{jobstate_file}'
-        exit 0
-    else
-        echo FAILED > '{jobstate_file}'
-        exit ${{status}}
-    fi
-}}
-trap 'trap_state $?' EXIT
-trap 'trap_state 143' TERM
-echo RUNNING > '{jobstate_file}'
-"""
+                    function trap_state() {{
+                        local status=$1
+                        if test ${{status}} -eq 0; then
+                            echo SUCCESS > '{jobstate_file}'
+                            exit 0
+                        elif test ${{status}} -eq 77; then
+                            echo SUCCESS/SKIPPED > '{jobstate_file}'
+                            exit 0
+                        else
+                            echo FAILED > '{jobstate_file}'
+                            exit ${{status}}
+                        fi
+                    }}
+                    trap 'trap_state $?' EXIT
+                    trap 'trap_state 143' TERM
+                    echo RUNNING > '{jobstate_file}'
+                    """
 
                     # Check that all prerequisite jobs were successfully run
                     for needs_job_ID in job["needs"]:
@@ -290,13 +290,13 @@ echo RUNNING > '{jobstate_file}'
 
                         # Test that job was successful, or skip if it was skipped
                         f += f"""
-jobstate=`cat '{needs_jobstate_file}' 2>/dev/null || true`
-if test "X${{jobstate}}" = XSUCCESS/SKIPPED; then
-    exit 77
-elif test "X${{jobstate}}" != XSUCCESS; then
-    fail 'Prerequisite job {needs_job_ID} was not successful'
-fi
-"""
+                        jobstate=`cat '{needs_jobstate_file}' 2>/dev/null || true`
+                        if test "X${{jobstate}}" = XSUCCESS/SKIPPED; then
+                            exit 77
+                        elif test "X${{jobstate}}" != XSUCCESS; then
+                            fail 'Prerequisite job {needs_job_ID} was not successful'
+                        fi
+                        """
 
                     # Hard-link standard output/error files from job array back to job directory
                     for stdouterr in ("job_stdout", "job_stderr"):
@@ -372,15 +372,15 @@ fi
                 for job in job_array:
                     jobstate_file = job["dir"] / "job_state"
                     f += f"""
-jobstate=`cat '{jobstate_file}' 2>/dev/null || true`
-if test "X${{jobstate%%/*}}" != XSUCCESS; then
-    echo '{job['dir']}' >> '{failedjobfile}'
-    workstate=FAILED
-    if test "X${{jobstate}}" = XRUNNING; then
-        echo FAILED > '{jobstate_file}'
-    fi
-fi
-"""
+                    jobstate=`cat '{jobstate_file}' 2>/dev/null || true`
+                    if test "X${{jobstate%%/*}}" != XSUCCESS; then
+                        echo '{job['dir']}' >> '{failedjobfile}'
+                        workstate=FAILED
+                        if test "X${{jobstate}}" = XRUNNING; then
+                            echo FAILED > '{jobstate_file}'
+                        fi
+                    fi
+                    """
 
             # Write workflow state
             f += f"""echo "${{workstate}}" > '{workstatefile}'"""
@@ -420,42 +420,42 @@ fi
             # Set trap to write the workflow state if errors are encountered
             # - for signals, exit with 128+<signal number>
             f += f"""
-function trap_state() {{
-    local status=$1
-    if test ${{status}} -ne 0; then
-        echo FAILED > '{workstatefile}'
-    fi
-    exit ${{status}}
-}}
-trap 'trap_state $?' EXIT
-trap 'trap_state 143' TERM
-"""
+            function trap_state() {{
+                local status=$1
+                if test ${{status}} -ne 0; then
+                    echo FAILED > '{workstatefile}'
+                fi
+                exit ${{status}}
+            }}
+            trap 'trap_state $?' EXIT
+            trap 'trap_state 143' TERM
+            """
 
             # Write shell function fail() for reporting errors
             f += """
-function fail() {
-    echo 'FAIL:' "$@" >&2
-    exit 1
-}
-"""
+            function fail() {
+                echo 'FAIL:' "$@" >&2
+                exit 1
+            }
+            """
 
             # Write shell function job_array_indexes() which
             # determines which indexes of an array job need to be run
             f += """
-function job_array_indexes() {
-    local idx=
-    local jobdir=
-    batchq_array_indexes=
-    batchq_array_count=0
-    while read idx jobdir; do
-        jobstate=`cat "${jobdir}/job_state" 2>/dev/null || true`
-        if test "X${jobstate%%/*}" != XSUCCESS; then
-            batchq_array_indexes="${batchq_array_indexes} ${idx}"
-            : $((++batchq_array_count))
-        fi
-    done < <(sed -n 's/^# JOB //p' "$1")
-}
-"""
+            function job_array_indexes() {
+                local idx=
+                local jobdir=
+                batchq_array_indexes=
+                batchq_array_count=0
+                while read idx jobdir; do
+                    jobstate=`cat "${jobdir}/job_state" 2>/dev/null || true`
+                    if test "X${jobstate%%/*}" != XSUCCESS; then
+                        batchq_array_indexes="${batchq_array_indexes} ${idx}"
+                        : $((++batchq_array_count))
+                    fi
+                done < <(sed -n 's/^# JOB //p' "$1")
+            }
+            """
 
             # Write shell function job_array_needs_ID_idx() which
             # parses job array indexes to determine the batch index of
@@ -465,21 +465,21 @@ function job_array_indexes() {
                 batch_index="${batchidx}",
             )
             f += f"""
-function job_array_needs_ID_idx() {{
-    local batchID="$1"
-    local jobidxs="$2"
-    local jobidx="$3"
-    local batchidx=0
-    set -- `cat "${{jobidxs}}"`
-    shift
-    while test "$1" -ne ${{jobidx}}; do
-        shift
-        test "X$1" != X || fail "job_array_needs_index() has run out of job array indexes"
-        : $((++batchidx))
-    done
-    batchq_needs_ID_idx="{needs_ID_idx_format}"
-}}
-"""
+            function job_array_needs_ID_idx() {{
+                local batchID="$1"
+                local jobidxs="$2"
+                local jobidx="$3"
+                local batchidx=0
+                set -- `cat "${{jobidxs}}"`
+                shift
+                while test "$1" -ne ${{jobidx}}; do
+                    shift
+                    test "X$1" != X || fail "job_array_needs_index() has run out of job array indexes"
+                    : $((++batchidx))
+                done
+                batchq_needs_ID_idx="{needs_ID_idx_format}"
+            }}
+            """
 
             # Save all batch system IDs for state job
             f += "batchq_all_IDs="
@@ -519,14 +519,14 @@ function job_array_needs_ID_idx() {{
                     )
                     needs_jobarray_index_file = needs_jobarraydir / "job_array_indexes"
                     f += f"""
-jobstate=`cat '{needs_jobstate_file}' 2>/dev/null || true`
-if test "X${{jobstate}}" != XSUCCESS && test "X${{jobstate}}" != XSUCCESS/SKIPPED; then
-    test -f '{needs_jobarray_batchqID_file}' || fail 'Prerequisite job array {needs_job_array_ID} has not been submitted'
-    batchq_ID=`cat '{needs_jobarray_batchqID_file}'`
-    job_array_needs_ID_idx "${{batchq_ID}}" '{needs_jobarray_index_file}' '{needs_job_array_idx}'
-    batchq_needs_IDs="${{batchq_needs_IDs}}:${{batchq_needs_ID_idx}}"
-fi
-"""
+                    jobstate=`cat '{needs_jobstate_file}' 2>/dev/null || true`
+                    if test "X${{jobstate}}" != XSUCCESS && test "X${{jobstate}}" != XSUCCESS/SKIPPED; then
+                        test -f '{needs_jobarray_batchqID_file}' || fail 'Prerequisite job array {needs_job_array_ID} has not been submitted'
+                        batchq_ID=`cat '{needs_jobarray_batchqID_file}'`
+                        job_array_needs_ID_idx "${{batchq_ID}}" '{needs_jobarray_index_file}' '{needs_job_array_idx}'
+                        batchq_needs_IDs="${{batchq_needs_IDs}}:${{batchq_needs_ID_idx}}"
+                    fi
+                    """
 
                 # Determine job array indexes which should be submitted
                 jobarray_submit_script_file = jobarraydir / "job_array_submit.sh"
@@ -536,34 +536,34 @@ fi
                     n="$((batchq_array_count-1))"
                 )
                 f += f"""
-job_array_indexes '{jobarray_script_file}'
-echo ${{batchq_array_count}} ${{batchq_array_indexes}} > '{jobarray_index_file}'
-if test ${{batchq_array_count}} -eq 1; then
-    batchq_array='{self.BATCHQ_ARRAY_SINGLETON}'
-else
-    batchq_array="{batch_array_range}"
-fi
-"""
+                job_array_indexes '{jobarray_script_file}'
+                echo ${{batchq_array_count}} ${{batchq_array_indexes}} > '{jobarray_index_file}'
+                if test ${{batchq_array_count}} -eq 1; then
+                    batchq_array='{self.BATCHQ_ARRAY_SINGLETON}'
+                else
+                    batchq_array="{batch_array_range}"
+                fi
+                """
 
                 # If jobs in array need to be run, submit them and save job ID
                 # - jobs are initially submitted in a held state
                 jobarray_batchqID_file = jobarraydir / "job_array_batchqID"
                 f += f"""
-if test ${{batchq_array_count}} -eq 0; then
-    batchq_ID=DONE
-else
-    batchq_dependency="{self.BATCHQ_SUBMIT_ARG_DEPEND}afterok:${{{self.BATCHQ_JOB_ID}{self.BATCHQ_ID_REMOVE_SUFFIX}}}"
-    if test "X${{batchq_needs_IDs}}" != X; then
-        batchq_dependency="${{batchq_dependency}},{self.BATCHQ_SUBMIT_ARRAY_DEPEND}${{batchq_needs_IDs}}"
-    fi
-    rm -f '{jobarraydir}/"job_stdout_'* '{jobarraydir}/"job_stderr_'*
-    batchq_ID=`{self.BATCHQ_SUBMIT_ARRAY} ${{batchq_dependency}} {self.BATCHQ_SUBMIT_ARG_ARRAY}${{batchq_array}} '{jobarray_submit_script_file}'`
-    batchq_ID=`echo "${{batchq_ID{self.BATCHQ_ID_REMOVE_SUFFIX}}}"`
-    echo "info: submitted ${{batchq_array_count}} jobs in job array {job_array_ID}, batch ID ${{batchq_ID}}"
-    batchq_all_IDs="${{batchq_all_IDs}}:${{batchq_ID}}"
-fi
-echo "${{batchq_ID}}" > '{jobarray_batchqID_file}'
-"""
+                if test ${{batchq_array_count}} -eq 0; then
+                    batchq_ID=DONE
+                else
+                    batchq_dependency="{self.BATCHQ_SUBMIT_ARG_DEPEND}afterok:${{{self.BATCHQ_JOB_ID}{self.BATCHQ_ID_REMOVE_SUFFIX}}}"
+                    if test "X${{batchq_needs_IDs}}" != X; then
+                        batchq_dependency="${{batchq_dependency}},{self.BATCHQ_SUBMIT_ARRAY_DEPEND}${{batchq_needs_IDs}}"
+                    fi
+                    rm -f '{jobarraydir}/"job_stdout_'* '{jobarraydir}/"job_stderr_'*
+                    batchq_ID=`{self.BATCHQ_SUBMIT_ARRAY} ${{batchq_dependency}} {self.BATCHQ_SUBMIT_ARG_ARRAY}${{batchq_array}} '{jobarray_submit_script_file}'`
+                    batchq_ID=`echo "${{batchq_ID{self.BATCHQ_ID_REMOVE_SUFFIX}}}"`
+                    echo "info: submitted ${{batchq_array_count}} jobs in job array {job_array_ID}, batch ID ${{batchq_ID}}"
+                    batchq_all_IDs="${{batchq_all_IDs}}:${{batchq_ID}}"
+                fi
+                echo "${{batchq_ID}}" > '{jobarray_batchqID_file}'
+                """
 
                 # Mark all jobs in array as having been written
                 for job in job_array:
@@ -571,14 +571,14 @@ echo "${{batchq_ID}}" > '{jobarray_batchqID_file}'
 
             # Submit final state job
             f += f"""
-batchq_dependency="{self.BATCHQ_SUBMIT_ARG_DEPEND}afterok:${{{self.BATCHQ_JOB_ID}{self.BATCHQ_ID_REMOVE_SUFFIX}}}"
-if test "X${{batchq_all_IDs}}" != X; then
-    batchq_dependency="${{batchq_dependency}},{self.BATCHQ_SUBMIT_STATE_DEPEND}${{batchq_all_IDs}}"
-fi
-batchq_ID=`{self.BATCHQ_SUBMIT_STATE} ${{batchq_dependency}} '{workstate_submit_script_file}'`
-batchq_ID=`echo "${{batchq_ID{self.BATCHQ_ID_REMOVE_SUFFIX}}}"`
-echo "info: submitted state job, batch ID ${{batchq_ID}}"
-"""
+            batchq_dependency="{self.BATCHQ_SUBMIT_ARG_DEPEND}afterok:${{{self.BATCHQ_JOB_ID}{self.BATCHQ_ID_REMOVE_SUFFIX}}}"
+            if test "X${{batchq_all_IDs}}" != X; then
+                batchq_dependency="${{batchq_dependency}},{self.BATCHQ_SUBMIT_STATE_DEPEND}${{batchq_all_IDs}}"
+            fi
+            batchq_ID=`{self.BATCHQ_SUBMIT_STATE} ${{batchq_dependency}} '{workstate_submit_script_file}'`
+            batchq_ID=`echo "${{batchq_ID{self.BATCHQ_ID_REMOVE_SUFFIX}}}"`
+            echo "info: submitted state job, batch ID ${{batchq_ID}}"
+            """
 
     def get_ctrl_commands(self, *, workflowname, basebatchdir) -> Tuple[str, str, str]:
         """Get top-level control script commands."""
@@ -588,38 +588,38 @@ echo "info: submitted state job, batch ID ${{batchq_ID}}"
 
         # Shell function to submit workflows in `basebatchdir` with IDs in $@
         submit += f"""
-submit() {{
-    local scripts=
-    local ID=
-    for ID in $@; do
-        scripts="${{scripts}} {basebatchdir}/${{ID}}/batch_all_submit.sh"
-    done
-    batchq_submit ${{scripts}}
-}}
-"""
+        submit() {{
+            local scripts=
+            local ID=
+            for ID in $@; do
+                scripts="${{scripts}} {basebatchdir}/${{ID}}/batch_all_submit.sh"
+            done
+            batchq_submit ${{scripts}}
+        }}
+        """
 
         # Shell function to display all queued jobs from workflows in `basebatchdir` with IDs in $@
         queue += f"""
-queue() {{
-    local jobnames=
-    local ID=
-    for ID in $@; do
-        jobnames="${{jobnames}} {workflowname}_${{ID}}"
-    done
-    batchq_queue ${{jobnames}}
-}}
-"""
+        queue() {{
+            local jobnames=
+            local ID=
+            for ID in $@; do
+                jobnames="${{jobnames}} {workflowname}_${{ID}}"
+            done
+            batchq_queue ${{jobnames}}
+        }}
+        """
 
         # Shell function to cancel all jobs from from workflows in `basebatchdir` with IDs in $@
         cancel += f"""
-cancel() {{
-    local jobnames=
-    local ID=
-    for ID in $@; do
-        jobnames="${{jobnames}} {workflowname}_${{ID}}"
-    done
-    batchq_cancel ${{jobnames}}
-}}
-"""
+        cancel() {{
+            local jobnames=
+            local ID=
+            for ID in $@; do
+                jobnames="${{jobnames}} {workflowname}_${{ID}}"
+            done
+            batchq_cancel ${{jobnames}}
+        }}
+        """
 
         return submit, queue, cancel

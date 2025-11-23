@@ -12,10 +12,10 @@ import re
 import shlex
 import shutil
 import sys
-import textwrap
 from hashlib import blake2b
 from pathlib import Path
 from shutil import which
+from textwrap import dedent
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from pint import Quantity, Unit
@@ -425,7 +425,7 @@ class Workflow:
         for cmd in cmds:
 
             # Remove whitespace
-            cmd = textwrap.dedent(cmd).strip()
+            cmd = dedent(cmd).strip()
 
             # Format arguments
             cmd = cmd.format(**format_cmd, **job["resources"])
@@ -697,83 +697,89 @@ class Workflow:
         # Write top-level control script: submit all jobs
         with FileLineWriter(self.workdir / "submit", executable=True) as f:
             f += f"""
-#!/bin/bash
-set -e
-if test "X$1" != X; then
-    echo "usage: $0" >&2
-    exit 1
-fi
-workflow_IDs=
-for ID in {all_workflow_IDs_str}; do
-    state_file="{basebatchdir}/${{ID}}/workflow_state"
-    failed_file="{basebatchdir}${{ID}}/workflow_failed_jobs"
-    sub_file="{basebatchdir}/${{ID}}/workflow_submitted"
-    if test -f "${{state_file}}"; then
-        workstate=`cat ${{state_file}}`
-        if test "X${{workstate}}" = XSUCCESS; then
-            echo "info: workflow ${{ID}} has already been successfully run"
-            continue
-        fi
-    elif test -f "${{sub_file}}"; then
-        echo "info: workflow ${{ID}} has already been submitted"
-        continue
-    fi
-    workflow_IDs="${{workflow_IDs}} ${{ID}}"
-    rm -f "${{state_file}}" "${{failed_file}}" "${{sub_file}}"
-done
-if test "X${{workflow_IDs}}" = X; then
-    echo "info: no workflows to submit"
-    exit 1
-fi
-{submit}
-submit ${{workflow_IDs}}
-msg=
-for ID in ${{workflow_IDs}}; do
-    state_file="{basebatchdir}/${{ID}}/workflow_state"
-    if test -f "${{state_file}}"; then
-        workstate=`cat ${{state_file}}`
-        if test "X${{workstate}}" = XSUCCESS; then
-            echo "info: workflow ${{ID}} has already been successfully run"
-            continue
-        fi
-    fi
-    sub_file="{basebatchdir}/${{ID}}/workflow_submitted"
-    echo SUBMITTED > ${{sub_file}}
-    if test "X${{msg}}" != X; then
-        msg="s${{msg}}"
-    fi
-    msg="${{msg}} ${{ID}}"
-done
-if test "X${{msg}}" != X; then
-    echo "info: submitted all jobs in workflow${{msg}}"
-fi
-"""
+            #!/bin/bash
+            set -e
+            if test "X$1" != X; then
+                echo "usage: $0" >&2
+                exit 1
+            fi
+            workflow_IDs=
+            for ID in {all_workflow_IDs_str}; do
+                state_file="{basebatchdir}/${{ID}}/workflow_state"
+                failed_file="{basebatchdir}${{ID}}/workflow_failed_jobs"
+                sub_file="{basebatchdir}/${{ID}}/workflow_submitted"
+                if test -f "${{state_file}}"; then
+                    workstate=`cat ${{state_file}}`
+                    if test "X${{workstate}}" = XSUCCESS; then
+                        echo "info: workflow ${{ID}} has already been successfully run"
+                        continue
+                    fi
+                elif test -f "${{sub_file}}"; then
+                    echo "info: workflow ${{ID}} has already been submitted"
+                    continue
+                fi
+                workflow_IDs="${{workflow_IDs}} ${{ID}}"
+                rm -f "${{state_file}}" "${{failed_file}}" "${{sub_file}}"
+            done
+            if test "X${{workflow_IDs}}" = X; then
+                echo "info: no workflows to submit"
+                exit 1
+            fi
+            """
+            f += submit
+            f += f"""
+            submit ${{workflow_IDs}}
+            msg=
+            for ID in ${{workflow_IDs}}; do
+                state_file="{basebatchdir}/${{ID}}/workflow_state"
+                if test -f "${{state_file}}"; then
+                    workstate=`cat ${{state_file}}`
+                    if test "X${{workstate}}" = XSUCCESS; then
+                        echo "info: workflow ${{ID}} has already been successfully run"
+                        continue
+                    fi
+                fi
+                sub_file="{basebatchdir}/${{ID}}/workflow_submitted"
+                echo SUBMITTED > ${{sub_file}}
+                if test "X${{msg}}" != X; then
+                    msg="s${{msg}}"
+                fi
+                msg="${{msg}} ${{ID}}"
+            done
+            if test "X${{msg}}" != X; then
+                echo "info: submitted all jobs in workflow${{msg}}"
+            fi
+            """
 
         # Write top-level control script: display all queued jobs
         with FileLineWriter(self.workdir / "queue", executable=True) as f:
+            f += """
+            #!/bin/bash
+            set -e
+            if test "X$1" != X; then
+                echo "usage: $0" >&2
+                exit 1
+            fi
+            """
+            f += queue
             f += f"""
-#!/bin/bash
-set -e
-if test "X$1" != X; then
-    echo "usage: $0" >&2
-    exit 1
-fi
-{queue}
-queue {all_workflow_IDs_str}
-"""
+            queue {all_workflow_IDs_str}
+            """
 
         # Write top-level control script: cancel all jobs
         with FileLineWriter(self.workdir / "cancel", executable=True) as f:
+            f += """
+            #!/bin/bash
+            set -e
+            if test "X$1" != X; then
+                echo "usage: $0" >&2
+                exit 1
+            fi
+            """
+            f += cancel
             f += f"""
-#!/bin/bash
-set -e
-if test "X$1" != X; then
-    echo "usage: $0" >&2
-    exit 1
-fi
-{cancel}
-cancel {all_workflow_IDs_str}
-"""
+            cancel {all_workflow_IDs_str}
+            """
 
         # Write top-level control script: wait for all workflows to complete
         with FileLineWriter(self.workdir / "wait", executable=True) as f:
@@ -786,34 +792,34 @@ cancel {all_workflow_IDs_str}
                 ]
             )
             f += f"""
-#!/bin/bash
-set -e
-sleepfor=5.0
-case "$1" in
-    -h|--help)
-        echo "usage: $0 [-n sleepfor] [command args...]" >&2
-        exit 1
-        ;;
-    -n)
-        shift
-        sleepfor="$1"
-        shift
-esac
-until {all_workstatefiles_exist}; do
-    "$@"
-    sleep ${{sleepfor}}
-done
-allworkstate=SUCCESS
-for ID in {all_workflow_IDs_str}; do
-    state_file="{basebatchdir}/${{ID}}/workflow_state"
-    workstate=`cat ${{state_file}}`
-    echo "workflow state: ${{workstate}} (${{ID}})"
-    if test "X${{workstate}}" != XSUCCESS; then
-        allworkstate=FAILED
-    fi
-done
-echo "workflow state: ${{allworkstate}}"
-"""
+            #!/bin/bash
+            set -e
+            sleepfor=5.0
+            case "$1" in
+                -h|--help)
+                    echo "usage: $0 [-n sleepfor] [command args...]" >&2
+                    exit 1
+                    ;;
+                -n)
+                    shift
+                    sleepfor="$1"
+                    shift
+            esac
+            until {all_workstatefiles_exist}; do
+                "$@"
+                sleep ${{sleepfor}}
+            done
+            allworkstate=SUCCESS
+            for ID in {all_workflow_IDs_str}; do
+                state_file="{basebatchdir}/${{ID}}/workflow_state"
+                workstate=`cat ${{state_file}}`
+                echo "workflow state: ${{workstate}} (${{ID}})"
+                if test "X${{workstate}}" != XSUCCESS; then
+                    allworkstate=FAILED
+                fi
+            done
+            echo "workflow state: ${{allworkstate}}"
+            """
 
         # Log completion
         _logger.info("workflow has been written")

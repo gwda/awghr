@@ -18,16 +18,16 @@ class SlurmWorkflowWriter(BatchQWorkflowWriter):
     KEYS: Dict[str, Any] = {}
 
     BATCHQ_HEADER = """
-#SBATCH --job-name={jobname}
-#SBATCH --account={account}
-#SBATCH --time={time_min}:00
-#SBATCH --mem={mem_MB}M
-#SBATCH --tmp={disk_MB}M
-#SBATCH --ntasks=1
-#SBATCH --cpus-per-task={ncpus}
-#SBATCH --output={stdout}
-#SBATCH --error={stderr}
-"""
+    #SBATCH --job-name={jobname}
+    #SBATCH --account={account}
+    #SBATCH --time={time_min}:00
+    #SBATCH --mem={mem_MB}M
+    #SBATCH --tmp={disk_MB}M
+    #SBATCH --ntasks=1
+    #SBATCH --cpus-per-task={ncpus}
+    #SBATCH --output={stdout}
+    #SBATCH --error={stderr}
+    """
 
     BATCHQ_HEADER_NGPUS = "#SBATCH --gres=gpu:{n}"
 
@@ -111,28 +111,28 @@ class SlurmWorkflowWriter(BatchQWorkflowWriter):
 
         # Command to submit workflow scripts in $@
         submit = """
-batchq_submit() {
-    local script=
-    for script in $@; do
-        sbatch --quiet ${script}
-    done
-}
-"""
+        batchq_submit() {
+            local script=
+            for script in $@; do
+                sbatch --quiet ${script}
+            done
+        }
+        """
 
         # Command to display all queued jobs with names in $@
         queue = """
-batchq_queue () {
-    local jobnames=`echo $@ | tr ' ' ','`
-    squeue --name="${jobnames}" --format='%20i  %2t  %.12M  %.10m  %.12d  %.4C  %.8p  %12P  %R' --sort='-M,-p'
-}
-"""
+        batchq_queue () {
+            local jobnames=`echo $@ | tr ' ' ','`
+            squeue --name="${jobnames}" --format='%20i  %2t  %.12M  %.10m  %.12d  %.4C  %.8p  %12P  %R' --sort='-M,-p'
+        }
+        """
 
         # Command to cancel all jobs with names in $@
         cancel = """
-batchq_cancel() {
-    local jobnames=`echo $@ | tr ' ' ','`
-    scancel --name="${jobnames}"
-}
-"""
+        batchq_cancel() {
+            local jobnames=`echo $@ | tr ' ' ','`
+            scancel --name="${jobnames}"
+        }
+        """
 
         return submit, queue, cancel

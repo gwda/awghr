@@ -111,11 +111,11 @@ class HTCondorWorkflowWriter(WorkflowWriter):
 
                     # Write shell function fail() for reporting errors
                     f += """
-function fail() {
-    echo 'FAIL:' "$@" >&2
-    exit 1
-}
-"""
+                    function fail() {
+                        echo 'FAIL:' "$@" >&2
+                        exit 1
+                    }
+                    """
 
                     # Check that all prerequisite jobs were not skipped
                     for needs_job_ID in job["needs"]:
@@ -125,22 +125,18 @@ function fail() {
 
                         # Skip job if prerequisite job was skipped
                         f += f"""
-jobstate=`cat '{needs_jobstate_file}' 2>/dev/null || true`
-if test "X${{jobstate}}" = XSUCCESS/SKIPPED; then
-    echo SUCCESS/SKIPPED > '{jobstate_file}'
-    exit 77
-fi
-"""
+                        jobstate=`cat '{needs_jobstate_file}' 2>/dev/null || true`
+                        if test "X${{jobstate}}" = XSUCCESS/SKIPPED; then
+                            echo SUCCESS/SKIPPED > '{jobstate_file}'
+                            exit 77
+                        fi
+                        """
 
                     # Write job batch ID file
-                    f += f"""
-echo UNKNOWN > '{jobbatchID_file}'
-"""
+                    f += f"echo UNKNOWN > '{jobbatchID_file}'"
 
                     # Write job state file
-                    f += f"""
-echo RUNNING > '{jobstate_file}'
-"""
+                    f += f"echo RUNNING > '{jobstate_file}'"
 
                     # Remove standard output and error from any previous job
                     job_stdout_file = job["dir"] / "job_stdout"
@@ -161,50 +157,50 @@ echo RUNNING > '{jobstate_file}'
 
                     # Write shell function fail() for reporting errors
                     f += """
-function fail() {
-    echo 'FAIL:' "$@" >&2
-    exit 1
-}
-"""
+                    function fail() {
+                        echo 'FAIL:' "$@" >&2
+                        exit 1
+                    }
+                    """
 
                     # Set trap to write job state file
                     # - for signals, exit with 128+<signal number>
                     f += f"""
-function trap_state() {{
-    local status=$1
-    if test ${{status}} -eq 0; then
-        echo SUCCESS > '{jobstate_file}'
-        exit 0
-    elif test ${{status}} -eq 77; then
-        echo SUCCESS/SKIPPED > '{jobstate_file}'
-        exit 0
-    else
-        echo FAILED > '{jobstate_file}'
-        exit ${{status}}
-    fi
-}}
-trap 'trap_state $?' EXIT
-"""
+                    function trap_state() {{
+                        local status=$1
+                        if test ${{status}} -eq 0; then
+                            echo SUCCESS > '{jobstate_file}'
+                            exit 0
+                        elif test ${{status}} -eq 77; then
+                            echo SUCCESS/SKIPPED > '{jobstate_file}'
+                            exit 0
+                        else
+                            echo FAILED > '{jobstate_file}'
+                            exit ${{status}}
+                        fi
+                    }}
+                    trap 'trap_state $?' EXIT
+                    """
 
                     # Parse command line
                     f += """
-JOBID="$1"
-RETURN="$2"
-test "X${JOBID}" != X || fail 'missing JOBID argument to post script'
-test "X${RETURN}" != X || fail 'missing RETURN argument to post script'
-"""
+                    JOBID="$1"
+                    RETURN="$2"
+                    test "X${JOBID}" != X || fail 'missing JOBID argument to post script'
+                    test "X${RETURN}" != X || fail 'missing RETURN argument to post script'
+                    """
 
                     # Write job batch ID file
                     f += f"""
-echo "${{JOBID}}" > '{jobbatchID_file}'
-"""
+                    echo "${{JOBID}}" > '{jobbatchID_file}'
+                    """
 
                     # Skip post script if job was skipped
                     f += """
-if test ${RETURN} -eq 77; then
-    exit ${RETURN}
-fi
-"""
+                    if test ${RETURN} -eq 77; then
+                        exit ${RETURN}
+                    fi
+                    """
 
                     # Check for output files, and link to final output directory
                     for outfile in job["outfiles"]:
@@ -283,10 +279,10 @@ fi
 
                 # - Define pre- and post-job script
                 F += f"""
-SCRIPT PRE {job_DAG_ID} /bin/bash {job_pre_file}
-PRE_SKIP {job_DAG_ID} 77
-SCRIPT POST {job_DAG_ID} /bin/bash {job_post_file} $JOBID $RETURN
-"""
+                SCRIPT PRE {job_DAG_ID} /bin/bash {job_pre_file}
+                PRE_SKIP {job_DAG_ID} 77
+                SCRIPT POST {job_DAG_ID} /bin/bash {job_post_file} $JOBID $RETURN
+                """
 
                 # - Define prerequisite jobs
                 if job["needs"]:
@@ -311,14 +307,14 @@ SCRIPT POST {job_DAG_ID} /bin/bash {job_post_file} $JOBID $RETURN
                 # Check DAG output for exit status
                 dagman_out = batchdir / "batch_condor.dag.dagman.out"
                 f += f"""
-if tail -n 1 '{dagman_out}' | grep -q -v "EXITING WITH STATUS"; then
-    echo "info: monitoring '{dagman_out}' for DAG exit status..."
-    ( tail -f -n 1 '{dagman_out}' & ) | grep -q "EXITING WITH STATUS"
-fi
-if tail -n 1 '{dagman_out}' | grep -q -v "EXITING WITH STATUS 0"; then
-    workstate=FAILED
-fi
-"""
+                if tail -n 1 '{dagman_out}' | grep -q -v "EXITING WITH STATUS"; then
+                    echo "info: monitoring '{dagman_out}' for DAG exit status..."
+                    ( tail -f -n 1 '{dagman_out}' & ) | grep -q "EXITING WITH STATUS"
+                fi
+                if tail -n 1 '{dagman_out}' | grep -q -v "EXITING WITH STATUS 0"; then
+                    workstate=FAILED
+                fi
+                """
 
                 # Check state of all jobs
                 # - write directories of failed jobs to file
@@ -327,15 +323,15 @@ fi
                 for job in jobs.values():
                     jobstate_file = job["dir"] / "job_state"
                     f += f"""
-jobstate=`cat '{jobstate_file}' 2>/dev/null || true`
-if test "X${{jobstate%%/*}}" != XSUCCESS; then
-    echo '{job['dir']}' >> '{failedjobfile}'
-    workstate=FAILED
-    if test "X${{jobstate}}" = XRUNNING; then
-        echo FAILED > '{jobstate_file}'
-    fi
-fi
-"""
+                    jobstate=`cat '{jobstate_file}' 2>/dev/null || true`
+                    if test "X${{jobstate%%/*}}" != XSUCCESS; then
+                        echo '{job['dir']}' >> '{failedjobfile}'
+                        workstate=FAILED
+                        if test "X${{jobstate}}" = XRUNNING; then
+                            echo FAILED > '{jobstate_file}'
+                        fi
+                    fi
+                    """
 
                 # Write workflow state
                 f += f"""echo "${{workstate}}" > '{workstatefile}'"""
@@ -384,69 +380,69 @@ fi
         # Shell function to submit workflows in `basebatchdir` with IDs in $@
         # - If HTCondor DAG has already been run successfully, recreate workflow state
         submit = f"""
-submit() {{
-    local ID=
-    for ID in $@; do
-        cd "{basebatchdir}/${{ID}}"
-        local dagman_out="./batch_condor.dag.dagman.out"
-        local rescue_dags=`shopt -s nullglob; echo ./batch_condor.dag.rescue*`
-        if test -f "${{dagman_out}}" && test "X${{rescue_dags}}" = X; then
-            /bin/bash ./batch_workstate.sh
-        else
-            condor_submit_dag -AlwaysRunPost -batch-name "{workflowname}_${{ID}}" ./batch_condor.dag >/dev/null
-        fi
-    done
-}}
-"""
+        submit() {{
+            local ID=
+            for ID in $@; do
+                cd "{basebatchdir}/${{ID}}"
+                local dagman_out="./batch_condor.dag.dagman.out"
+                local rescue_dags=`shopt -s nullglob; echo ./batch_condor.dag.rescue*`
+                if test -f "${{dagman_out}}" && test "X${{rescue_dags}}" = X; then
+                    /bin/bash ./batch_workstate.sh
+                else
+                    condor_submit_dag -AlwaysRunPost -batch-name "{workflowname}_${{ID}}" ./batch_condor.dag >/dev/null
+                fi
+            done
+        }}
+        """
 
         # Shell function to display all queued jobs from workflows in `basebatchdir` with IDs in $@
         queue = f"""
-queue() {{
-    local constraint=
-    local dagman_outs=
-    local ID=
-    for ID in $@; do
-        if test "X${{constraint}}" != X; then
-            constraint="${{constraint}} || "
-        fi
-        constraint="${{constraint}}JobBatchName == \\\"{workflowname}_${{ID}}\\\""
-        local dagman_out="{basebatchdir}/${{ID}}/batch_condor.dag.dagman.out"
-        if test -f "${{dagman_out}}"; then
-            dagman_outs="${{dagman_outs}} ${{dagman_out}}"
-        fi
-    done
-    constraint="( DAGManJobId != 0 ) && ( ${{constraint}} )"
-    condor_q -constraint "${{constraint}}"
-    if test "X${{dagman_outs}}" != X; then
-        local awk_script='{{ print }}'
-        if test -t; then
-            local cols=`tput cols 2>/dev/null || echo 96`
-            awk_script="BEGIN {{ C = ${{cols}} - 24 }} "'{{ if (length($0) > C) {{ print substr($0, 0, C), "..." }} else {{ print }} }}'
-        fi
-        tail -v -n 5 ${{dagman_outs}} | awk "${{awk_script}}"
-    fi
-}}
-"""
+        queue() {{
+            local constraint=
+            local dagman_outs=
+            local ID=
+            for ID in $@; do
+                if test "X${{constraint}}" != X; then
+                    constraint="${{constraint}} || "
+                fi
+                constraint="${{constraint}}JobBatchName == \\\"{workflowname}_${{ID}}\\\""
+                local dagman_out="{basebatchdir}/${{ID}}/batch_condor.dag.dagman.out"
+                if test -f "${{dagman_out}}"; then
+                    dagman_outs="${{dagman_outs}} ${{dagman_out}}"
+                fi
+            done
+            constraint="( DAGManJobId != 0 ) && ( ${{constraint}} )"
+            condor_q -constraint "${{constraint}}"
+            if test "X${{dagman_outs}}" != X; then
+                local awk_script='{{ print }}'
+                if test -t; then
+                    local cols=`tput cols 2>/dev/null || echo 96`
+                    awk_script="BEGIN {{ C = ${{cols}} - 24 }} "'{{ if (length($0) > C) {{ print substr($0, 0, C), "..." }} else {{ print }} }}'
+                fi
+                tail -v -n 5 ${{dagman_outs}} | awk "${{awk_script}}"
+            fi
+        }}
+        """
 
         # Shell function to cancel all jobs from from workflows in `basebatchdir` with IDs in $@
         cancel = f"""
-cancel() {{
-    local constraint=
-    local ID=
-    for ID in $@; do
-        local dagman_out="{basebatchdir}/${{ID}}/batch_condor.dag.dagman.out"
-        if grep -q -v "Event: ULOG_SUBMIT" "${{dagman_out}}"; then
-            echo "info: monitoring '${{dagman_out}}' for job submit events..."
-            ( tail -f -n 10 "${{dagman_out}}" & ) | grep -q "Event: ULOG_SUBMIT"
-        fi
-        if test "X${{constraint}}" != X; then
-            constraint="${{constraint}} || "
-        fi
-        constraint="${{constraint}}JobBatchName == \\\"{workflowname}_${{ID}}\\\""
-    done
-    constraint="( DAGManJobId != 0 ) && ( ${{constraint}} )"
-    condor_rm -constraint "${{constraint}}"
-}}
-"""
+        cancel() {{
+            local constraint=
+            local ID=
+            for ID in $@; do
+                local dagman_out="{basebatchdir}/${{ID}}/batch_condor.dag.dagman.out"
+                if grep -q -v "Event: ULOG_SUBMIT" "${{dagman_out}}"; then
+                    echo "info: monitoring '${{dagman_out}}' for job submit events..."
+                    ( tail -f -n 10 "${{dagman_out}}" & ) | grep -q "Event: ULOG_SUBMIT"
+                fi
+                if test "X${{constraint}}" != X; then
+                    constraint="${{constraint}} || "
+                fi
+                constraint="${{constraint}}JobBatchName == \\\"{workflowname}_${{ID}}\\\""
+            done
+            constraint="( DAGManJobId != 0 ) && ( ${{constraint}} )"
+            condor_rm -constraint "${{constraint}}"
+        }}
+        """
 
         return submit, queue, cancel

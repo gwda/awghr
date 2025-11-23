@@ -9,7 +9,9 @@ import re
 import stat
 import time
 from abc import ABC, abstractmethod
+from contextlib import contextmanager
 from pathlib import Path
+from textwrap import dedent
 from typing import Tuple
 
 from pint import UnitRegistry
@@ -152,17 +154,33 @@ class FileLineWriter:
         """Initialise file line writer."""
         self._filepath = filepath
         self._finalmode = (stat.S_IRUSR | stat.S_IXUSR) if executable else stat.S_IRUSR
+        self._prefix = ""
 
     def __enter__(self):
+        """Open file."""
         if self._filepath.is_file():
             os.chmod(self._filepath, stat.S_IRUSR | stat.S_IWUSR)
         self._file = self._filepath.open("w")
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
+        """Close file."""
         del self._file
         os.chmod(self._filepath, self._finalmode)
 
-    def __iadd__(self, line: str):
-        print(str(line).strip("\n"), file=self._file)
+    @contextmanager
+    def indent(self, indent: int):
+        """Print lines with a given indentation."""
+        old_prefix = self._prefix
+        self._prefix = " " * indent
+        try:
+            yield
+        finally:
+            self._prefix = old_prefix
+
+    def __iadd__(self, lines: str):
+        """Print lines to file, stripping out common indentation."""
+        lines = dedent(str(lines)).strip("\n")
+        lines = "\n".join(self._prefix + line.rstrip() for line in lines.split("\n"))
+        print(lines, file=self._file)
         return self
