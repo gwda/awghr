@@ -55,7 +55,7 @@ class Workflow:
             Working directory where workflow will be written.
 
         batch_system (str):
-            The batch system of the computer cluster where the workflow is being generated.
+            Batch system of the computer cluster where the workflow is being generated.
 
         ID (str):
             A unique string representing the workflow.
