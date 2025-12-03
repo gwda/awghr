@@ -40,7 +40,8 @@ except WorkflowException:
 
 # Add job
 job_batchopt: Dict[str, Any] = dict(
-    htcondor=dict(sub=dict(condor_test_opt="anotherval"))
+    htcondor=dict(sub=dict(condor_test_opt="anotherval")),
+    slurm=dict(comment="a comment with spaces"),
 )
 job_args: Dict[str, Any] = dict(
     args=dict(index=0),

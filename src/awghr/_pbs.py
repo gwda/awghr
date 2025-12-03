@@ -30,6 +30,8 @@ class PBSWorkflowWriter(BatchQWorkflowWriter):
 
     BATCHQ_HEADER_NGPUS = "#PBS -l gpus={n}"
 
+    BATCHQ_HEADER_COMMENT = "# comment: {comment}"
+
     BATCHQ_JOB_ID = "PBS_JOBID"
 
     BATCHQ_JOB_ARRAY_ID_EXPR = "${PBS_JOBID}"

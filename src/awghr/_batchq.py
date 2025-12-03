@@ -41,6 +41,9 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
     # Job script header for requesting {n} GPUs
     BATCHQ_HEADER_NGPUS: str
 
+    # Job script header for an arbitrary comment
+    BATCHQ_HEADER_COMMENT: str
+
     # Name of environment variable which gives
     # the batch system ID of the current job
     BATCHQ_JOB_ID: str
@@ -204,6 +207,10 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
                 )
                 if job["ngpus"] > 0:
                     f += self.BATCHQ_HEADER_NGPUS.format(n=job["ngpus"])
+                if "comment" in job["batchopt"]:
+                    f += self.BATCHQ_HEADER_COMMENT.format(
+                        comment=job["batchopt"]["comment"]
+                    )
 
                 # Exit on any script errors
                 f += "set -e"
