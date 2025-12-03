@@ -18,7 +18,6 @@ class HTCondorWorkflowWriter(WorkflowWriter):
     # HTCondor-specific configuration keys
     KEYS: Dict[str, Any] = {
         "universe": "vanilla",
-        "account_user": "default",
         "submit_cmd_account": "accounting_group",
         "submit_cmd_account_user": "accounting_group_user",
         "submit_opt_list": [],
@@ -31,12 +30,6 @@ class HTCondorWorkflowWriter(WorkflowWriter):
 
         # Store default universe
         self.universe = batchsyscfg["universe"]
-
-        # Store default user name associated with account
-        if batchsyscfg["account_user"] == "default":
-            self.account_user = None
-        else:  # pragma: no cover
-            self.account_user = batchsyscfg["account_user"]
 
         # Store name of command used to add account and associated user to HTCondor submit file
         self.account_cmd = batchsyscfg["submit_cmd_account"]
@@ -53,9 +46,10 @@ class HTCondorWorkflowWriter(WorkflowWriter):
         sub = sub.copy()
 
         # Add accounting entries
+        if "@" in account:
+            account_user, account = account.split("@", maxsplit=1)
+            sub[self.account_user_cmd.upper()] = account_user
         sub[self.account_cmd.upper()] = account
-        if self.account_user is not None:  # pragma: no cover
-            sub[self.account_user_cmd.upper()] = self.account_user
 
         # Write submit file
         with FileLineWriter(sub_file) as f:

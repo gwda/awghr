@@ -22,13 +22,13 @@ logging.basicConfig(
 logger = logging.getLogger(Path(__file__).name)
 
 # Batch system specific accounts
-accounts = {"local": "local_account"}
+accounts = {"local": "user@local_account"}
 for batch_system in batch_system_names():
-    accounts[batch_system] = batch_system + "_account"
+    accounts[batch_system] = "user@" + batch_system + "_account"
 
 # Create workflow
 w = Workflow(name="add_job", account=accounts)
-assert w.account == w.batch_system + "_account"
+assert w.account == "user@" + w.batch_system + "_account"
 
 # Try creating a workflow with a non-existent base directory
 try:
