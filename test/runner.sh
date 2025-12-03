@@ -53,6 +53,7 @@ for TESTFILE in ${TESTFILES}; do
     workdir="${baseworkdir}/${TEST}"
     mkdir -p "${workdir}"
     cp "/testing/test/awghr.cfg" "${workdir}/.awghr.cfg"
+    sed '/^account *=/d' "${workdir}/.awghr.cfg" >"${workdir}/.awghr-no-account.cfg"
     (
         exec > >(trap "" INT TERM; sed "s/^/${TEST}: /")
         exec 2> >(trap "" INT TERM; sed "s/^/${TEST} ERROR: /" >&2)

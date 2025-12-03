@@ -32,6 +32,7 @@ _batch_systems: List[Tuple[str, str, str, type[WorkflowWriter]]] = [
 _general_cfg: Dict[str, Any] = {
     "account": None,
     "basedir": Path.cwd(),
+    "cluster": "local",
     "envlist": None,
 }
 

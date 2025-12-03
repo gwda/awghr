@@ -32,7 +32,7 @@ assert w.account == "user@" + w.batch_system + "_account"
 
 # Try creating a workflow with no account
 try:
-    os.environ["AWGHR_CFGFILE"] = os.devnull  # disable default configuration file
+    os.environ["AWGHR_CFGFILE"] = str(Path.cwd() / ".awghr-no-account.cfg")
     Workflow(name="dummy", account=None)
     msg = "should have raised a WorkflowException"
     raise AssertionError(msg)

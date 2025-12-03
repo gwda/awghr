@@ -47,15 +47,18 @@ class Workflow:
         name (str):
             Name of workflow.
 
-        account (str):
-            Account the workflow should be charged against.
-            If not given, use the default value retrieved from :literal:`~/.awghr.cfg`.
-
         workdir (Path):
             Working directory where workflow will be written.
 
+        cluster (str):
+            Configuration-defined name of the computer cluster where the workflow is being generated.
+
         batch_system (str):
             Batch system of the computer cluster where the workflow is being generated.
+
+        account (str):
+            Account the workflow should be charged against.
+            If not given, use the default value retrieved from :literal:`~/.awghr.cfg`.
 
         ID (str):
             A unique string representing the workflow.
@@ -99,9 +102,10 @@ class Workflow:
 
     # Attributes
     name: str
-    account: str
     workdir: Path
+    cluster: str
     batch_system: str
+    account: str
     ID: str = "0" * 16
 
     def __init__(
@@ -109,8 +113,8 @@ class Workflow:
         name: str,
         *,
         tags: Optional[List[str]] = None,
-        account: Optional[Union[str, Dict[str, str]]] = None,
         basedir: Optional[Path] = None,
+        account: Optional[Union[str, Dict[str, str]]] = None,
     ):
         """Create a new workflow.
 
@@ -121,6 +125,11 @@ class Workflow:
             tags (Optional[List[str]]):
                 List of tags, used to retrieve default arguments from :literal:`~/.awghr.cfg`.
 
+            basedir (Optional[Path]):
+                Base workflow directory; this workflow will be written to subdirectory.
+                If not given, use the default value retrieved from :literal:`~/.awghr.cfg`,
+                or else the current directory.
+
             account (Optional[Union[str, Dict[str, str]]]):
                 Account the workflow should be charged against.
                 If a dictionary, lists different accounts for different batch systems; the
@@ -128,11 +137,6 @@ class Workflow:
                 is used to select the correct account.
                 If not given, use the default value retrieved from :literal:`~/.awghr.cfg`;
                 if no default value is defined, an error is raised.
-
-            basedir (Optional[Path]):
-                Base workflow directory; this workflow will be written to subdirectory.
-                If not given, use the default value retrieved from :literal:`~/.awghr.cfg`,
-                or else the current directory.
         """
 
         # Read configuration
@@ -149,8 +153,11 @@ class Workflow:
             raise WorkflowException(msg)
 
         # Set name and working directory
-        self.workdir = basedir / name
         self.name = name
+        self.workdir = basedir / self.name
+
+        # Set name of cluster
+        self.cluster = cfg["cluster"].lower()
 
         # Set batch system
         self.batch_system = cfg["batch_system"]
