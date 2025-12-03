@@ -77,12 +77,18 @@ autodoc_typehints = "description"
 [tool.ppqs.defaults]
 print-header = true
 
-[tool.ppqs.scripts.init]
-description = "Initialise project"
+[tool.ppqs.scripts.init-no-docker]
+description = "Initialise project (without Docker setup)"
 script = """
 python -m pip install -r requirements-dev.txt
 pre-commit install
 python -m pip install -e .
+"""
+
+[tool.ppqs.scripts.init]
+description = "Initialise project (including Docker setup)"
+script = """
+ppqs init-no-docker
 ppqs docker init
 """
 
