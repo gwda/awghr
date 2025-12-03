@@ -20,7 +20,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(Path(__file__).name)
 
-w = Workflow(name="simple")
+w = Workflow(name="simple", account="default")
 
 infile = Path.cwd() / "prefix.txt"
 infile.write_text("XYZ")

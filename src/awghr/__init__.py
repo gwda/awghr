@@ -47,8 +47,8 @@ class Workflow:
         name (str):
             Name of workflow.
 
-        account (Optional[str]):
-            Accounting tag the workflow should be charged against.
+        account (str):
+            Account the workflow should be charged against.
             If not given, use the default value retrieved from :literal:`~/.awghr.cfg`.
 
         workdir (Path):
@@ -99,7 +99,7 @@ class Workflow:
 
     # Attributes
     name: str
-    account: Optional[str]
+    account: str
     workdir: Path
     batch_system: str
     ID: str = "0" * 16
@@ -109,7 +109,7 @@ class Workflow:
         name: str,
         *,
         tags: Optional[List[str]] = None,
-        account: Optional[str] = None,
+        account: Optional[Union[str, Dict[str, str]]] = None,
         basedir: Optional[Path] = None,
     ):
         """Create a new workflow.
@@ -121,8 +121,11 @@ class Workflow:
             tags (Optional[List[str]]):
                 List of tags, used to retrieve default arguments from :literal:`~/.awghr.cfg`.
 
-            account (Optional[str]):
-                Accounting tag the workflow should be charged against.
+            account (Optional[Union[str, Dict[str, str]]]):
+                Account the workflow should be charged against.
+                If a dictionary, lists different accounts for different batch systems; the
+                batch system of the computer cluster where the workflow is being generated
+                is used to select the correct account.
                 If not given, use the default value retrieved from :literal:`~/.awghr.cfg`.
 
             basedir (Optional[Path]):
@@ -135,24 +138,29 @@ class Workflow:
         _logger.info("reading configuration")
         cfg = read_config(tags=tags)
 
-        # Get default values
-        if account is None:
-            account = cfg["account"]
+        # Check base directory
         if basedir is None:
             basedir = cfg["basedir"]
-
-        # Check input values
         try:
             basedir = basedir.resolve(strict=True)
         except (FileNotFoundError, RuntimeError):
             msg = f"base directory '{basedir}' is not a directory"
             raise WorkflowException(msg)
 
-        # Set attributes
+        # Set name and working directory
         self.workdir = basedir / name
         self.name = name
-        self.account = account
+
+        # Set batch system
         self.batch_system = cfg["batch_system"]
+
+        # Set account
+        if isinstance(account, dict):
+            self.account = account[self.batch_system]
+        elif account is None:
+            self.account = cfg["account"]
+        else:
+            self.account = account
 
         # Set internal variables
         self._workflow_writer = cfg["workflow_writer"](

@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 from awghr import Workflow, WorkflowException
+from awghr._config import batch_system_names
 
 # Set up logging
 logging.basicConfig(
@@ -20,8 +21,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(Path(__file__).name)
 
+# Batch system specific accounts
+accounts = {"local": "local_account"}
+for batch_system in batch_system_names():
+    accounts[batch_system] = batch_system + "_account"
+
 # Create workflow
-w = Workflow(name="add_job")
+w = Workflow(name="add_job", account=accounts)
+assert w.account == w.batch_system + "_account"
 
 # Try creating a workflow with a non-existent base directory
 try:
