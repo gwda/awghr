@@ -73,22 +73,6 @@ try:
 except WorkflowException:
     pass
 
-# Try to add a job with non-existent executable
-try:
-    w.add_job(
-        args=dict(index=999),
-        cmds=["./does-not-exist"],
-        time=(1, "min"),
-        mem=(10, "MB"),
-        disk=(10, "MB"),
-        outputs=["dummy.txt"],
-        batchopt=job_batchopt,
-    )
-    msg = "should have raised a WorkflowException"
-    raise AssertionError(msg)
-except WorkflowException:
-    pass
-
 # Try to add a job with non-unique inputs
 try:
     w.add_job(

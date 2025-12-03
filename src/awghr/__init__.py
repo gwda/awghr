@@ -14,7 +14,6 @@ import shutil
 import sys
 from hashlib import blake2b
 from pathlib import Path
-from shutil import which
 from textwrap import dedent
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
@@ -416,16 +415,10 @@ class Workflow:
                 # Split into executable and arguments
                 cmd_split = shlex.split(cmd)
 
-                # Determine full path to executables
-                exec_str = which(cmd_split[0])
-                if exec_str is None:
-                    msg = f"executable '{cmd_split[0]}' cannot be found"
-                    raise WorkflowException(msg)
-                exec_path = Path(exec_str)
+                # Use local path to executable if it is staged
+                exec_path = Path(cmd_split[0])
                 if exec_path in job["infiles"]:
                     cmd_split[0] = "./" + exec_path.name
-                else:
-                    cmd_split[0] = str(exec_path)
 
                 # Rejoin executable and arguments
                 cmd = " ".join(
