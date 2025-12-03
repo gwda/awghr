@@ -32,7 +32,7 @@ _batch_systems: List[Tuple[str, str, str, type[WorkflowWriter]]] = [
 _general_cfg: Dict[str, Any] = {
     "account": None,
     "basedir": Path.cwd(),
-    "envlist": "",
+    "envlist": None,
 }
 
 # Override host name for tests in test_02_config.py
@@ -57,7 +57,9 @@ def read_config(
     # Determine batch system
     batch_keys = {}
     for batch_system, _, batch_exec, workflow_writer in _batch_systems:
-        if which(batch_exec) is not None or batch_system == select_batch_system:
+        if which(batch_exec) is not None and (
+            select_batch_system is None or select_batch_system == batch_system
+        ):
             if "batch_system" not in cfg:
                 cfg["batch_system"] = batch_system
                 cfg["workflow_writer"] = workflow_writer
@@ -73,17 +75,15 @@ def read_config(
                 msg = f"both '{cfg['batch_system']}' and '{batch_system}' batch systems appear to be present"
                 raise ConfigException(msg)
     if "batch_system" not in cfg:
-        if select_batch_system is not None and select_batch_system != "local":
-            msg = f"batch system '{select_batch_system}' not found"
-            raise ConfigException(msg)
-        else:
+        if select_batch_system is None or select_batch_system == "local":
 
             # If not batch system present, use local workflow writer
             cfg["batch_system"] = "local"
             cfg["workflow_writer"] = LocalWorkflowWriter
 
-            # Default configuration for local workflow
-            cfg["account"] = "local"
+        else:
+            msg = f"batch system '{select_batch_system}' not found"
+            raise ConfigException(msg)
 
     # Read configuration
     parser = ConfigParser()
@@ -199,9 +199,9 @@ def read_config(
                 elif key.endswith("dir"):
                     val = Path(parser[section][key])
                     try:
-                        val = val.expanduser().resolve(strict=True)
+                        val = val.expanduser().resolve(strict=False)
                     except (FileNotFoundError, RuntimeError):
-                        msg = f"section key value '[{section}].{key}'='{val}' is not a directory"
+                        msg = f"section key value '[{section}].{key}'='{val}' is not a valid path"
                         raise ConfigException(msg)
                     key_cfg[key] = val
 
@@ -217,13 +217,12 @@ def read_config(
                     val = parser[section][key]
                     key_cfg[key] = val
 
-    # Check all keys are present
+    # Use default configuration values
     for key in _general_cfg:
         if key not in cfg:
             cfg[key] = _general_cfg[key]
-            if cfg[key] is None:
-                msg = f"configuration key '{key}' is undefined"
-                raise ConfigException(msg)
+
+    # Check that batch system-specific keys are present
     for key in batch_keys:
         if key not in batch_system_cfg:
             batch_system_cfg[key] = batch_keys[key]
@@ -244,7 +243,8 @@ def show_config(args):
     def print_aligned(d):
         m = max(len(k) for k in d.keys())
         for k, v in sorted(d.items()):
-            print(f"    {k:<{m}} : {v}")
+            vs = "<undefined>" if v is None else str(v)
+            print(f"    {k:<{m}} : {vs}")
 
     # Read configuration
     cfg = read_config(tags=args.tags, select_batch_system=args.batch)

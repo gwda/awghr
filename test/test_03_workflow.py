@@ -30,6 +30,17 @@ for batch_system in batch_system_names():
 w = Workflow(name="add_job", account=accounts)
 assert w.account == "user@" + w.batch_system + "_account"
 
+# Try creating a workflow with no account
+try:
+    os.environ["AWGHR_CFGFILE"] = os.devnull  # disable default configuration file
+    Workflow(name="dummy", account=None)
+    msg = "should have raised a WorkflowException"
+    raise AssertionError(msg)
+except WorkflowException:
+    pass
+finally:
+    del os.environ["AWGHR_CFGFILE"]
+
 # Try creating a workflow with a non-existent base directory
 try:
     Workflow(name="dummy", basedir=Path("/nonexistent"))

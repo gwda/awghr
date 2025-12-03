@@ -28,13 +28,15 @@ def test(f):
 @test
 def multiple_batch_system():
     try:
-        _batch_systems.append(("dummy", "dummy", "bash", None))
+        _batch_systems.append(("dummy1", "dummy", "true", None))
+        _batch_systems.append(("dummy2", "dummy", "false", None))
         read_config("")
         msg = "should have raised a ConfigException"
         raise AssertionError(msg)
     except ConfigException:
         pass
     finally:
+        del _batch_systems[-1]
         del _batch_systems[-1]
 
 
@@ -79,25 +81,6 @@ account = acct
         raise AssertionError(msg)
     except ConfigException:
         pass
-
-
-@test
-def missing_required_key():
-    try:
-        _general_cfg = awghr._config._general_cfg
-        awghr._config._general_cfg = {"required": None}
-        src = default_src
-        src += """
-[DEFAULT]
-# no `required` key
-"""
-        read_config(src)
-        msg = "should have raised a ConfigException"
-        raise AssertionError(msg)
-    except ConfigException:
-        pass
-    finally:
-        awghr._config._general_cfg = _general_cfg
 
 
 @test
@@ -218,7 +201,22 @@ srcdir = {Path.cwd()}
         awghr._config._general_cfg = {"srcdir": None}
         src = """
 [DEFAULT]
-srcdir = /nonexistent
+srcdir = /nonexistent/path1/../path2
+"""
+        cfg = read_config(src)
+        assert cfg["srcdir"] == Path("/nonexistent") / "path2"
+    finally:
+        awghr._config._batch_systems = _batch_systems
+        awghr._config._general_cfg = _general_cfg
+
+    try:
+        _batch_systems = awghr._config._batch_systems
+        awghr._config._batch_systems = [("dummy", "dummy", "true", None)]
+        _general_cfg = awghr._config._general_cfg
+        awghr._config._general_cfg = {"srcdir": None}
+        src = """
+[DEFAULT]
+srcdir = ~~
 """
         cfg = read_config(src)
         msg = "should have raised a ConfigException"

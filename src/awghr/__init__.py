@@ -126,7 +126,8 @@ class Workflow:
                 If a dictionary, lists different accounts for different batch systems; the
                 batch system of the computer cluster where the workflow is being generated
                 is used to select the correct account.
-                If not given, use the default value retrieved from :literal:`~/.awghr.cfg`.
+                If not given, use the default value retrieved from :literal:`~/.awghr.cfg`;
+                if no default value is defined, an error is raised.
 
             basedir (Optional[Path]):
                 Base workflow directory; this workflow will be written to subdirectory.
@@ -161,6 +162,9 @@ class Workflow:
             self.account = cfg["account"]
         else:
             self.account = account
+        if self.account is None:
+            msg = "no account has been defined"
+            raise WorkflowException(msg)
 
         # Set internal variables
         self._workflow_writer = cfg["workflow_writer"](
@@ -174,15 +178,16 @@ class Workflow:
 
         # Process environment variables
         self._env = {}
-        for env in cfg["envlist"]:
-            if "=" not in env:
-                for var in os.environ:
-                    if re.fullmatch(env, var) is not None:
-                        self._env[var] = os.environ[var]
-        for env in cfg["envlist"]:
-            if "=" in env:
-                var, val = (s.strip() for s in env.split("=", maxsplit=1))
-                self._env[var] = val
+        if cfg["envlist"] is not None:
+            for env in cfg["envlist"]:
+                if "=" not in env:
+                    for var in os.environ:
+                        if re.fullmatch(env, var) is not None:
+                            self._env[var] = os.environ[var]
+            for env in cfg["envlist"]:
+                if "=" in env:
+                    var, val = (s.strip() for s in env.split("=", maxsplit=1))
+                    self._env[var] = val
 
         # Log details
         _logger.info("workflow name: %s", self.name)
