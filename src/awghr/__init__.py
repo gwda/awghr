@@ -238,11 +238,15 @@ class Workflow:
 
                 * the dictionary supplied in ``args``;
                 * ``_in``: input file(s) supplied in ``inputs``, separated by spaces.
-                * ``_in[re]``: the input file(s) supplied in ``inputs`` that
-                  match the regular expression ``re``, separated by spaces.
+                * ``_in[re:sep]``: the input file(s) supplied in ``inputs`` that
+                  match the regular expression ``re``, separated by ``sep``.
+                  Both arguments are optional.
+                  Example: ``_in[\.dat$:,]`` returns file(s) with ``.dat`` extensions,
+                  separated by commas.
                 * ``_out``: output file(s) supplied in ``outputs``, separated by spaces.
-                * ``_out[re]``: the output file(s) supplied in ``outputs`` that
-                  match the regular expression ``re``, separated by spaces.
+                * ``_out[re:sep]``: the output file(s) supplied in ``outputs`` that
+                  match the regular expression ``re``, separated by ``sep``.
+                  See ``_in[...]``.
                 * ``_time_min``: requested wall time in minutes.
                 * ``_mem_MB``: requested memory in MB.
                 * ``_disk_MB``: requested temporary disk space in MB.

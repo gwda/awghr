@@ -41,7 +41,7 @@ for i in range(10):
             echo ${{TESTVAR}}2 >&2
             echo ${{TESTVAR}}3 >&2
             echo xyz >&2
-            echo `cat {_in[prefix]}`{index} > out_{index}.txt
+            echo `cat {_in[prefix: ]}`{index} > out_{index}.txt
             """
         ],
         time=(1, "min"),
