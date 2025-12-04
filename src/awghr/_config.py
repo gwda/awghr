@@ -23,6 +23,9 @@ from ._util import ConfigException, WorkflowWriter
 # - characteristic executable used to identify batch system
 # - function which writes workflow specific to batch system
 _batch_systems: List[Tuple[str, str, str, type[WorkflowWriter]]] = [
+    # Local workflow writer must appear first
+    ("local", "Run workflow on local computer", "bash", LocalWorkflowWriter),
+    # Other batch systems
     ("htcondor", "HTCondor", "condor_q", HTCondorWorkflowWriter),
     ("pbs", "Portable Batch System and its derivatives", "qmgr", PBSWorkflowWriter),
     ("slurm", "Slurm Workload Manager", "scontrol", SlurmWorkflowWriter),
@@ -61,7 +64,8 @@ def read_config(
         if which(batch_exec) is not None and (
             select_batch_system is None or select_batch_system == batch_system
         ):
-            if "batch_system" not in cfg:
+            # Local workflow writer may be overridden by other batch systems
+            if "batch_system" not in cfg or cfg["batch_system"] == "local":
                 cfg["batch_system"] = batch_system
                 cfg["workflow_writer"] = workflow_writer
                 if workflow_writer is not None:
@@ -76,15 +80,8 @@ def read_config(
                 msg = f"both '{cfg['batch_system']}' and '{batch_system}' batch systems appear to be present"
                 raise ConfigException(msg)
     if "batch_system" not in cfg:
-        if select_batch_system is None or select_batch_system == "local":
-
-            # If not batch system present, use local workflow writer
-            cfg["batch_system"] = "local"
-            cfg["workflow_writer"] = LocalWorkflowWriter
-
-        else:
-            msg = f"batch system '{select_batch_system}' not found"
-            raise ConfigException(msg)
+        msg = f"batch system '{select_batch_system}' not found"
+        raise ConfigException(msg)
 
     # Read configuration
     parser = ConfigParser()
