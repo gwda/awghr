@@ -434,7 +434,34 @@ def parsing_tag_target():
 
 
 @test
-def check_batch_system_keys():
+def cluster_name():
+    src = default_src
+    src += dedent(
+        """
+        [DEFAULT]
+        cluster = mycluster
+        """
+    )
+    cfg = read_config(src)
+    assert cfg["cluster"] == "mycluster"
+
+    try:
+        src = default_src
+        src += dedent(
+            """
+            [DEFAULT]
+            cluster = invalid-chars
+            """
+        )
+        read_config(src)
+        msg = "should have raised a ConfigException"
+        raise AssertionError(msg)
+    except ConfigException:
+        pass
+
+
+@test
+def batch_system_keys():
     class DummyWorkflowWriter:
         KEYS = {"test": "def"}
 
@@ -446,7 +473,7 @@ def check_batch_system_keys():
             [DEFAULT]
             account = acct
 
-            [check_batch_system_keys]
+            [batch_system_keys]
             match batch = dummy
             test = abc
             """
@@ -494,5 +521,5 @@ def check_batch_system_keys():
 
 
 @test
-def show():
+def show_config():
     cli("config")

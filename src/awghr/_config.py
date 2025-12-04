@@ -5,6 +5,7 @@
 """Workflow configuration."""
 
 import os
+import re
 from configparser import ConfigParser
 from pathlib import Path
 from shutil import which
@@ -38,6 +39,9 @@ _general_cfg: Dict[str, Any] = {
     "cluster": "local",
     "envlist": None,
 }
+
+# Valid characters which general configuration values may contain
+_general_cfg_valid_chars: Dict[str, str] = {"cluster": "a-z"}
 
 # Override host name for tests in test_02_config.py
 _override_host = None
@@ -154,12 +158,58 @@ def read_config(
                     msg = f"unknown section target '{target}'"
                     raise ConfigException(msg)
 
+        # Read non-`match` keys from configuration
+        key_cfg = {}
+        for key in parser[section]:
+            if key.startswith("match "):
+                continue
+
+            # Parse value of key and assign to dictionary
+            val: Any
+            if key.endswith("?"):
+                try:
+                    val = parser.getboolean(section, key)
+                except ValueError:
+                    val = parser[section][key]
+                    msg = f"section key value '[{section}].{key}'='{val}' is not a valid boolean"
+                    raise ConfigException(msg)
+                key_cfg[key] = val
+
+            elif key.startswith("n_"):
+                try:
+                    val = parser.getint(section, key)
+                except ValueError:
+                    val = parser[section][key]
+                    msg = f"section key value '[{section}].{key}'='{val}' is not a valid integer"
+                    raise ConfigException(msg)
+                key_cfg[key] = val
+
+            elif key.endswith("dir"):
+                val = Path(parser[section][key])
+                try:
+                    val = val.expanduser().resolve(strict=False)
+                except (FileNotFoundError, RuntimeError):
+                    msg = f"section key value '[{section}].{key}'='{val}' is not a valid path"
+                    raise ConfigException(msg)
+                key_cfg[key] = val
+
+            elif key.endswith("list"):
+                val = parser[section][key].strip().split("\n")
+                key_cfg[key] = val
+
+            else:
+                val = str(parser[section][key])
+                if key in _general_cfg_valid_chars:
+                    valid_chars = _general_cfg_valid_chars[key]
+                    invalid_char_regex = r"[^" + valid_chars + r"]"
+                    if re.search(invalid_char_regex, val):
+                        msg = f"section key value '[{section}].{key}'='{val}' may only characters '{valid_chars}'"
+                        raise ConfigException(msg)
+                key_cfg[key] = val
+
         if use_section:
 
-            # Read non-`match` keys from configuration
-            for key in parser[section]:
-                if key.startswith("match "):
-                    continue
+            for key, val in key_cfg.items():
 
                 # Check for valid key
                 if key not in _general_cfg and (
@@ -170,50 +220,22 @@ def read_config(
 
                 # Decide which dictionary to add key to
                 if key in _general_cfg:
-                    key_cfg = cfg
+                    add_to_cfg = cfg
                 else:
-                    key_cfg = batch_system_cfg
+                    add_to_cfg = batch_system_cfg
+                add_to_val = add_to_cfg.get(key, None)
+                if isinstance(add_to_val, list):
 
-                # Parse value of key and assign to dictionary
-                val: Any
-                if key.endswith("?"):
-                    try:
-                        val = parser.getboolean(section, key)
-                    except ValueError:
-                        val = parser[section][key]
-                        msg = f"section key value '[{section}].{key}'='{val}' is not a valid boolean"
-                        raise ConfigException(msg)
-                    key_cfg[key] = val
-
-                elif key.startswith("n_"):
-                    try:
-                        val = parser.getint(section, key)
-                    except ValueError:
-                        val = parser[section][key]
-                        msg = f"section key value '[{section}].{key}'='{val}' is not a valid integer"
-                        raise ConfigException(msg)
-                    key_cfg[key] = val
-
-                elif key.endswith("dir"):
-                    val = Path(parser[section][key])
-                    try:
-                        val = val.expanduser().resolve(strict=False)
-                    except (FileNotFoundError, RuntimeError):
-                        msg = f"section key value '[{section}].{key}'='{val}' is not a valid path"
-                        raise ConfigException(msg)
-                    key_cfg[key] = val
-
-                elif key.endswith("list"):
-                    val = parser[section][key].strip().split("\n")
-                    vals = key_cfg.get(key, [])
+                    # Append values to existing list
                     for v in val:
-                        if v not in vals:
-                            vals.append(v)
-                    key_cfg[key] = vals
+                        if v not in add_to_val:
+                            add_to_val.append(v)
+                    add_to_cfg[key] = add_to_val
 
                 else:
-                    val = parser[section][key]
-                    key_cfg[key] = val
+
+                    # Store scalar value
+                    add_to_cfg[key] = val
 
     # Use default configuration values
     for key in _general_cfg:
