@@ -459,6 +459,20 @@ def cluster_name():
     except ConfigException:
         pass
 
+    try:
+        src = default_src
+        src += dedent(
+            """
+            [DEFAULT]
+            cluster = local
+            """
+        )
+        read_config(src)
+        msg = "should have raised a ConfigException"
+        raise AssertionError(msg)
+    except ConfigException:
+        pass
+
 
 @test
 def batch_system_keys():

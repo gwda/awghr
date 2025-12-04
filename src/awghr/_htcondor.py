@@ -250,9 +250,9 @@ class HTCondorWorkflowWriter(WorkflowWriter):
 
                 # - Extra HTCondor job submit file options
                 submit_opt = self.default_submit_opt.copy()
-                if "sub" in job["batchopt"]:
-                    for opt, val in job["batchopt"]["sub"].items():
-                        submit_opt[opt.upper()] = val
+                for opt, val in job["batchopt"].items():
+                    if opt[:4] == "sub:":
+                        submit_opt[opt[4:].upper()] = val
                 for opt, val in submit_opt.items():
                     if opt in sub:
                         msg = f"job submit file option '{opt}' is already defined"

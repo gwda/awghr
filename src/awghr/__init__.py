@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from pint import Quantity
 
-from ._config import batch_system_names, read_config
+from ._config import batch_system_names, cluster_names, read_config
 from ._util import (
     FileLineWriter,
     JobFileList,
@@ -51,14 +51,16 @@ class Workflow:
             Working directory where workflow will be written.
 
         cluster (str):
-            Configuration-defined name of the computer cluster where the workflow is being generated.
+            Name of the computer cluster where the workflow is being generated.
+            Cluster names are defined by the user by matching against batch system,
+            host name, etc. in a configuration section in :literal:`~/.awghr.cfg`.
 
         batch_system (str):
             Batch system of the computer cluster where the workflow is being generated.
 
         account (str):
             Account the workflow should be charged against.
-            If not given, use the default value retrieved from :literal:`~/.awghr.cfg`.
+            If not given, use the default value given in :literal:`~/.awghr.cfg`.
 
         ID (str):
             A unique string representing the workflow.
@@ -88,6 +90,7 @@ class Workflow:
             match host = .example.com
             match host = login1
             match host = login
+            cluster = cluster1
             ...
 
             [batch matching]    # This section matches a given batch system
@@ -127,7 +130,7 @@ class Workflow:
 
             basedir (Optional[Path]):
                 Base workflow directory; this workflow will be written to subdirectory.
-                If not given, use the default value retrieved from :literal:`~/.awghr.cfg`,
+                If not given, use the default value given in :literal:`~/.awghr.cfg`,
                 or else the current directory.
 
             account (Optional[Union[str, Dict[str, str]]]):
@@ -135,7 +138,7 @@ class Workflow:
                 If a dictionary, lists different accounts for different batch systems; the
                 batch system of the computer cluster where the workflow is being generated
                 is used to select the correct account.
-                If not given, use the default value retrieved from :literal:`~/.awghr.cfg`;
+                If not given, use the default value given in :literal:`~/.awghr.cfg`;
                 if no default value is defined, an error is raised.
         """
 
@@ -157,7 +160,7 @@ class Workflow:
         self.workdir = basedir / self.name
 
         # Set name of cluster
-        self.cluster = cfg["cluster"].lower()
+        self.cluster = cfg["cluster"]
 
         # Set batch system
         self.batch_system = cfg["batch_system"]
@@ -215,7 +218,7 @@ class Workflow:
         needs: Optional[List[str]] = None,
         inputs: Optional[List[Union[Path, Tuple[str, str]]]] = None,
         outputs: List[str],
-        batchopt: Optional[Dict[str, Any]] = None,
+        batchopt: Optional[Dict[str, Dict[str, Any]]] = None,
         final: Optional[bool] = None,
     ) -> str:
         """Add a new job to the workflow.
@@ -295,16 +298,21 @@ class Workflow:
 
                 Output files will be staged out of the working directory of the job.
 
-            batchopt (Optional[Dict[str, Any]]):
+            batchopt (Optional[Dict[str, Dict[str, Any]]]):
                 Batch system-specific configuration options.
-                These options are given as nested dictionaries.
-                The key of the first dictionary is the batch system the option applies to;
-                its value is a dictionary of options for the given batch system.
+                These options are given as nested dictionaries:
 
-                The batch system of the computer cluster where the workflow is
-                being generated is determined automatically. Only options given
-                for this batch system are used; other options are silently
-                ignored.
+                * The key of the first dictionary is the cluster name and/or batch
+                  system the option applies to. The cluster name is defined by the
+                  user in :literal:`~/.awghr.cfg`; the batch system is determined
+                  automatically from of the computer cluster where the workflow is
+                  being generated. If both a cluster name and batch system are
+                  required, they are given (in any order) separated by an underscore.
+
+                * The value of the dictionary is itself a dictionary of options
+                  for the given cluster/batch system. Only options given for
+                  this cluster/batch system combination are used; other options
+                  are silently ignored.
 
             final (Optional[bool]):
                 If true, output files from this job will be copied to the final
@@ -313,6 +321,7 @@ class Workflow:
 
         Returns:
             str: a unique string representing the job.
+
         """
 
         # Check argument names
@@ -454,18 +463,21 @@ class Workflow:
         # Add batch system-specific options
         job["batchopt"] = {}
         if batchopt:
-            unknown_batch_systems = [
-                batch_system
-                for batch_system in batchopt
-                if batch_system not in batch_system_names()
-            ]
-            if unknown_batch_systems:
-                msg = "unknown batch system(s) '{}'".format(
-                    "', '".join(unknown_batch_systems)
-                )
-                raise WorkflowException(msg)
-            if self.batch_system in batchopt:
-                job["batchopt"] = batchopt[self.batch_system]
+            for cluster_batch_system_str, cluster_batch_system_opts in batchopt.items():
+                cluster_batch_system = cluster_batch_system_str.split("_")
+                for s in cluster_batch_system:
+                    if s not in cluster_names and s not in batch_system_names():
+                        msg = f"'{s}' does not match either a cluster name or a batch system name"
+                        raise WorkflowException(msg)
+                if (
+                    self.cluster in cluster_batch_system
+                    or self.batch_system in cluster_batch_system
+                ):
+                    for opt, val in cluster_batch_system_opts.items():
+                        if opt in job["batchopt"]:
+                            msg = f"conflicting values for batch system-specific option '{opt}'"
+                            raise WorkflowException(msg)
+                    job["batchopt"][opt] = val
 
         # Add job to workflow
         self._jobs[job_ID] = job

@@ -51,8 +51,8 @@ except WorkflowException:
 
 # Add job
 job_batchopt: Dict[str, Any] = dict(
-    htcondor=dict(sub=dict(condor_test_opt="anotherval")),
-    slurm=dict(comment="a comment with spaces"),
+    htcondor={"sub:condor_test_opt": "anotherval"},
+    slurm={"comment": "a comment with spaces"},
 )
 job_args: Dict[str, Any] = dict(
     args=dict(index=0),
@@ -260,9 +260,29 @@ finally:
 
 # Batch system specific options
 
-if w.batch_system == "htcondor":  # HTCondor
+if w.batch_system == "htcondor":
+    logger.info("check batch system specific options: %s", w.batch_system)
 
-    # Try to add a job with a duplicate submit file option
+    # Try to add a job with duplicate batch system-specific options
+    try:
+        bad_job = w.add_job(
+            args=dict(index=999),
+            cmds=["true"],
+            time=(1, "min"),
+            mem=(10, "MB"),
+            disk=(10, "MB"),
+            outputs=["out_0.txt"],
+            batchopt=dict(
+                htcondor={"sub:condor_test_opt": "val1"},
+                htcondor_testing={"sub:condor_test_opt": "val2"},
+            ),
+        )
+        msg = "should have raised a WorkflowException"
+        raise AssertionError(msg)
+    except WorkflowException:
+        pass
+
+    # Try to add a job with a submit file option which is already defined
     try:
         bad_job = w.add_job(
             args=dict(index=999),
@@ -271,7 +291,7 @@ if w.batch_system == "htcondor":  # HTCondor
             mem=(10, "MB"),
             disk=(10, "MB"),
             outputs=["dummy.txt"],
-            batchopt=dict(htcondor=dict(sub=dict(executable="dummy"))),
+            batchopt=dict(htcondor={"sub:executable": "dummy"}),
         )
         w.write()
         msg = "should have raised a WorkflowException"
@@ -282,13 +302,14 @@ if w.batch_system == "htcondor":  # HTCondor
         del w._jobs[bad_job]
 
     # Check that submit file options are written out
-    for sub_opt, sub_val in job_batchopt["htcondor"]["sub"].items():
-        sub_opt_str = "{} = {}".format(sub_opt, sub_val).lower()
-        sub_opt_found = False
-        for root, dirs, files in os.walk(w.workdir):
-            for fname in files:
-                if fname == "job_condor.sub":
-                    for line in (Path(root) / fname).open("r"):
-                        if sub_opt_str in line.lower():
-                            sub_opt_found = True
-        assert sub_opt_found
+    for opt, val in job_batchopt["htcondor"].items():
+        if opt[:4] == "sub:":
+            sub_opt_str = "{} = {}".format(opt[4:], val).lower()
+            sub_opt_found = False
+            for root, dirs, files in os.walk(w.workdir):
+                for fname in files:
+                    if fname == "job_condor.sub":
+                        for line in (Path(root) / fname).open("r"):
+                            if sub_opt_str in line.lower():
+                                sub_opt_found = True
+            assert sub_opt_found

@@ -36,7 +36,7 @@ _batch_systems: List[Tuple[str, str, str, type[WorkflowWriter]]] = [
 _general_cfg: Dict[str, Any] = {
     "account": None,
     "basedir": Path.cwd(),
-    "cluster": "local",
+    "cluster": "default",
     "envlist": None,
 }
 
@@ -45,6 +45,9 @@ _general_cfg_valid_chars: Dict[str, str] = {"cluster": "a-z"}
 
 # Override host name for tests in test_02_config.py
 _override_host = None
+
+# List of all cluster names in configuration file
+cluster_names = set()
 
 
 def batch_system_names():
@@ -206,6 +209,14 @@ def read_config(
                         msg = f"section key value '[{section}].{key}'='{val}' may only characters '{valid_chars}'"
                         raise ConfigException(msg)
                 key_cfg[key] = val
+
+        # Store list of all cluster names in configuration file
+        if "cluster" in key_cfg:
+            cluster = key_cfg["cluster"]
+            if cluster in batch_system_names():
+                msg = f"cluster name '{cluster}' cannot be the name of a batch system"
+                raise ConfigException(msg)
+            cluster_names.add(cluster)
 
         if use_section:
 
