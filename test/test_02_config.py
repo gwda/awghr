@@ -5,6 +5,7 @@
 """Test workflow configuration."""
 
 from pathlib import Path
+from textwrap import dedent
 
 import awghr._config
 from awghr._cli import cli
@@ -59,10 +60,12 @@ def read_config_file():
 @test
 def default_section():
     src = default_src
-    src += """
-[DEFAULT]
-account = acct
-"""
+    src += dedent(
+        """
+        [DEFAULT]
+        account = acct
+        """
+    )
     cfg = read_config(src)
     assert cfg["account"] == "acct"
 
@@ -70,11 +73,13 @@ account = acct
 @test
 def invalid_section_target():
     src = default_src
-    src += """
-[invalid_section_target]
-match dummy = xyz
-account = acct
-"""
+    src += dedent(
+        """
+        [invalid_section_target]
+        match dummy = xyz
+        account = acct
+        """
+    )
     try:
         read_config(src)
         msg = "should have raised a ConfigException"
@@ -86,10 +91,12 @@ account = acct
 @test
 def invalid_section_key():
     src = default_src
-    src += """
-[DEFAULT]
-dummy = xyz
-"""
+    src += dedent(
+        """
+        [DEFAULT]
+        dummy = xyz
+        """
+    )
     try:
         read_config(src)
         msg = "should have raised a ConfigException"
@@ -105,11 +112,13 @@ def parsing_bool():
         awghr._config._batch_systems = [("dummy", "dummy", "true", None)]
         _general_cfg = awghr._config._general_cfg
         awghr._config._general_cfg = {"why?": None, "why not?": None, "could be?": True}
-        src = """
-[DEFAULT]
-why? = true
-why not? = no
-"""
+        src = dedent(
+            """
+            [DEFAULT]
+            why? = true
+            why not? = no
+            """
+        )
         cfg = read_config(src)
         assert cfg["why?"]
         assert not cfg["why not?"]
@@ -123,10 +132,12 @@ why not? = no
         awghr._config._batch_systems = [("dummy", "dummy", "true", None)]
         _general_cfg = awghr._config._general_cfg
         awghr._config._general_cfg = {"why?": None}
-        src = """
-[DEFAULT]
-why? = because
-"""
+        src = dedent(
+            """
+            [DEFAULT]
+            why? = because
+            """
+        )
         cfg = read_config(src)
         msg = "should have raised a ConfigException"
         raise AssertionError(msg)
@@ -144,11 +155,13 @@ def parsing_int():
         awghr._config._batch_systems = [("dummy", "dummy", "true", None)]
         _general_cfg = awghr._config._general_cfg
         awghr._config._general_cfg = {"n_letters": None, "n_words": None, "n_pages": 3}
-        src = """
-[DEFAULT]
-n_letters = 6
-n_words = 23
-"""
+        src = dedent(
+            """
+            [DEFAULT]
+            n_letters = 6
+            n_words = 23
+            """
+        )
         cfg = read_config(src)
         assert cfg["n_letters"] == 6
         assert cfg["n_words"] == 23
@@ -162,10 +175,12 @@ n_words = 23
         awghr._config._batch_systems = [("dummy", "dummy", "true", None)]
         _general_cfg = awghr._config._general_cfg
         awghr._config._general_cfg = {"n_letters": None}
-        src = """
-[DEFAULT]
-n_letters = abc
-"""
+        src = dedent(
+            """
+            [DEFAULT]
+            n_letters = abc
+            """
+        )
         cfg = read_config(src)
         msg = "should have raised a ConfigException"
         raise AssertionError(msg)
@@ -199,10 +214,12 @@ srcdir = {Path.cwd()}
         awghr._config._batch_systems = [("dummy", "dummy", "true", None)]
         _general_cfg = awghr._config._general_cfg
         awghr._config._general_cfg = {"srcdir": None}
-        src = """
-[DEFAULT]
-srcdir = /nonexistent/path1/../path2
-"""
+        src = dedent(
+            """
+            [DEFAULT]
+            srcdir = /nonexistent/path1/../path2
+            """
+        )
         cfg = read_config(src)
         assert cfg["srcdir"] == Path("/nonexistent") / "path2"
     finally:
@@ -214,10 +231,12 @@ srcdir = /nonexistent/path1/../path2
         awghr._config._batch_systems = [("dummy", "dummy", "true", None)]
         _general_cfg = awghr._config._general_cfg
         awghr._config._general_cfg = {"srcdir": None}
-        src = """
-[DEFAULT]
-srcdir = ~~
-"""
+        src = dedent(
+            """
+            [DEFAULT]
+            srcdir = ~~
+            """
+        )
         cfg = read_config(src)
         msg = "should have raised a ConfigException"
         raise AssertionError(msg)
@@ -235,34 +254,40 @@ def parsing_list():
         awghr._config._batch_systems = [("dummy", "dummy", "true", None)]
         _general_cfg = awghr._config._general_cfg
         awghr._config._general_cfg = {"mylist": None}
-        src = """
-[DEFAULT]
-mylist =
-    a
-"""
+        src = dedent(
+            """
+            [DEFAULT]
+            mylist =
+                a
+            """
+        )
         cfg = read_config(src)
         assert cfg["mylist"] == ["a"]
-        src = """
-[DEFAULT]
-mylist = a
-[more items]
-mylist =
-    b
-    c
-"""
+        src = dedent(
+            """
+            [DEFAULT]
+            mylist = a
+            [more items]
+            mylist =
+                b
+                c
+            """
+        )
         cfg = read_config(src)
         assert cfg["mylist"] == ["a", "b", "c"]
-        src = """
-[DEFAULT]
-mylist = a
-[more items]
-mylist = b
-    c
-[even more items]
-mylist =
-    e
-    d
-"""
+        src = dedent(
+            """
+            [DEFAULT]
+            mylist = a
+            [more items]
+            mylist = b
+                c
+            [even more items]
+            mylist =
+                e
+                d
+            """
+        )
         cfg = read_config(src)
         assert cfg["mylist"] == ["a", "b", "c", "e", "d"]
     finally:
@@ -306,14 +331,16 @@ def parsing_batch_target():
     try:
         _batch_systems = awghr._config._batch_systems
         awghr._config._batch_systems = [("dummy", "dummy", "true", None)]
-        src = """
-[DEFAULT]
-account = acct
+        src = dedent(
+            """
+            [DEFAULT]
+            account = acct
 
-[parsing_batch_target]
-match batch = dummy
-account = anybatch
-"""
+            [parsing_batch_target]
+            match batch = dummy
+            account = anybatch
+            """
+        )
         cfg = read_config(src)
         assert cfg["account"] == "anybatch"
     finally:
@@ -321,14 +348,16 @@ account = anybatch
 
     try:
         src = default_src
-        src += """
-[DEFAULT]
-account = acct
+        src += dedent(
+            """
+            [DEFAULT]
+            account = acct
 
-[parsing_batch_target_invalid_batch]
-match batch = nonexistent
-account = anybatch
-"""
+            [parsing_batch_target_invalid_batch]
+            match batch = nonexistent
+            account = anybatch
+            """
+        )
         cfg = read_config(src)
         msg = "should have raised a ConfigException"
         raise AssertionError(msg)
@@ -338,14 +367,16 @@ account = anybatch
     try:
         _batch_systems.append(("dummy", "dummy", "/nonexistent", None))
         src = default_src
-        src += """
-[DEFAULT]
-account = acct
+        src += dedent(
+            """
+            [DEFAULT]
+            account = acct
 
-[parsing_batch_target_no_match]
-match batch = dummy
-account = anybatch
-"""
+            [parsing_batch_target_no_match]
+            match batch = dummy
+            account = anybatch
+            """
+        )
         cfg = read_config(src)
         assert cfg["account"] == "acct"
     except ConfigException:
@@ -357,14 +388,16 @@ account = anybatch
 @test
 def parsing_tag_target():
     src = default_src
-    src += """
-[DEFAULT]
-account = acct
+    src += dedent(
+        """
+        [DEFAULT]
+        account = acct
 
-[parsing_tag_target]
-match tag = sim
-account = simacct
-"""
+        [parsing_tag_target]
+        match tag = sim
+        account = simacct
+        """
+    )
     cfg = read_config(
         src,
         tags=["sim"],
@@ -372,26 +405,30 @@ account = simacct
     assert cfg["account"] == "simacct"
 
     src = default_src
-    src += """
-[DEFAULT]
-account = acct
+    src += dedent(
+        """
+        [DEFAULT]
+        account = acct
 
-[parsing_tag_target_no_tags]
-match tag = notag
-account = noacct
-"""
+        [parsing_tag_target_no_tags]
+        match tag = notag
+        account = noacct
+        """
+    )
     cfg = read_config(src)
     assert cfg["account"] == "acct"
 
     src = default_src
-    src += """
-[DEFAULT]
-account = acct
+    src += dedent(
+        """
+        [DEFAULT]
+        account = acct
 
-[parsing_tag_target_no_matching_tag]
-match tag = notag
-account = noacct
-"""
+        [parsing_tag_target_no_matching_tag]
+        match tag = notag
+        account = noacct
+        """
+    )
     cfg = read_config(src, tags=["tag"])
     assert cfg["account"] == "acct"
 
@@ -404,14 +441,16 @@ def check_batch_system_keys():
     try:
         _batch_systems = awghr._config._batch_systems
         awghr._config._batch_systems = [("dummy", "dummy", "true", DummyWorkflowWriter)]
-        src = """
-[DEFAULT]
-account = acct
+        src = dedent(
+            """
+            [DEFAULT]
+            account = acct
 
-[check_batch_system_keys]
-match batch = dummy
-test = abc
-"""
+            [check_batch_system_keys]
+            match batch = dummy
+            test = abc
+            """
+        )
         cfg = read_config(src)
         assert cfg["batch_system_cfg"]["test"] == "abc"
     finally:
@@ -420,10 +459,12 @@ test = abc
     try:
         _batch_systems = awghr._config._batch_systems
         awghr._config._batch_systems = [("dummy", "dummy", "true", DummyWorkflowWriter)]
-        src = """
-[DEFAULT]
-account = acct
-"""
+        src = dedent(
+            """
+            [DEFAULT]
+            account = acct
+            """
+        )
         cfg = read_config(src)
         assert cfg["batch_system_cfg"]["test"] == "def"
     finally:
@@ -437,10 +478,12 @@ account = acct
         awghr._config._batch_systems = [
             ("dummy", "dummy", "true", DummyWorkflowWriter2)
         ]
-        src = """
-[DEFAULT]
-account = acct
-"""
+        src = dedent(
+            """
+            [DEFAULT]
+            account = acct
+            """
+        )
         cfg = read_config(src)
         msg = "should have raised a ConfigException"
         raise AssertionError(msg)
