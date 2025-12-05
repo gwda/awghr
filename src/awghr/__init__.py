@@ -209,7 +209,7 @@ class Workflow:
         self,
         *,
         args: Dict[str, Any],
-        cmds: List[Any],
+        cmds: List[Union[str, List[Any]]],
         time: Tuple[float, str],
         mem: Tuple[float, str],
         disk: Tuple[float, str],
@@ -228,20 +228,20 @@ class Workflow:
                 Arguments and their values which uniquely identify the job.
                 Argument names cannot begin with an underscore.
 
-            cmds (List[Any]):
+            cmds (List[Union[str, List[Any]]]):
                 A list of commands to execute.
 
-                If a command is a string starting with ``!bash``, it is treated as a
-                shell script, otherwise, it is treated as a single command.
-                In the latter case only, the command executable (first argument) is
-                checked against the list of input files (``inputs``); if present, the
-                path is adjusted to point to a local copy of the executable.
+                Commands may be:
 
-                If a command is a list, it will be concatenated into a single
-                string, with appropriate quoting. If any element of the list is
-                a dictionary, it will be formatted into a series of arguments
-                ``key=value``, where ``key`` and ``value`` are the keys and
-                values of the dictionary.
+                * strings, which are treated as ``bash`` scripts; or
+                * lists, which are treated as arguments of a single command.
+                  List arguments may be:
+
+                  * dictionaries, which are formatted as a series of arguments
+                    ``key=value``, where ``key``/``value`` are its key/values;
+                  * paths, which are staged as additional input files (see ``inputs``
+                    below), and the argument replaced with a job-local path to the file;
+                  * anything else are formatted as a string.
 
                 Commands may contain ``{format}`` strings which will be filled by:
 
@@ -443,49 +443,36 @@ class Workflow:
 
             if isinstance(cmd, str):
 
-                # Remove whitespace
-                cmd = dedent(cmd).strip()
-
-            if isinstance(cmd, str) and cmd.split(maxsplit=1)[0] == "!bash":
-
                 # Treat `cmd` as a bash script
-                cmd = cmd[5:].strip().format(**format_cmd)
+                cmd = dedent(cmd).strip().format(**format_cmd)
 
             else:
 
                 # Treat `cmd` as a single command
-                if isinstance(cmd, list):
+                cmd_args = []
+                for arg in cmd:
+                    if isinstance(arg, dict):
 
-                    # Parse list command
-                    cmd_split = []
-                    for arg in cmd:
-                        if isinstance(arg, dict):
+                        # Format dict argument as ``key=value``
+                        cmd_args.extend(
+                            [f"{k}={v}".format(**format_cmd) for k, v in arg.items()]
+                        )
 
-                            # Format dict argument as ``key=value``
-                            cmd_split.extend([f"{k}={v}" for k, v in arg.items()])
+                    elif isinstance(arg, Path):
 
-                        else:
+                        # Stage path in input files, format as local path
+                        arg = arg.resolve()
+                        if arg not in job["infiles"]:
+                            job["infiles"].append(arg)
+                        cmd_args.append("./" + arg.name)
 
-                            # Format all other arguments as strings
-                            cmd_split.append(str(arg))
+                    else:
 
-                    # Format arguments
-                    cmd_split = [arg.format(**format_cmd) for arg in cmd_split]
+                        # Format all other arguments as strings
+                        cmd_args.append(str(arg).format(**format_cmd))
 
-                else:
-
-                    # Format string command, then split into executable and arguments
-                    cmd_split = shlex.split(str(cmd).format(**format_cmd))
-
-                # Use local path to executable if it is staged
-                exec_path = Path(cmd_split[0])
-                if exec_path in job["infiles"]:
-                    cmd_split[0] = "./" + exec_path.name
-
-                # Rejoin executable and arguments
-                cmd = " ".join(
-                    [cmd_split[0]] + [shlex.quote(arg) for arg in cmd_split[1:]]
-                )
+                # Quote arguments
+                cmd = " ".join(shlex.quote(arg) for arg in cmd_args)
 
             job["cmds"].append(cmd)
 

@@ -60,7 +60,7 @@ job_args: Dict[str, Any] = dict(
         "/usr/bin/true",
         "/usr/bin/true a b",
         ["/usr/bin/true", "a", "b"],
-        ["/usr/bin/true", "a", {"b": 1, "c": 2}],
+        ["/usr/bin/true", "a", {"b": 1, "c": 2}, Path.cwd() / "file.dat"],
     ],
     time=(1, "min"),
     mem=(10, "MB"),

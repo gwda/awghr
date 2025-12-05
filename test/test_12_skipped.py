@@ -30,12 +30,7 @@ for exit_code in (0, 77):
     w.add_job(
         args=dict(exit_code=exit_code),
         cmds=[
-            "!bash "
-            + (
-                "echo DONE > file{exit_code}.txt"
-                if exit_code == 0
-                else "exit {exit_code}"
-            ),
+            "echo DONE > file{exit_code}.txt" if exit_code == 0 else "exit {exit_code}"
         ],
         time=(1, "min"),
         mem=(10, "MB"),
@@ -84,7 +79,7 @@ w = Workflow(name="skipped2")
 j1 = w.add_job(
     args=dict(exit_code=77),
     cmds=[
-        "!bash echo DONE > file{exit_code}.txt; exit {exit_code}",
+        "echo DONE > file{exit_code}.txt; exit {exit_code}",
     ],
     time=(1, "min"),
     mem=(10, "MB"),
@@ -94,7 +89,7 @@ j1 = w.add_job(
 w.add_job(
     args=dict(exit_code=0),
     cmds=[
-        "!bash echo DONE > file{exit_code}.txt; exit {exit_code}",
+        "echo DONE > file{exit_code}.txt; exit {exit_code}",
     ],
     time=(1, "min"),
     mem=(10, "MB"),

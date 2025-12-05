@@ -31,7 +31,6 @@ for i in range(10):
         args=dict(index=i, const=10),
         cmds=[
             """
-            !bash
             if [ $MYCPUS -ne 1 ]; then
                 echo 'MYCPUS!=1' >&2
                 exit 1
