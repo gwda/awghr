@@ -252,89 +252,99 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
 
                 # Select which job in job array to run
                 f += "case ${batchq_job_index} in"
+                with f.indent(4):
 
-                # Iterate over jobs in job array
-                for idx, job in enumerate(job_array):
-                    f += f"({idx})"
+                    # Iterate over jobs in job array
+                    for idx, job in enumerate(job_array):
+                        f += f"({idx})"
+                        with f.indent(4):
 
-                    # Map individual job IDs to job array IDs and indexes
-                    job_ID_to_job_array_ID_index[job["ID"]] = (job_array_ID, idx)
+                            # Map individual job IDs to job array IDs and indexes
+                            job_ID_to_job_array_ID_index[job["ID"]] = (
+                                job_array_ID,
+                                idx,
+                            )
 
-                    # Print comment used to extract job indexes and directories
-                    f += f"# JOB {idx} {job['dir']}"
+                            # Print comment used to extract job indexes and directories
+                            f += f"# JOB {idx} {job['dir']}"
 
-                    # Write job batch ID to file
-                    jobbatchID_file = job["dir"] / "job_batchID"
-                    f += f"""echo "{self.BATCHQ_JOB_ARRAY_ID_EXPR}" > '{jobbatchID_file}'"""
+                            # Write job batch ID to file
+                            jobbatchID_file = job["dir"] / "job_batchID"
+                            f += f"""echo "{self.BATCHQ_JOB_ARRAY_ID_EXPR}" > '{jobbatchID_file}'"""
 
-                    # Set trap to write job state file
-                    # - for signals, exit with 128+<signal number>
-                    jobstate_file = job["dir"] / "job_state"
-                    f += f"""
-                    function trap_state() {{
-                        local status=$1
-                        if test ${{status}} -eq 0; then
-                            echo SUCCESS > '{jobstate_file}'
-                            exit 0
-                        elif test ${{status}} -eq 77; then
-                            echo SUCCESS/SKIPPED > '{jobstate_file}'
-                            exit 0
-                        else
-                            echo FAILED > '{jobstate_file}'
-                            exit ${{status}}
-                        fi
-                    }}
-                    trap 'trap_state $?' EXIT
-                    trap 'trap_state 143' TERM
-                    echo RUNNING > '{jobstate_file}'
-                    """
+                            # Set trap to write job state file
+                            # - for signals, exit with 128+<signal number>
+                            jobstate_file = job["dir"] / "job_state"
+                            f += f"""
+                            function trap_state() {{
+                                local status=$1
+                                if test ${{status}} -eq 0; then
+                                    echo SUCCESS > '{jobstate_file}'
+                                    exit 0
+                                elif test ${{status}} -eq 77; then
+                                    echo SUCCESS/SKIPPED > '{jobstate_file}'
+                                    exit 0
+                                else
+                                    echo FAILED > '{jobstate_file}'
+                                    exit ${{status}}
+                                fi
+                            }}
+                            trap 'trap_state $?' EXIT
+                            trap 'trap_state 143' TERM
+                            echo RUNNING > '{jobstate_file}'
+                            """
 
-                    # Check that all prerequisite jobs were successfully run
-                    for needs_job_ID in job["needs"]:
+                            # Check that all prerequisite jobs were successfully run
+                            for needs_job_ID in job["needs"]:
 
-                        # Path to file indicating job state
-                        needs_jobstate_file = jobs[needs_job_ID]["dir"] / "job_state"
+                                # Path to file indicating job state
+                                needs_jobstate_file = (
+                                    jobs[needs_job_ID]["dir"] / "job_state"
+                                )
 
-                        # Test that job was successful, or skip if it was skipped
-                        f += f"""
-                        jobstate=`cat '{needs_jobstate_file}' 2>/dev/null || true`
-                        if test "X${{jobstate}}" = XSUCCESS/SKIPPED; then
-                            exit 77
-                        elif test "X${{jobstate}}" != XSUCCESS; then
-                            fail 'Prerequisite job {needs_job_ID} was not successful'
-                        fi
-                        """
+                                # Test that job was successful, or skip if it was skipped
+                                f += f"""
+                                jobstate=`cat '{needs_jobstate_file}' 2>/dev/null || true`
+                                if test "X${{jobstate}}" = XSUCCESS/SKIPPED; then
+                                    exit 77
+                                elif test "X${{jobstate}}" != XSUCCESS; then
+                                    fail 'Prerequisite job {needs_job_ID} was not successful'
+                                fi
+                                """
 
-                    # Hard-link standard output/error files from job array back to job directory
-                    for stdouterr in ("job_stdout", "job_stderr"):
-                        jobarray_stdouterr_file = jobarraydir / (
-                            stdouterr + "_" + batch_index
+                            # Hard-link standard output/error files from job array back to job directory
+                            for stdouterr in ("job_stdout", "job_stderr"):
+                                jobarray_stdouterr_file = jobarraydir / (
+                                    stdouterr + "_" + batch_index
+                                )
+                                job_stdouterr_file = job["dir"] / stdouterr
+                                f += f'ln -f "{jobarray_stdouterr_file}" "{job_stdouterr_file}"'
+
+                            # Copy input files into job scratch directory
+                            for infile in job["infiles"]:
+                                f += f"test -f '{infile}' || fail 'Missing input file {infile.name}'"
+                                f += f"cp '{infile}' './{infile.name}'"
+
+                            # Run job script
+                            f += "source ./job_script.sh"
+
+                            # Copy output files out of job scratch directory
+                            for outfile in job["outfiles"]:
+                                f += f"test -f './{outfile.name}' || fail 'Missing output file {outfile.name}'"
+                                f += f"cp './{outfile.name}' '{outfile}'"
+                                if job["outfinal"]:
+                                    outfinaldir_file = outfinaldir / outfile.name
+                                    f += f"test ! -f '{outfinaldir_file}' || fail 'Output file {outfile.name} already exists in {outfinaldir}'"
+                                    f += f"ln -f '{outfile}' '{outfinaldir_file}'"
+
+                            f += ";;"
+
+                    # Handle an incorrect job array index
+                    f += "(*)"
+                    with f.indent(4):
+                        f += (
+                            '''fail "Incorrect job array index '${batchq_job_index}'"'''
                         )
-                        job_stdouterr_file = job["dir"] / stdouterr
-                        f += f'ln -f "{jobarray_stdouterr_file}" "{job_stdouterr_file}"'
-
-                    # Copy input files into job scratch directory
-                    for infile in job["infiles"]:
-                        f += f"test -f '{infile}' || fail 'Missing input file {infile.name}'"
-                        f += f"cp '{infile}' './{infile.name}'"
-
-                    # Run job script
-                    f += "source ./job_script.sh"
-
-                    # Copy output files out of job scratch directory
-                    for outfile in job["outfiles"]:
-                        f += f"test -f './{outfile.name}' || fail 'Missing output file {outfile.name}'"
-                        f += f"cp './{outfile.name}' '{outfile}'"
-                        if job["outfinal"]:
-                            outfinaldir_file = outfinaldir / outfile.name
-                            f += f"test ! -f '{outfinaldir_file}' || fail 'Output file {outfile.name} already exists in {outfinaldir}'"
-                            f += f"ln -f '{outfile}' '{outfinaldir_file}'"
-
-                    f += ";;"
-
-                # Handle an incorrect job array index
-                f += "(*)"
-                f += '''fail "Incorrect job array index '${batchq_job_index}'"'''
 
                 # end: Select which job in job array to run
                 f += "esac"
@@ -460,7 +470,7 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
                         batchq_array_indexes="${batchq_array_indexes} ${idx}"
                         : $((++batchq_array_count))
                     fi
-                done < <(sed -n 's/^# JOB //p' "$1")
+                done < <(sed -n 's/^ *# JOB //p' "$1")
             }
             """
 
