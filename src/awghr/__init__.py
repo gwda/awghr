@@ -117,6 +117,7 @@ class Workflow:
         *,
         tags: Optional[List[str]] = None,
         basedir: Optional[Path] = None,
+        subdir: Optional[Path] = None,
         account: Optional[Union[str, Dict[str, str]]] = None,
     ):
         """Create a new workflow.
@@ -125,13 +126,19 @@ class Workflow:
             name (str):
                 Name of workflow.
 
+                If ``subdir`` is given, workflow will be written to the path
+                ``basedir / subdir / name``, otherwise is will be written to ``basedir / name``.
+
             tags (Optional[List[str]]):
                 List of tags, used to retrieve default arguments from :literal:`~/.awghr.cfg`.
 
             basedir (Optional[Path]):
-                Base workflow directory; this workflow will be written to subdirectory.
+                Base workflow directory.
                 If not given, use the default value given in :literal:`~/.awghr.cfg`,
                 or else the current directory.
+
+            subdir (Optional[Path]):
+                Subdirectory under the base workflow directory.
 
             account (Optional[Union[str, Dict[str, str]]]):
                 Account the workflow should be charged against.
@@ -157,7 +164,7 @@ class Workflow:
 
         # Set name and working directory
         self.name = name
-        self.workdir = basedir / self.name
+        self.workdir = basedir / (Path(".") if subdir is None else subdir) / self.name
 
         # Set name of cluster
         self.cluster = cfg["cluster"]

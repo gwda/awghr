@@ -20,7 +20,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(Path(__file__).name)
 
-w = Workflow(name="simple", account="default")
+w = Workflow(name="simple", account="default", subdir=Path("sub"))
 
 infile = Path.cwd() / "prefix.txt"
 infile.write_text("XYZ")
@@ -35,7 +35,7 @@ for i in range(10):
                 echo 'MYCPUS!=1' >&2
                 exit 1
             fi
-            echo $HOME
+            echo $HOME/sub
             echo ${{TESTVAR}}1 >&2
             echo ${{TESTVAR}}2 >&2
             echo ${{TESTVAR}}3 >&2
