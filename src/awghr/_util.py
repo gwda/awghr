@@ -175,7 +175,7 @@ class FileLineWriter:
     def indent(self, indent: int):
         """Print lines with a given indentation."""
         old_prefix = self._prefix
-        self._prefix = " " * indent
+        self._prefix += " " * indent
         try:
             yield
         finally:
