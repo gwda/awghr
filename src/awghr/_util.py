@@ -92,11 +92,11 @@ class JobFileList:
         else:
             regex = arg
             sep = " "
-        f_lst = [x for x in self._list if re.match(regex, x)]
-        if len(f_lst) == 0:
+        filtered_list = [x for x in self._list if re.match(regex, x)]
+        if len(filtered_list) == 0:
             msg = f"'{self._name}[{regex}]' must return at least one file"
             raise WorkflowException(msg)
-        return sep.join(f_lst)
+        return sep.join(filtered_list)
 
 
 class ProgressLogger:
