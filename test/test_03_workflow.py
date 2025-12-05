@@ -71,7 +71,7 @@ job_args: Dict[str, Any] = dict(
     outputs=["out_{index}.txt"],
     batchopt=job_batchopt,
 )
-w.add_job(**job_args)
+job_id = w.add_job(**job_args)
 
 # Try to add a duplicate job
 try:
@@ -123,6 +123,23 @@ try:
         mem=(10, "MB"),
         disk=(10, "MB"),
         inputs=[Path("./non-existent.txt")],
+        outputs=["dummy.txt"],
+        batchopt=job_batchopt,
+    )
+    msg = "should have raised a WorkflowException"
+    raise AssertionError(msg)
+except WorkflowException:
+    pass
+
+# Try to add a job with missing job-dependent inputs
+try:
+    w.add_job(
+        args=dict(index=999),
+        cmds=["true"],
+        time=(1, "min"),
+        mem=(10, "MB"),
+        disk=(10, "MB"),
+        inputs=[(job_id,)],
         outputs=["dummy.txt"],
         batchopt=job_batchopt,
     )
