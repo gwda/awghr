@@ -440,5 +440,5 @@ def cli(*argv: str):
         ) as p:
             with redirect_stdout(p.stdin):
                 args.subcommand(args)
-    except BrokenPipeError:  # pragma: no cover
+    except (KeyboardInterrupt, BrokenPipeError):  # pragma: no cover
         pass
