@@ -56,7 +56,12 @@ job_batchopt: Dict[str, Any] = dict(
 )
 job_args: Dict[str, Any] = dict(
     args=dict(index=0),
-    cmds=["/usr/bin/true"],
+    cmds=[
+        "/usr/bin/true",
+        "/usr/bin/true a b",
+        ["/usr/bin/true", "a", "b"],
+        ["/usr/bin/true", "a", {"b": 1, "c": 2}],
+    ],
     time=(1, "min"),
     mem=(10, "MB"),
     disk=(10, "MB"),

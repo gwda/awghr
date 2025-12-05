@@ -209,7 +209,7 @@ class Workflow:
         self,
         *,
         args: Dict[str, Any],
-        cmds: List[str],
+        cmds: List[Any],
         time: Tuple[float, str],
         mem: Tuple[float, str],
         disk: Tuple[float, str],
@@ -228,16 +228,22 @@ class Workflow:
                 Arguments and their values which uniquely identify the job.
                 Argument names cannot begin with an underscore.
 
-            cmds (List[str]):
+            cmds (List[Any]):
                 A list of commands to execute.
 
-                If a command starts with ``!bash``, it is treated as a shell script.
-                Otherwise, it is treated as a single command.
+                If a command is a string starting with ``!bash``, it is treated as a
+                shell script, otherwise, it is treated as a single command.
                 In the latter case only, the command executable (first argument) is
                 checked against the list of input files (``inputs``); if present, the
                 path is adjusted to point to a local copy of the executable.
 
-                May contain ``{format}`` strings which will be filled by:
+                If a command is a list, it will be concatenated into a single
+                string, with appropriate quoting. If any element of the list is
+                a dictionary, it will be formatted into a series of arguments
+                ``key=value``, where ``key`` and ``value`` are the keys and
+                values of the dictionary.
+
+                Commands may contain ``{format}`` strings which will be filled by:
 
                 * the dictionary supplied in ``args``;
                 * ``_in``: input file(s) supplied in ``inputs``, separated by spaces.
@@ -431,22 +437,45 @@ class Workflow:
         format_cmd = dict(args)
         format_cmd["_in"] = JobFileList("_in", [p.name for p in job["infiles"]])
         format_cmd["_out"] = JobFileList("_out", [p.name for p in job["outfiles"]])
+        format_cmd.update(job["resources"])
         job["cmds"] = []
         for cmd in cmds:
 
-            # Remove whitespace
-            cmd = dedent(cmd).strip()
+            if isinstance(cmd, str):
 
-            # Format arguments
-            cmd = cmd.format(**format_cmd, **job["resources"])
+                # Remove whitespace
+                cmd = dedent(cmd).strip()
 
-            if cmd.split(maxsplit=1)[0] == "!bash":  # Treat `cmd` as a bash script
-                cmd = cmd[5:].strip()
+            if isinstance(cmd, str) and cmd.split(maxsplit=1)[0] == "!bash":
 
-            else:  # Treat `cmd` as a single command
+                # Treat `cmd` as a bash script
+                cmd = cmd[5:].strip().format(**format_cmd)
 
-                # Split into executable and arguments
-                cmd_split = shlex.split(cmd)
+            else:
+
+                # Treat `cmd` as a single command
+                if isinstance(cmd, list):
+
+                    # Parse list command
+                    cmd_split = []
+                    for arg in cmd:
+                        if isinstance(arg, dict):
+
+                            # Format dict argument as ``key=value``
+                            cmd_split.extend([f"{k}={v}" for k, v in arg.items()])
+
+                        else:
+
+                            # Format all other arguments as strings
+                            cmd_split.append(str(arg))
+
+                    # Format arguments
+                    cmd_split = [arg.format(**format_cmd) for arg in cmd_split]
+
+                else:
+
+                    # Format string command, then split into executable and arguments
+                    cmd_split = shlex.split(str(cmd).format(**format_cmd))
 
                 # Use local path to executable if it is staged
                 exec_path = Path(cmd_split[0])
@@ -455,7 +484,7 @@ class Workflow:
 
                 # Rejoin executable and arguments
                 cmd = " ".join(
-                    [cmd_split[0]] + [shlex.quote(str(arg)) for arg in cmd_split[1:]]
+                    [cmd_split[0]] + [shlex.quote(arg) for arg in cmd_split[1:]]
                 )
 
             job["cmds"].append(cmd)
