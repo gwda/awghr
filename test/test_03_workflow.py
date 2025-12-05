@@ -248,7 +248,7 @@ finally:
 
 # Try to add a job with options for an unknown batch system
 try:
-    bad_job = w.add_job(
+    w.add_job(
         args=dict(index=999),
         cmds=["true"],
         time=(1, "min"),
@@ -285,9 +285,41 @@ finally:
 if w.batch_system == "htcondor":
     logger.info("check batch system specific options: %s", w.batch_system)
 
+    # Try to add a job with duplicate resource requirements
+    try:
+        w.add_job(
+            args=dict(index=999),
+            cmds=["true"],
+            time=dict(htcondor=(1, "min"), htcondor_testing=(5, "min")),
+            mem=(10, "MB"),
+            disk=(10, "MB"),
+            outputs=["out_0.txt"],
+        )
+        msg = "should have raised a WorkflowException"
+        raise AssertionError(msg)
+    except WorkflowException:
+        pass
+
+    # Try to add a job with no matching resource requirements
+    try:
+        w.add_job(
+            args=dict(index=999),
+            cmds=["true"],
+            time=dict(
+                slurm=(1, "min"),
+            ),
+            mem=(10, "MB"),
+            disk=(10, "MB"),
+            outputs=["out_0.txt"],
+        )
+        msg = "should have raised a WorkflowException"
+        raise AssertionError(msg)
+    except WorkflowException:
+        pass
+
     # Try to add a job with duplicate batch system-specific options
     try:
-        bad_job = w.add_job(
+        w.add_job(
             args=dict(index=999),
             cmds=["true"],
             time=(1, "min"),

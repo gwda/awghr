@@ -111,6 +111,49 @@ class Workflow:
     account: str
     ID: str = "0" * 16
 
+    def _select_on_cluster_batch_system(self, label, arg, *, always, required, multi):
+        """Select argument based on cluster name and/or batch system."""
+
+        # If no cluster name and/or batch system options, just return arg
+        if not always and not isinstance(arg, dict):
+            return arg
+
+        # Iterate over cluster name/batch system selectors
+        selected_args = []
+        for cluster_batch_system_str, cluster_batch_system_arg in arg.items():
+
+            # Check selectors are valid cluster name or batch systems
+            cluster_batch_system = cluster_batch_system_str.split("_")
+            for s in cluster_batch_system:
+                if s not in cluster_names and s not in batch_system_names():
+                    msg = f"'{s}' selector for '{label}' does not match either a cluster name or a batch system name"
+                    raise WorkflowException(msg)
+
+            # Selection found
+            if (
+                self.cluster in cluster_batch_system
+                or self.batch_system in cluster_batch_system
+            ):
+                selected_args.append(cluster_batch_system_arg)
+
+        # Return selections
+        if len(selected_args) > 0:
+            if multi:
+                return selected_args
+            else:
+                if len(selected_args) > 1:
+                    msg = f"multiple '{label}' matches for cluster name '{self.cluster}' and/or batch system '{self.batch_system}'"
+                    raise WorkflowException(msg)
+                else:
+                    return selected_args[0]
+
+        # No selection found
+        if required:
+            msg = f"no '{label}' match for cluster name '{self.cluster}' and/or batch system '{self.batch_system}'"
+            raise WorkflowException(msg)
+        else:
+            return [] if multi else None
+
     def __init__(
         self,
         name: str,
@@ -142,11 +185,23 @@ class Workflow:
 
             account (Optional[Union[str, Dict[str, str]]]):
                 Account the workflow should be charged against.
-                If a dictionary, lists different accounts for different batch systems; the
-                batch system of the computer cluster where the workflow is being generated
-                is used to select the correct account.
+
+                If a dictionary, lists different accounts for different clusters
+                and/or batch systems. The cluster name is defined by the user in
+                :literal:`~/.awghr.cfg`; the batch system is determined
+                automatically on the computer cluster where the workflow is
+                being generated. If selection based on both cluster name and
+                batch system is required, they are given (in any order)
+                separated by an underscore.  Example:
+
+                * ``bigcomputer`` selects a cluster named ``bigcomputer``;
+                * ``htcondor`` selects the HTCondor batch system;
+                * ``generic_slurm`` selects a cluster named ``generic`` running
+                   the Slurm batch system.
+
                 If not given, use the default value given in :literal:`~/.awghr.cfg`;
                 if no default value is defined, an error is raised.
+
         """
 
         # Read configuration
@@ -173,12 +228,11 @@ class Workflow:
         self.batch_system = cfg["batch_system"]
 
         # Set account
-        if isinstance(account, dict):
-            self.account = account[self.batch_system]
-        elif account is None:
+        self.account = self._select_on_cluster_batch_system(
+            "account", account, always=False, required=False, multi=False
+        )
+        if self.account is None:
             self.account = cfg["account"]
-        else:
-            self.account = account
         if self.account is None:
             msg = "no account has been defined"
             raise WorkflowException(msg)
@@ -217,11 +271,11 @@ class Workflow:
         *,
         args: Dict[str, Any],
         cmds: List[Union[str, List[Any]]],
-        time: Tuple[float, str],
-        mem: Tuple[float, str],
-        disk: Tuple[float, str],
-        ncpus: int = 1,
-        ngpus: int = 0,
+        time: Union[Tuple[float, str], Dict[str, Tuple[float, str]]],
+        mem: Union[Tuple[float, str], Dict[str, Tuple[float, str]]],
+        disk: Union[Tuple[float, str], Dict[str, Tuple[float, str]]],
+        ncpus: Union[int, Dict[str, int]] = 1,
+        ngpus: Union[int, Dict[str, int]] = 0,
         needs: Optional[List[str]] = None,
         inputs: Optional[List[Union[Path, Tuple[str, ...]]]] = None,
         outputs: List[str],
@@ -269,22 +323,42 @@ class Workflow:
                 * ``_ncpus``: requested number of CPUs.
                 * ``_ngpus``: requested number of GPUs.
 
-            time (Tuple[float, str]):
+            time (Union[Tuple[float, str], Dict[str, Tuple[float, str]]]):
                 Requested wall time of the job: ``(magnitude, "unit")``
 
-            mem (Tuple[float, str]):
+                If a dictionary, lists different resource requirements for
+                different clusters and/or batch systems; see the ``account``
+                option to :py:meth:`Workflow.__init__`.
+
+            mem (Union[Tuple[float, str], Dict[str, Tuple[float, str]]]):
                 Requested memory of the job: ``(magnitude, "unit")``
 
-            disk (Tuple[float, str]):
+                If a dictionary, lists different resource requirements for
+                different clusters and/or batch systems; see the ``account``
+                option to :py:meth:`Workflow.__init__`.
+
+            disk (Union[Tuple[float, str], Dict[str, Tuple[float, str]]]):
                 Requested temporary disk space of the job: ``(magnitude, "unit")``
 
-            ncpus (int):
+                If a dictionary, lists different resource requirements for
+                different clusters and/or batch systems; see the ``account``
+                option to :py:meth:`Workflow.__init__`.
+
+            ncpus (Union[int, Dict[str, int]]):
                 Requested number of CPUs of the job.
                 Default is 1.
 
-            ngpus (int):
+                If a dictionary, lists different resource requirements for
+                different clusters and/or batch systems; see the ``account``
+                option to :py:meth:`Workflow.__init__`.
+
+            ngpus (Union[int, Dict[str, int]]):
                 Requested number of GPUs of the job.
                 Default is 0.
+
+                If a dictionary, lists different resource requirements for
+                different clusters and/or batch systems; see the ``account``
+                option to :py:meth:`Workflow.__init__`.
 
             needs (Optional[List[str]]):
                 A list of IDs of prerequisite jobs in the same workflow.
@@ -315,17 +389,14 @@ class Workflow:
                 Batch system-specific configuration options.
                 These options are given as nested dictionaries:
 
-                * The key of the first dictionary is the cluster name and/or batch
-                  system the option applies to. The cluster name is defined by the
-                  user in :literal:`~/.awghr.cfg`; the batch system is determined
-                  automatically from of the computer cluster where the workflow is
-                  being generated. If both a cluster name and batch system are
-                  required, they are given (in any order) separated by an underscore.
+                * The keys of the outer dictionary lists different accounts for
+                  different clusters and/or batch systems; see the ``account``
+                  option to :py:meth:`Workflow.__init__`.
 
-                * The value of the dictionary is itself a dictionary of options
-                  for the given cluster/batch system. Only options given for
-                  this cluster/batch system combination are used; other options
-                  are silently ignored.
+                * The values of the outer dictionary are themselves dictionaries
+                  of options for the given cluster/batch system. Only options
+                  given for this cluster/batch system combination are used;
+                  other options are silently ignored.
 
             final (Optional[bool]):
                 If true, output files from this job will be copied to the final
@@ -368,17 +439,30 @@ class Workflow:
         job["args_json"] = args_json
 
         # Normalise and store resource requests
+        _time = self._select_on_cluster_batch_system(
+            "time", time, always=False, required=True, multi=False
+        )
         job["time_min"] = int(
-            math.ceil(Quantity(time[0], time[1]).to("minute").magnitude)
+            math.ceil(Quantity(_time[0], _time[1]).to("minute").magnitude)
+        )
+        _mem = self._select_on_cluster_batch_system(
+            "mem", mem, always=False, required=True, multi=False
         )
         job["mem_MB"] = int(
-            math.ceil(Quantity(mem[0], mem[1]).to("megabyte").magnitude)
+            math.ceil(Quantity(_mem[0], _mem[1]).to("megabyte").magnitude)
+        )
+        _disk = self._select_on_cluster_batch_system(
+            "disk", disk, always=False, required=True, multi=False
         )
         job["disk_MB"] = int(
-            math.ceil(Quantity(disk[0], disk[1]).to("megabyte").magnitude)
+            math.ceil(Quantity(_disk[0], _disk[1]).to("megabyte").magnitude)
         )
-        job["ncpus"] = ncpus
-        job["ngpus"] = ngpus
+        job["ncpus"] = self._select_on_cluster_batch_system(
+            "ncpus", ncpus, always=False, required=True, multi=False
+        )
+        job["ngpus"] = self._select_on_cluster_batch_system(
+            "ngpus", ngpus, always=False, required=True, multi=False
+        )
         job["resources"] = {
             f"_{k}": job[k] for k in {"time_min", "mem_MB", "disk_MB", "ncpus", "ngpus"}
         }
@@ -491,20 +575,17 @@ class Workflow:
         # Add batch system-specific options
         job["batchopt"] = {}
         if batchopt:
-            for cluster_batch_system_str, cluster_batch_system_opts in batchopt.items():
-                cluster_batch_system = cluster_batch_system_str.split("_")
-                for s in cluster_batch_system:
-                    if s not in cluster_names and s not in batch_system_names():
-                        msg = f"'{s}' does not match either a cluster name or a batch system name"
+            for _batchopt in self._select_on_cluster_batch_system(
+                "batchopt",
+                batchopt,
+                always=True,
+                required=False,
+                multi=True,
+            ):
+                for opt, val in _batchopt.items():
+                    if opt in job["batchopt"]:
+                        msg = f"conflicting values for batch system-specific option '{opt}'"
                         raise WorkflowException(msg)
-                if (
-                    self.cluster in cluster_batch_system
-                    or self.batch_system in cluster_batch_system
-                ):
-                    for opt, val in cluster_batch_system_opts.items():
-                        if opt in job["batchopt"]:
-                            msg = f"conflicting values for batch system-specific option '{opt}'"
-                            raise WorkflowException(msg)
                     job["batchopt"][opt] = val
 
         # Add job to workflow
