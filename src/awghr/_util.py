@@ -84,7 +84,7 @@ class JobFileList:
         if len(self._list) == 0:
             msg = f"'{self._name}' must return at least one file"
             raise WorkflowException(msg)
-        return " ".join("./" + x for x in self._list)
+        return " ".join("./" + x for x in sorted(self._list))
 
     def __getitem__(self, arg):
         if ":" in arg:
@@ -96,7 +96,7 @@ class JobFileList:
         if len(filtered_list) == 0:
             msg = f"'{self._name}[{regex}]' must return at least one file"
             raise WorkflowException(msg)
-        return sep.join("./" + x for x in filtered_list)
+        return sep.join("./" + x for x in sorted(filtered_list))
 
 
 class ProgressLogger:
