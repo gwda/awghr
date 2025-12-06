@@ -138,13 +138,16 @@ for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
     assert (jobdir / "job_batchID").is_file()
     assert (jobdir / "job_script.sh").is_file()
     assert (jobdir / "job_state").is_file()
+    assert (jobdir / "job_usage").is_file()
 
-logger.info("check that job standard output/error printed what was expected")
+logger.info("check that job standard output/error/usage printed what was expected")
 for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
     stdout = (jobdir / "job_stdout").read_text().strip()
     stderr = (jobdir / "job_stderr").read_text().strip()
+    usage = (jobdir / "job_usage").read_text().strip()
     assert stdout == str(w.workdir.parent)
     assert stderr == "\n".join(["abc1", "abc2", "abc3", "xyz"])
+    assert "User time" in usage
 
 logger.info("check that no extra files were created in job directory")
 jobfile_regex = "|".join(
@@ -154,6 +157,7 @@ jobfile_regex = "|".join(
         r"job_script\.sh",
         r"job_state",
         r"job_std(out|err)(_(pre|post))?",
+        r"job_usage",
         r"out_[0-9]\.txt",
     ]
 )

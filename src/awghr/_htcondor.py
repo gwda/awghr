@@ -217,9 +217,10 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                     """
 
                     # Check for output files, and link to final output directory
-                    for outfile in job["outfiles"]:
+                    for outfile in job["outfiles"] + job["job_script_outfiles"]:
                         f += f"test -f '{outfile}' || fail 'Missing output file {outfile.name}'"
-                        if job["outfinal"]:
+                    if job["outfinal"]:
+                        for outfile in job["outfiles"]:
                             outfinaldir_file = outfinaldir / outfile.name
                             f += f"test ! -f '{outfinaldir_file}' || fail 'Output file {outfile.name} already exists in {outfinaldir}'"
                             f += f"ln -f '{outfile}' '{outfinaldir_file}'"

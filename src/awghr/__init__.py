@@ -737,6 +737,7 @@ class Workflow:
             # Write job script
             job_script_file = job["dir"] / "job_script.sh"
             job["infiles"].append(job_script_file)
+            job["job_script_outfiles"] = [job["dir"] / "job_usage"]
             with FileLineWriter(job_script_file) as f:
                 f += "set -e"
 
@@ -749,9 +750,24 @@ class Workflow:
                 f += 'export PATH="${PWD}:${PATH}"'
                 f += "hash -r"
 
+                # Set up /usr/bin/time wrapper to record usage statistics
+                f += """
+                job_usage_wrapper='/usr/bin/time -q -v -o ./job_usage'
+                if eval ${job_usage_wrapper} true >./job_usage_stdouterr 2>&1; then
+                    rm -f ./job_usage_stdouterr
+                else
+                    job_usage_wrapper=""
+                    mv ./job_usage_stdouterr ./job_usage
+                fi
+                eval ${job_usage_wrapper} bash <<_AWGHR_EOF_
+                """
+
                 # Write job commands
                 for cmd in job["cmds"]:
                     f += cmd
+
+                # End /usr/bin/time wrapper
+                f += "_AWGHR_EOF_"
 
         # Make clean batch system script directory
         if batchdir.exists():

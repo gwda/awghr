@@ -329,10 +329,11 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
                             f += "source ./job_script.sh"
 
                             # Copy output files out of job scratch directory
-                            for outfile in job["outfiles"]:
+                            for outfile in job["outfiles"] + job["job_script_outfiles"]:
                                 f += f"test -f './{outfile.name}' || fail 'Missing output file {outfile.name}'"
                                 f += f"cp './{outfile.name}' '{outfile}'"
-                                if job["outfinal"]:
+                            if job["outfinal"]:
+                                for outfile in job["outfiles"]:
                                     outfinaldir_file = outfinaldir / outfile.name
                                     f += f"test ! -f '{outfinaldir_file}' || fail 'Output file {outfile.name} already exists in {outfinaldir}'"
                                     f += f"ln -f '{outfile}' '{outfinaldir_file}'"
