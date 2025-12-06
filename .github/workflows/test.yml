@@ -40,7 +40,7 @@ jobs:
           command: |
             python -m pip install --upgrade pip
             python -m pip install ppqs
-            ppqs init-no-docker
+            ppqs init
 
       - name: Perform linting checks
         run: |
