@@ -207,12 +207,13 @@ def _show_jobs(args):
 
     # Show job, ordered jobs by their arguments
     ordered_jobs = sorted([(cache["sorted_args"][job], job) for job in filtered_jobs])
+    len_n = len(str(len(ordered_jobs)))
     for n, (job_args, job) in enumerate(ordered_jobs, start=1):
         if n > 1:
             print("")
 
         # Create prefix for all printed output
-        prefix = f"#{n:<5}" + " {:>5}"
+        prefix = f"{n:0{len_n}d}" + " {:<5}"
 
         # Show job arguments
         # - Formatted so that it can be used as a filter to --filter
@@ -279,6 +280,10 @@ def _show_jobs(args):
                     )
 
         sys.stdout.flush()
+
+    # Print coda
+    print("")
+    print("DONE", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
 
 def cli(*argv: str):
