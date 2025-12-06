@@ -7,7 +7,13 @@
 import logging
 from typing import Any, Dict, Optional, Tuple
 
-from ._util import FileLineWriter, ProgressLogger, WorkflowException, WorkflowWriter
+from ._util import (
+    FileLineWriter,
+    ProgressLogger,
+    WorkflowException,
+    WorkflowWriter,
+    job_dir_from_ID,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -91,8 +97,12 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                 # Job state file
                 jobstate_file = job["dir"] / "job_state"
 
+                # Job submission scripts directory
+                jobscriptdir = job_dir_from_ID(batchdir / "job_scripts", job["ID"])
+                jobscriptdir.mkdir(parents=True, exist_ok=True)
+
                 # Write job pre script
-                job_pre_file = job["dir"] / "job_condor_pre.sh"
+                job_pre_file = jobscriptdir / "job_condor_pre.sh"
                 with FileLineWriter(job_pre_file) as f:
 
                     # Exit on any script errors
@@ -138,7 +148,7 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                     f += f"rm -f '{job_stdout_file}' '{job_stderr_file}'"
 
                 # Write job post script
-                job_post_file = job["dir"] / "job_condor_post.sh"
+                job_post_file = jobscriptdir / "job_condor_post.sh"
                 with FileLineWriter(job_post_file) as f:
 
                     # Exit on any script errors
@@ -260,7 +270,7 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                     sub[opt] = val
 
                 # Write HTCondor job submit file
-                job_sub_file = job["dir"] / "job_condor.sub"
+                job_sub_file = jobscriptdir / "job_condor.sub"
                 self._write_sub(account, job_sub_file, sub)
 
                 ### Add job to HTCondor DAG input file ###

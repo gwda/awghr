@@ -5,6 +5,7 @@
 """Test running a simple workflow."""
 
 import logging
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -115,6 +116,18 @@ for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
     stderr = (jobdir / "job_stderr").read_text().strip()
     assert stdout == str(w.workdir.parent)
     assert stderr == "\n".join(["abc1", "abc2", "abc3", "xyz"])
+
+logger.info("check that no extra files were created in job directory")
+for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
+    for jobfile in jobdir.iterdir():
+        assert jobfile.is_file()
+        assert (
+            re.fullmatch(
+                r"job_batchID|job_state|job_args\.json|job_script\.sh|job_std(out|err)(_(pre|post))?|out_[0-9]\.txt",
+                jobfile.name,
+            )
+            is not None
+        )
 
 logger.info("check that re-writing workflow does not remove successful states")
 w.write()
