@@ -4,7 +4,6 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "awghr"
-version = "0.1"
 description = "A(nother) Workflow Generator for High-throughput computeRing"
 authors = [
     { name = "Karl Wette", email = "karl.wette@anu.edu.au" },
@@ -17,9 +16,13 @@ dependencies = [
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSES/MIT.txt"]
+dynamic = ["version"]
 
 [project.scripts]
 awghr = "awghr._cli:cli"
+
+[tool.setuptools.dynamic]
+version = {attr = "awghr.__version__"}
 
 [tool.ruff]
 fix = true
