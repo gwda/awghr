@@ -3,5 +3,6 @@ coverage>=7.6
 pre-commit>=3.7
 setuptools>=64.0
 sphinx-autoapi>=3.6
+sphinx-nefertiti>=0.9
 sphinx-pyproject>=0.3
 sphinx>=8.0

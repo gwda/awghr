@@ -80,8 +80,6 @@ class SlurmWorkflowWriter(BatchQWorkflowWriter):
     BATCHQ_SUBMIT_ALL = "sbatch"
 
     def __init__(self, *, batchsyscfg):
-        """Initialise workflow writer."""
-
         super().__init__(batchsyscfg=batchsyscfg)
 
         # Store location of job scratch directory

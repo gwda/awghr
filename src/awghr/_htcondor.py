@@ -31,8 +31,6 @@ class HTCondorWorkflowWriter(WorkflowWriter):
     }
 
     def __init__(self, *, batchsyscfg):
-        """Initialise workflow writer."""
-
         super().__init__(batchsyscfg=batchsyscfg)
 
         # Store default universe

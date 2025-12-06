@@ -115,8 +115,6 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
         """Get top-level batch control script commands."""
 
     def __init__(self, *, batchsyscfg):
-        """Initialise workflow writer."""
-
         super().__init__(batchsyscfg=batchsyscfg)
 
         # Store rate jobs can be submitted per minute

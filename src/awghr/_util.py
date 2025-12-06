@@ -33,7 +33,6 @@ class WorkflowWriter(ABC):
     """Workflow writer base class."""
 
     def __init__(self, *, batchsyscfg) -> None:
-        """Initialise workflow writer."""
         pass
 
     @abstractmethod
@@ -76,7 +75,6 @@ class JobFileList:
     """List of job files, which may be indexed with regular expressions."""
 
     def __init__(self, _name, _list):
-        """Initialise job file list."""
         self._name = _name
         self._list = _list
 
@@ -103,7 +101,6 @@ class ProgressLogger:
     """Log progress at progressively longer intervals."""
 
     def __init__(self, items=None, *, logger, msg):
-        """Initialise progress logger."""
         if items is not None:
             self._items = list(items)
             self._total = len(items)
@@ -154,7 +151,6 @@ class FileLineWriter:
     """Convenience class for writing lines to a text file."""
 
     def __init__(self, filepath: Path, *, executable: bool = False):
-        """Initialise file line writer."""
         self._filepath = filepath
         self._finalmode = (stat.S_IRUSR | stat.S_IXUSR) if executable else stat.S_IRUSR
         self._prefix = ""

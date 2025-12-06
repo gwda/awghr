@@ -22,8 +22,6 @@ class LocalWorkflowWriter(WorkflowWriter):
     KEYS: Dict[str, Any] = {}
 
     def __init__(self, *, batchsyscfg):
-        """Initialise workflow writer."""
-
         super().__init__(batchsyscfg=batchsyscfg)
 
     def write_workflow(

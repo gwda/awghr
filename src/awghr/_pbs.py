@@ -76,8 +76,6 @@ class PBSWorkflowWriter(BatchQWorkflowWriter):
     BATCHQ_ID_REMOVE_SUFFIX = "%%.*"
 
     def __init__(self, *, batchsyscfg):
-        """Initialise workflow writer."""
-
         super().__init__(batchsyscfg=batchsyscfg)
 
         # Store location of job scratch directory

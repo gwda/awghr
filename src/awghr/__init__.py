@@ -2,7 +2,43 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""A(nother) Workflow Generator for High-throughput computeRing."""
+"""A(nother) Workflow Generator for High-throughput computeRing.
+
+Configuration:
+    Default workflow configurations are retrieved from :literal:`~/.awghr.cfg`.
+
+    This is a ``ConfigParser``-style configuration file with the following syntax::
+
+        [DEFAULT]           # This section match all batch systems/hosts/tags
+        account = ...           # Default value of ``account`` argument passed to Workflow()
+        basedir = ...           # Default value of ``basedir`` argument passed to Workflow()
+        envlist =               # List of environment variables to save/set in job script:
+            *PATH               # - Save any variables matching this regular expression.
+            VAR=val             # - Set variable to the given value.
+            ...                 #   May contain ``{format}`` strings which will be filled by:
+                                #   * ``_time_min``: requested wall time in minutes.
+                                #   * ``_mem_MB``: requested memory in MB.
+                                #   * ``_disk_MB``: requested temporary disk space in MB.
+                                #   * ``_ncpus``: requested number of CPUs.
+                                #   * ``_ngpus``: requested number of GPUs.
+
+        # Section headings are arbitrary
+        [host matching]     # This section matches the host ``login1.example.com``
+        match host = login1.example.com
+        match host = .example.com
+        match host = login1
+        match host = login
+        cluster = cluster1
+        ...
+
+        [batch matching]    # This section matches a given batch system
+        match batch = ...
+        # Batch system matching sections may include system-specific keys
+
+        [tag matching]      # This section matches a tag in the ``tags`` list passed to Workflow()
+        match tag = ...
+        ...
+"""
 
 import json
 import logging
@@ -43,6 +79,43 @@ _logger = logging.getLogger(__name__)
 class Workflow:
     """Generate a workflow.
 
+    Args:
+        name (str):
+            Name of workflow.
+
+            If ``subdir`` is given, workflow will be written to the path
+            ``basedir / subdir / name``, otherwise is will be written to ``basedir / name``.
+
+        tags (Optional[List[str]]):
+            List of tags, used to retrieve default arguments from ``~/.awghr.cfg``.
+
+        basedir (Optional[Path]):
+            Base workflow directory.
+            If not given, use the default value given in ``~/.awghr.cfg``,
+            or else the current directory.
+
+        subdir (Optional[Path]):
+            Subdirectory under the base workflow directory.
+
+        account (Optional[Union[str, Dict[str, str]]]):
+            Account the workflow should be charged against.
+
+            If a dictionary, lists different accounts for different clusters
+            and/or batch systems. The cluster name is defined by the user in
+            ``~/.awghr.cfg``; the batch system is determined
+            automatically on the computer cluster where the workflow is
+            being generated. If selection based on both cluster name and
+            batch system is required, they are given (in any order)
+            separated by an underscore. Example:
+
+            * ``bigcomputer`` selects a cluster named ``bigcomputer``;
+            * ``htcondor`` selects the HTCondor batch system;
+            * ``generic_slurm`` selects a cluster named ``generic`` running
+              the Slurm batch system.
+
+            If not given, use the default value given in ``~/.awghr.cfg``;
+            if no default value is defined, an error is raised.
+
     Attributes:
         name (str):
             Name of workflow.
@@ -64,43 +137,7 @@ class Workflow:
 
         ID (str):
             A unique string representing the workflow.
-            Only available after ``write()`` has been called.
-
-    Configuration:
-        Default workflow configurations are retrieved from :literal:`~/.awghr.cfg`.
-
-        This is a ``ConfigParser``-style configuration file with the following syntax::
-
-            [DEFAULT]           # This section match all batch systems/hosts/tags
-            account = ...           # Default value of ``account`` argument passed to Workflow()
-            basedir = ...           # Default value of ``basedir`` argument passed to Workflow()
-            envlist =               # List of environment variables to save/set in job script:
-                *PATH               # - Save any variables matching this regular expression.
-                VAR=val             # - Set variable to the given value.
-                ...                 #   May contain ``{format}`` strings which will be filled by:
-                                    #   * ``_time_min``: requested wall time in minutes.
-                                    #   * ``_mem_MB``: requested memory in MB.
-                                    #   * ``_disk_MB``: requested temporary disk space in MB.
-                                    #   * ``_ncpus``: requested number of CPUs.
-                                    #   * ``_ngpus``: requested number of GPUs.
-
-            # Section headings are arbitrary
-            [host matching]     # This section matches the host ``login1.example.com``
-            match host = login1.example.com
-            match host = .example.com
-            match host = login1
-            match host = login
-            cluster = cluster1
-            ...
-
-            [batch matching]    # This section matches a given batch system
-            match batch = ...
-            # Batch system matching sections may include system-specific keys
-
-            [tag matching]      # This section matches a tag in the ``tags`` list passed to Workflow()
-            match tag = ...
-            ...
-
+            Only available after :py:meth:`Workflow.write` has been called.
     """
 
     # Attributes
@@ -111,49 +148,6 @@ class Workflow:
     account: str
     ID: str = "0" * 16
 
-    def _select_on_cluster_batch_system(self, label, arg, *, always, required, multi):
-        """Select argument based on cluster name and/or batch system."""
-
-        # If no cluster name and/or batch system options, just return arg
-        if not always and not isinstance(arg, dict):
-            return arg
-
-        # Iterate over cluster name/batch system selectors
-        selected_args = []
-        for cluster_batch_system_str, cluster_batch_system_arg in arg.items():
-
-            # Check selectors are valid cluster name or batch systems
-            cluster_batch_system = cluster_batch_system_str.split("_")
-            for s in cluster_batch_system:
-                if s not in cluster_names and s not in batch_system_names():
-                    msg = f"'{s}' selector for '{label}' does not match either a cluster name or a batch system name"
-                    raise WorkflowException(msg)
-
-            # Selection found
-            if (
-                self.cluster in cluster_batch_system
-                or self.batch_system in cluster_batch_system
-            ):
-                selected_args.append(cluster_batch_system_arg)
-
-        # Return selections
-        if len(selected_args) > 0:
-            if multi:
-                return selected_args
-            else:
-                if len(selected_args) > 1:
-                    msg = f"multiple '{label}' matches for cluster name '{self.cluster}' and/or batch system '{self.batch_system}'"
-                    raise WorkflowException(msg)
-                else:
-                    return selected_args[0]
-
-        # No selection found
-        if required:
-            msg = f"no '{label}' match for cluster name '{self.cluster}' and/or batch system '{self.batch_system}'"
-            raise WorkflowException(msg)
-        else:
-            return [] if multi else None
-
     def __init__(
         self,
         name: str,
@@ -163,46 +157,6 @@ class Workflow:
         subdir: Optional[Path] = None,
         account: Optional[Union[str, Dict[str, str]]] = None,
     ):
-        """Create a new workflow.
-
-        Args:
-            name (str):
-                Name of workflow.
-
-                If ``subdir`` is given, workflow will be written to the path
-                ``basedir / subdir / name``, otherwise is will be written to ``basedir / name``.
-
-            tags (Optional[List[str]]):
-                List of tags, used to retrieve default arguments from :literal:`~/.awghr.cfg`.
-
-            basedir (Optional[Path]):
-                Base workflow directory.
-                If not given, use the default value given in :literal:`~/.awghr.cfg`,
-                or else the current directory.
-
-            subdir (Optional[Path]):
-                Subdirectory under the base workflow directory.
-
-            account (Optional[Union[str, Dict[str, str]]]):
-                Account the workflow should be charged against.
-
-                If a dictionary, lists different accounts for different clusters
-                and/or batch systems. The cluster name is defined by the user in
-                :literal:`~/.awghr.cfg`; the batch system is determined
-                automatically on the computer cluster where the workflow is
-                being generated. If selection based on both cluster name and
-                batch system is required, they are given (in any order)
-                separated by an underscore.  Example:
-
-                * ``bigcomputer`` selects a cluster named ``bigcomputer``;
-                * ``htcondor`` selects the HTCondor batch system;
-                * ``generic_slurm`` selects a cluster named ``generic`` running
-                   the Slurm batch system.
-
-                If not given, use the default value given in :literal:`~/.awghr.cfg`;
-                if no default value is defined, an error is raised.
-
-        """
 
         # Read configuration
         _logger.info("reading configuration")
@@ -328,21 +282,21 @@ class Workflow:
 
                 If a dictionary, lists different resource requirements for
                 different clusters and/or batch systems; see the ``account``
-                option to :py:meth:`Workflow.__init__`.
+                option to :py:meth:`Workflow`.
 
             mem (Union[Tuple[float, str], Dict[str, Tuple[float, str]]]):
                 Requested memory of the job: ``(magnitude, "unit")``
 
                 If a dictionary, lists different resource requirements for
                 different clusters and/or batch systems; see the ``account``
-                option to :py:meth:`Workflow.__init__`.
+                option to :py:meth:`Workflow`.
 
             disk (Union[Tuple[float, str], Dict[str, Tuple[float, str]]]):
                 Requested temporary disk space of the job: ``(magnitude, "unit")``
 
                 If a dictionary, lists different resource requirements for
                 different clusters and/or batch systems; see the ``account``
-                option to :py:meth:`Workflow.__init__`.
+                option to :py:meth:`Workflow`.
 
             ncpus (Union[int, Dict[str, int]]):
                 Requested number of CPUs of the job.
@@ -350,7 +304,7 @@ class Workflow:
 
                 If a dictionary, lists different resource requirements for
                 different clusters and/or batch systems; see the ``account``
-                option to :py:meth:`Workflow.__init__`.
+                option to :py:meth:`Workflow`.
 
             ngpus (Union[int, Dict[str, int]]):
                 Requested number of GPUs of the job.
@@ -358,7 +312,7 @@ class Workflow:
 
                 If a dictionary, lists different resource requirements for
                 different clusters and/or batch systems; see the ``account``
-                option to :py:meth:`Workflow.__init__`.
+                option to :py:meth:`Workflow`.
 
             needs (Optional[List[str]]):
                 A list of IDs of prerequisite jobs in the same workflow.
@@ -391,7 +345,7 @@ class Workflow:
 
                 * The keys of the outer dictionary lists different accounts for
                   different clusters and/or batch systems; see the ``account``
-                  option to :py:meth:`Workflow.__init__`.
+                  option to :py:meth:`Workflow`.
 
                 * The values of the outer dictionary are themselves dictionaries
                   of options for the given cluster/batch system. Only options
@@ -399,12 +353,13 @@ class Workflow:
                   other options are silently ignored.
 
             final (Optional[bool]):
-                If true, output files from this job will be copied to the final
-                workflow directory. If not given, all jobs which are not dependencies
-                of other jobs will have their output files copied to this directory.
+                If true, output files from this job will be copied to the
+                ``outputs/`` workflow directory. If not given, all jobs
+                which are not dependencies of other jobs will have their output
+                files copied to this directory.
 
         Returns:
-            str: a unique string representing the job.
+            str: Job ID, a unique string representing the job.
 
         """
 
@@ -597,7 +552,19 @@ class Workflow:
         return job_ID
 
     def __getitem__(self, key: Tuple[str, str]) -> Any:
-        """Retrieve the value of a job argument."""
+        """Retrieve the value of a job argument.
+
+        Arguments:
+            key (Tuple[str, str]):
+                First key is the job ID of the job, as returned by
+                :py:meth:`Workflow.add_job`. Second key is the name of the job
+                argument, as passed in the ``args`` argument to
+                :py:meth:`Workflow.add_job`.
+
+        Returns:
+            Any: Value of the job argument.
+
+        """
         return self._jobs[key[0]]["args"][key[1]]
 
     def write(self) -> None:
@@ -955,3 +922,46 @@ class Workflow:
 
         # Log completion
         _logger.info("workflow has been written")
+
+    def _select_on_cluster_batch_system(self, label, arg, *, always, required, multi):
+        """Select argument based on cluster name and/or batch system."""
+
+        # If no cluster name and/or batch system options, just return arg
+        if not always and not isinstance(arg, dict):
+            return arg
+
+        # Iterate over cluster name/batch system selectors
+        selected_args = []
+        for cluster_batch_system_str, cluster_batch_system_arg in arg.items():
+
+            # Check selectors are valid cluster name or batch systems
+            cluster_batch_system = cluster_batch_system_str.split("_")
+            for s in cluster_batch_system:
+                if s not in cluster_names and s not in batch_system_names():
+                    msg = f"'{s}' selector for '{label}' does not match either a cluster name or a batch system name"
+                    raise WorkflowException(msg)
+
+            # Selection found
+            if (
+                self.cluster in cluster_batch_system
+                or self.batch_system in cluster_batch_system
+            ):
+                selected_args.append(cluster_batch_system_arg)
+
+        # Return selections
+        if len(selected_args) > 0:
+            if multi:
+                return selected_args
+            else:
+                if len(selected_args) > 1:
+                    msg = f"multiple '{label}' matches for cluster name '{self.cluster}' and/or batch system '{self.batch_system}'"
+                    raise WorkflowException(msg)
+                else:
+                    return selected_args[0]
+
+        # No selection found
+        if required:
+            msg = f"no '{label}' match for cluster name '{self.cluster}' and/or batch system '{self.batch_system}'"
+            raise WorkflowException(msg)
+        else:
+            return [] if multi else None

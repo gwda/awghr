@@ -2,4 +2,10 @@ from pathlib import Path
 
 from sphinx_pyproject import SphinxConfig
 
-config = SphinxConfig(Path(__file__).parents[1] / "pyproject.toml", globalns=globals())
+from awghr import __version__
+
+config = SphinxConfig(
+    Path(__file__).parents[1] / "pyproject.toml",
+    globalns=globals(),
+    config_overrides={"version": __version__},
+)
