@@ -134,10 +134,10 @@ for i in range(10):
 
 logger.info("check for job files that should exist after submission")
 for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
-    assert (jobdir / "job_batchID").is_file()
-    assert (jobdir / "job_state").is_file()
     assert (jobdir / "job_args.json").is_file()
+    assert (jobdir / "job_batchID").is_file()
     assert (jobdir / "job_script.sh").is_file()
+    assert (jobdir / "job_state").is_file()
 
 logger.info("check that job standard output/error printed what was expected")
 for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
@@ -147,16 +147,20 @@ for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
     assert stderr == "\n".join(["abc1", "abc2", "abc3", "xyz"])
 
 logger.info("check that no extra files were created in job directory")
+jobfile_regex = "|".join(
+    [
+        r"job_args\.json",
+        r"job_batchID",
+        r"job_script\.sh",
+        r"job_state",
+        r"job_std(out|err)(_(pre|post))?",
+        r"out_[0-9]\.txt",
+    ]
+)
 for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
     for jobfile in jobdir.iterdir():
         assert jobfile.is_file()
-        assert (
-            re.fullmatch(
-                r"job_batchID|job_state|job_args\.json|job_script\.sh|job_std(out|err)(_(pre|post))?|out_[0-9]\.txt",
-                jobfile.name,
-            )
-            is not None
-        )
+        assert re.fullmatch(jobfile_regex, jobfile.name) is not None
 
 logger.info("check that re-writing workflow does not remove successful states")
 w.write()
