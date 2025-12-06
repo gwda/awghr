@@ -11,6 +11,7 @@ import re
 import shlex
 import subprocess
 import sys
+import time
 from collections import deque
 from contextlib import redirect_stdout
 from datetime import datetime
@@ -122,14 +123,39 @@ def _show_jobs(args):
     if "constant_args" not in cache:
         cache["constant_args"] = None
 
-    # Add information that will not change while workflow is running to cache
+    # Add information that will not change (once known) while workflow is running to cache
     for job in tqdm(jobs, desc="Cacheing ", disable=None, leave=False):
 
         # Add job batch IDs to cache
         if job not in cache["batchID"]:
             job_batchID_file = job / "job_batchID"
             if job_batchID_file.is_file():
-                cache["batchID"][job] = job_batchID_file.read_text().strip()
+                job_batchID = job_batchID_file.read_text().strip()
+                if job_batchID.startswith("!"):  # Dynamic batch ID
+
+                    # Run command to get batch ID
+                    if args.batch_ID_rate > 0:
+                        jobstate_file = job / "job_state"
+                        if jobstate_file.is_file():
+                            job_state = jobstate_file.read_text().strip()
+                            if job_state == "RUNNING":
+                                job_batchID_cmd = job_batchID[1:]
+                                try:
+                                    job_batchID = subprocess.check_output(
+                                        job_batchID_cmd, shell=True, text=True
+                                    ).strip()
+                                    if len(job_batchID) > 0:
+                                        cache["batchID"][job] = job_batchID
+                                except (
+                                    subprocess.CalledProcessError
+                                ):  # pragma: no cover
+                                    pass
+
+                                # Rate limit batch ID commands
+                                time.sleep(1.0 / args.batch_ID_rate)
+
+                else:  # Static batch ID
+                    cache["batchID"][job] = job_batchID
 
         # Add job arguments to cache
         if job not in cache["args"]:
@@ -174,7 +200,7 @@ def _show_jobs(args):
 
         # Filter jobs by batch system ID
         if args.batch_ID:  # pragma: no cover
-            if args.batch_ID != cache["batchID"][job]:
+            if args.batch_ID != cache["batchID"].get(job, None):
                 continue
 
         # Filter jobs by arguments
@@ -235,8 +261,8 @@ def _show_jobs(args):
             jobstate_str += jobstate_last_modified_cache[job].strftime(
                 " %Y-%m-%d %H:%M:%S"
             )
-        if job in cache["batchID"]:
-            jobstate_str += " BATCHID " + cache["batchID"][job]
+        if jobstate_cache[job] == "RUNNING":
+            jobstate_str += " BATCHID " + cache["batchID"].get(job, "unknown")
         print(prefix.format("STATE"), jobstate_str)
 
         # Show job directory
@@ -414,6 +440,15 @@ def cli(*argv: str):
         action="store_const",
         const=0,
         help="show the full standard output/error",
+    )
+    parser_show_jobs.add_argument(
+        "-@",
+        "--get-batch-IDs",
+        metavar="RATE",
+        dest="batch_ID_rate",
+        type=int,
+        default=0,
+        help="retrieve batch IDs at the given rate (per second)",
     )
     parser_show_jobs.set_defaults(subcommand=_show_jobs)
 

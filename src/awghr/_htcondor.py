@@ -5,6 +5,7 @@
 """HTCondor workflows."""
 
 import logging
+import shlex
 from typing import Any, Dict, Optional, Tuple
 
 from ._util import (
@@ -91,6 +92,9 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                 jobs.values(), logger=_logger, msg="wrote %s jobs in workflow"
             ):
 
+                # Job ID string for use in HTCondor submission files
+                job_ID = "job_" + job["ID"]
+
                 # Job batch ID file
                 jobbatchID_file = job["dir"] / "job_batchID"
 
@@ -137,7 +141,12 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                         """
 
                     # Write job batch ID file
-                    f += f"echo UNKNOWN > '{jobbatchID_file}'"
+                    # - HTCondor job ID is not available until job post script runs
+                    # - Instead, write command to dynamically retrieve job ID
+                    job_batchID_cmd = shlex.quote(
+                        f"""!condor_q -constraint 'MY.AWGHR_JOB_ID == "{job_ID}"' -format '%d' ClusterId -format ".%d" ProcId"""
+                    )
+                    f += f"""echo {job_batchID_cmd} > '{jobbatchID_file}'"""
 
                     # Write job state file
                     f += f"echo RUNNING > '{jobstate_file}'"
@@ -195,6 +204,7 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                     """
 
                     # Write job batch ID file
+                    # - HTCondor job ID is available to job post scripts
                     f += f"""
                     echo "${{JOBID}}" > '{jobbatchID_file}'
                     """
@@ -220,6 +230,9 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                 ### Build HTCondor job submit file ###
 
                 sub: Dict[str, Optional[str]] = {}
+
+                # - Job ID
+                sub["MY.AWGHR_JOB_ID"] = f'"{job_ID}"'
 
                 # - Job universe
                 sub["UNIVERSE"] = job["batchopt"].get("universe", self.universe)
@@ -275,25 +288,22 @@ class HTCondorWorkflowWriter(WorkflowWriter):
 
                 ### Add job to HTCondor DAG input file ###
 
-                # - Job ID within DAG
-                job_DAG_ID = "job_" + job["ID"]
-
                 # - Define job
-                F += f"JOB {job_DAG_ID} {job_sub_file} DIR {job['dir']}"
+                F += f"JOB {job_ID} {job_sub_file} DIR {job['dir']}"
 
                 # - Define pre- and post-job script
                 F += f"""
-                SCRIPT PRE {job_DAG_ID} /bin/bash {job_pre_file}
-                PRE_SKIP {job_DAG_ID} 77
-                SCRIPT POST {job_DAG_ID} /bin/bash {job_post_file} $JOBID $RETURN
+                SCRIPT PRE {job_ID} /bin/bash {job_pre_file}
+                PRE_SKIP {job_ID} 77
+                SCRIPT POST {job_ID} /bin/bash {job_post_file} $JOBID $RETURN
                 """
 
                 # - Define prerequisite jobs
                 if job["needs"]:
-                    job_DAG_parent_IDs = " ".join(
+                    job_parent_IDs = " ".join(
                         "job_" + needs_job_ID for needs_job_ID in job["needs"]
                     )
-                    F += f"PARENT {job_DAG_parent_IDs} CHILD {job_DAG_ID}"
+                    F += f"PARENT {job_parent_IDs} CHILD {job_ID}"
 
             # Write workflow state job script
             workstate_script_file = batchdir / "batch_workstate.sh"

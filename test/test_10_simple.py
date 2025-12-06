@@ -5,13 +5,26 @@
 """Test running a simple workflow."""
 
 import logging
+import os
 import re
 import subprocess
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 
 from awghr import Workflow
 from awghr._cli import cli
+
+
+@contextmanager
+def in_directory(wd):
+    owd = os.getcwd()
+    try:
+        os.chdir(wd)
+        yield
+    finally:
+        os.chdir(owd)
+
 
 # Set up logging
 logging.basicConfig(
@@ -29,7 +42,7 @@ infile.write_text("XYZ")
 # Add 10 independent jobs
 for i in range(10):
     w.add_job(
-        args=dict(index=i, const=10),
+        args=dict(index=i, const=10, sec=(0.1 if w.batch_system == "local" else 5)),
         cmds=[
             """
             if [ $MYCPUS -ne 1 ]; then
@@ -42,6 +55,7 @@ for i in range(10):
             echo ${{TESTVAR}}3 >&2
             echo xyz >&2
             echo `cat {_in[prefix: ]}`{index} > out_{index}.txt
+            sleep {sec}
             """
         ],
         time=(1, "min"),
@@ -76,8 +90,23 @@ cli("-d", str(w.workdir), "-P")
 print("-----", flush=True)
 
 logger.info("submit workflow and wait for it to finish")
-subprocess.run([w.workdir / "submit"], check=True)
-subprocess.run([w.workdir / "wait", "-n", "1", w.workdir / "queue"], check=True)
+with in_directory(w.workdir):
+    subprocess.run(["./submit"], check=True)
+    subprocess.run(
+        [
+            "./wait",
+            "-n",
+            "1",
+            "coverage",
+            "run",
+            "-a",
+            "/testing/venv/bin/awghr",
+            "-A",
+            "-@",
+            "10",
+        ],
+        check=True,
+    )
 
 logger.info("check for workflow files")
 statefile = w.workdir / "batch" / w.ID / "workflow_state"
