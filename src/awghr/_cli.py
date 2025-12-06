@@ -305,6 +305,16 @@ def _show_jobs(args):
                         args.last_n_lines,
                     )
 
+        # Show job usage statistics
+        if args.usage:
+            usage_regex = "|".join(args.usage)
+            job_usage = job / "job_usage"
+            if job_usage.is_file():
+                for line in job_usage.read_text().split("\n"):
+                    line = line.strip()
+                    if re.search(usage_regex, line, re.IGNORECASE) is not None:
+                        print(prefix.format("USAGE"), line)
+
         sys.stdout.flush()
 
     # Print coda
@@ -440,6 +450,13 @@ def cli(*argv: str):
         action="store_const",
         const=0,
         help="show the full standard output/error",
+    )
+    parser_show_jobs.add_argument(
+        "-u",
+        "--usage",
+        type=str,
+        nargs="*",
+        help="show matching lines from job usage statistics",
     )
     parser_show_jobs.add_argument(
         "-@",

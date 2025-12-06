@@ -175,7 +175,19 @@ for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
 
 logger.info("test command line interface")
 print("-----", flush=True)
-cli("jobs", "-d", str(w.workdir), "-Ae", "-n", "1", "-g", "a")
+cli(
+    "jobs",
+    "-d",
+    str(w.workdir),
+    "-Ae",
+    "-n",
+    "1",
+    "-g",
+    "a",
+    "-u",
+    "wall clock",
+    "maximum",
+)
 print("-----", flush=True)
 cli("-d", str(w.workdir), "-f", "index < 5", "-Abjloz")
 print("-----", flush=True)
