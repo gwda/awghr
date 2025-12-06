@@ -110,6 +110,7 @@ apt-get -y install \
     python3.10 \
     python3.10-venv \
     systemctl \
+    time \
     ;
 update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 update-alternatives --set python /usr/bin/python3

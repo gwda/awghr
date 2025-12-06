@@ -109,6 +109,7 @@ apt-get -y install \
     python3.10-venv \
     systemctl \
     tcl \
+    time \
     tk \
     ;
 update-alternatives --install /usr/bin/python python /usr/bin/python3 1
