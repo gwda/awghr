@@ -142,9 +142,15 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
         # Bundle jobs by order, dependencies, and resources
         job_bundles: Dict[Tuple[int, str], Any] = {}
         for job in jobs.values():
-            job_bundle_ID = "{needs_ID}_{time_min}_{mem_MB}_{disk_MB}_{ncpus}".format(
-                **job
-            )
+            job_bundle_ID = "_".join(
+                (
+                    "{needs_ID}",
+                    "time-{time_min}-min",
+                    "mem-{mem_MB}-MB",
+                    "disk-{disk_MB}-MB",
+                    "ncpus-{ncpus}",
+                )
+            ).format(**job)
             job_bundle_key = (job["order"], job_bundle_ID)
             if job_bundle_key not in job_bundles:
                 job_bundles[job_bundle_key] = []
@@ -165,7 +171,7 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
             # Create jobs arrays
             for idx in range(0, len(job_bundle), self.max_array_size):
                 job_array = job_bundle[idx : idx + self.max_array_size]
-                job_array_ID = f"{job_bundle_ID}_{idx}"
+                job_array_ID = f"{job_bundle_ID}_idx-{idx}"
                 job_array_key = (job_bundle_order, job_array_ID)
                 job_arrays[job_array_key] = job_array
 
