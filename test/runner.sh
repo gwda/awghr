@@ -55,8 +55,8 @@ for TESTFILE in ${TESTFILES}; do
     cp "/testing/test/awghr.cfg" "${workdir}/.awghr.cfg"
     sed '/^account *=/d' "${workdir}/.awghr.cfg" >"${workdir}/.awghr-no-account.cfg"
     (
-        exec > >(trap "" INT TERM; sed "s/^/${TEST}: /")
-        exec 2> >(trap "" INT TERM; sed "s/^/${TEST} ERROR: /" >&2)
+        exec > >(trap "" INT TERM; sed "s/^/${batch_system}:${TEST}: /")
+        exec 2> >(trap "" INT TERM; sed "s/^/${batch_system}:${TEST} ERROR: /" >&2)
         cd "${workdir}"
         export HOME="${workdir}"
         coverage run -a "/testing/${TESTFILE}"
