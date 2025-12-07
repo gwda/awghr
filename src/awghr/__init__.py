@@ -118,7 +118,8 @@ class Workflow:
 
     Attributes:
         name (str):
-            Name of workflow.
+            Name of workflow. Must start with a letter, and may contain only
+            letters, numbers, dashes, and underscores.
 
         workdir (Path):
             Working directory where workflow will be written.
@@ -138,6 +139,7 @@ class Workflow:
         ID (str):
             A unique string representing the workflow.
             Only available after :py:meth:`Workflow.write` has been called.
+
     """
 
     # Attributes
@@ -161,6 +163,14 @@ class Workflow:
         # Read configuration
         _logger.info("reading configuration")
         cfg = read_config(tags=tags)
+
+        # Check name
+        if not re.fullmatch(r"[a-z][a-z0-9_-]*", name, re.IGNORECASE):
+            msg = (
+                f"workflow name '{name}' must start with a letter,"
+                + " and may contain only letters, numbers, dashes, and underscores"
+            )
+            raise WorkflowException(msg)
 
         # Check base directory
         if basedir is None:
