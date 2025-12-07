@@ -440,7 +440,7 @@ class Workflow:
 
         # Parse input file list
         job["infiles"] = []
-        need_job_IDs = []
+        need_job_IDs = set()
         if inputs is not None:
             if len(inputs) != len(set(inputs)):
                 msg = "'inputs' is not a unique list"
@@ -460,7 +460,7 @@ class Workflow:
                     if not inp_filenames:
                         msg = f"no input file(s) for job ID '{inp_job_ID}'"
                         raise WorkflowException(msg)
-                    need_job_IDs.append(inp_job_ID)
+                    need_job_IDs.add(inp_job_ID)
                     for inp_filename in inp_filenames:
                         inp_file = self._jobs[inp_job_ID]["dir"] / inp_filename.format(
                             **self._jobs[inp_job_ID]["args"], _id=inp_job_ID
@@ -472,14 +472,15 @@ class Workflow:
         job["order"] = 0
         needs_hash = blake2b(digest_size=8, usedforsecurity=False)
         if needs is not None:
-            need_job_IDs.extend(needs)
-        for need_job_ID in need_job_IDs:
+            need_job_IDs.update(needs)
+        for need_job_ID in sorted(need_job_IDs):
             if need_job_ID not in self._jobs:
                 msg = f"job ID '{need_job_ID}' does not exist"
                 raise WorkflowException(msg)
             job["needs"].append(need_job_ID)
             job["order"] = max(job["order"], self._jobs[need_job_ID]["order"] + 1)
-            needs_hash.update(self._jobs[need_job_ID]["args_json"].encode("utf-8"))
+            args_json_bytes = self._jobs[need_job_ID]["args_json"].encode("utf-8")
+            needs_hash.update(args_json_bytes)
         job["needs_ID"] = needs_hash.hexdigest()
 
         # Parse output file list, and store whether job is considered final
