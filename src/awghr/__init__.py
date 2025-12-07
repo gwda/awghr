@@ -251,7 +251,8 @@ class Workflow:
         Args:
             args (Dict[str, Any]):
                 Arguments and their values which uniquely identify the job.
-                Argument names cannot begin with an underscore.
+                Argument names must be valid Python identifiers, and cannot
+                begin with an underscore.
 
             cmds (List[Union[str, List[Any]]]):
                 A list of commands to execute.
@@ -374,12 +375,13 @@ class Workflow:
         """
 
         # Check argument names
-        underscore_args = [arg for arg in args.keys() if arg.startswith("_")]
-        if underscore_args:
-            msg = "argument names ('{}') cannot begin with an underscore".format(
-                ", ".join(underscore_args)
-            )
-            raise WorkflowException(msg)
+        for arg in args.keys():
+            if not arg.isidentifier() or arg.startswith("_"):
+                msg = (
+                    f"argument name '{arg}' must be a valid Python identifier,"
+                    + " and cannot begin with an underscore"
+                )
+                raise WorkflowException(msg)
 
         # Generate JSON representation of arguments
         args_json = json.dumps(args, default=str, sort_keys=True)
@@ -511,26 +513,29 @@ class Workflow:
 
                 # Treat `cmd` as a single command
                 cmd_args = []
-                for arg in cmd:
-                    if isinstance(arg, dict):
+                for cmd_arg in cmd:
+                    if isinstance(cmd_arg, dict):
 
                         # Format dict argument as ``key=value``
                         cmd_args.extend(
-                            [f"{k}={v}".format(**format_cmd) for k, v in arg.items()]
+                            [
+                                f"{k}={v}".format(**format_cmd)
+                                for k, v in cmd_arg.items()
+                            ]
                         )
 
-                    elif isinstance(arg, Path):
+                    elif isinstance(cmd_arg, Path):
 
                         # Stage path in input files, format as local path
-                        arg = arg.resolve()
-                        if arg not in job["infiles"]:
-                            job["infiles"].append(arg)
-                        cmd_args.append("./" + arg.name)
+                        cmd_arg = cmd_arg.resolve()
+                        if cmd_arg not in job["infiles"]:
+                            job["infiles"].append(cmd_arg)
+                        cmd_args.append("./" + cmd_arg.name)
 
                     else:
 
                         # Format all other arguments as strings
-                        cmd_args.append(str(arg).format(**format_cmd))
+                        cmd_args.append(str(cmd_arg).format(**format_cmd))
 
                 # Quote arguments
                 cmd = " ".join(shlex.quote(arg) for arg in cmd_args)
