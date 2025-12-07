@@ -149,6 +149,7 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
                     "mem-{mem_MB}-MB",
                     "disk-{disk_MB}-MB",
                     "ncpus-{ncpus}",
+                    "ngpus-{ngpus}",
                 )
             ).format(**job)
             job_bundle_key = (job["order"], job_bundle_ID)
