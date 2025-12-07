@@ -718,13 +718,19 @@ class Workflow:
                 f += "hash -r"
 
                 # Set up /usr/bin/time wrapper to record usage statistics
+                # - First try the GNU variant:
+                #     /usr/bin/time -q -v -o ./job_usage ...
+                #   then try the BSD variant
+                #     /usr/bin/time -p -l -o ./job_usage ...
+                #   then give up
                 f += """
                 job_usage_wrapper='/usr/bin/time -q -v -o ./job_usage'
-                if eval ${job_usage_wrapper} true >./job_usage_stdouterr 2>&1; then
-                    rm -f ./job_usage_stdouterr
-                else
-                    job_usage_wrapper=""
-                    mv ./job_usage_stdouterr ./job_usage
+                if ! eval ${job_usage_wrapper} true >/dev/null 2>&1; then
+                    job_usage_wrapper='/usr/bin/time -p -l -o ./job_usage'
+                    if ! eval ${job_usage_wrapper} true >/dev/null 2>&1; then
+                        job_usage_wrapper=''
+                        echo 'WARNING: could not find a compatible /usr/bin/time' > ./job_usage
+                    fi
                 fi
                 eval ${job_usage_wrapper} bash <<_AWGHR_EOF_
                 """
