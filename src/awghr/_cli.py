@@ -135,9 +135,9 @@ def _show_jobs(args):
 
                     # Run command to get batch ID
                     if args.batch_ID_rate > 0:
-                        jobstate_file = job / "job_state"
-                        if jobstate_file.is_file():
-                            job_state = jobstate_file.read_text().strip()
+                        job_state_file = job / "job_state"
+                        if job_state_file.is_file():
+                            job_state = job_state_file.read_text().strip()
                             if job_state == "RUNNING":
                                 job_batchID_cmd = job_batchID[1:]
                                 try:
@@ -194,8 +194,8 @@ def _show_jobs(args):
 
     # Filter jobs
     filtered_jobs = []
-    jobstate_cache = {}
-    jobstate_last_modified_cache = {}
+    job_state_cache = {}
+    job_state_last_modified_cache = {}
     for job in tqdm(jobs, desc="Filtering", disable=None, leave=False):
 
         # Filter jobs by batch system ID
@@ -217,15 +217,15 @@ def _show_jobs(args):
                 continue
 
         # Filter jobs by state
-        jobstate_file = job / "job_state"
-        if jobstate_file.is_file():
-            job_state = jobstate_file.read_text().strip()
-            jobstate_last_modified_cache[job] = datetime.fromtimestamp(
-                jobstate_file.stat().st_mtime
+        job_state_file = job / "job_state"
+        if job_state_file.is_file():
+            job_state = job_state_file.read_text().strip()
+            job_state_last_modified_cache[job] = datetime.fromtimestamp(
+                job_state_file.stat().st_mtime
             )
         else:
             job_state = "PENDING"
-        jobstate_cache[job] = job_state
+        job_state_cache[job] = job_state
         if args.state != "ALL" and args.state != job_state:
             continue
 
@@ -256,14 +256,14 @@ def _show_jobs(args):
         print(prefix.format("ARGS"), job_args_str)
 
         # Show job state, date it was last modified, and batch system ID
-        jobstate_str = jobstate_cache[job]
-        if job in jobstate_last_modified_cache:
-            jobstate_str += jobstate_last_modified_cache[job].strftime(
+        job_state_str = job_state_cache[job]
+        if job in job_state_last_modified_cache:
+            job_state_str += job_state_last_modified_cache[job].strftime(
                 " %Y-%m-%d %H:%M:%S"
             )
-        if jobstate_cache[job] == "RUNNING":
-            jobstate_str += " BATCHID " + cache["batchID"].get(job, "unknown")
-        print(prefix.format("STATE"), jobstate_str)
+        if job_state_cache[job] == "RUNNING":
+            job_state_str += " BATCHID " + cache["batchID"].get(job, "unknown")
+        print(prefix.format("STATE"), job_state_str)
 
         # Show job directory
         if args.batch_dir:
