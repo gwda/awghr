@@ -927,7 +927,7 @@ class Workflow:
                     shift
             esac
             until {all_workstatefiles_exist}; do
-                "$@"
+                "$@" </dev/null 2>&1 | cat
                 sleep ${{sleepfor}}
             done
             allworkstate=SUCCESS
