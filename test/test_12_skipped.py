@@ -58,8 +58,10 @@ for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
     jobstate = (jobdir / "job_state").read_text().strip()
     if jobargs["exit_code"] == 77:
         assert jobstate == "SUCCESS/SKIPPED"
+        assert not (jobdir / "file77.txt").is_file()
     else:
         assert jobstate == "SUCCESS"
+        assert (jobdir / "file0.txt").is_file()
 
 logger.info("check that output file were (not) created as expected")
 outfiledir = w.workdir / "outputs"

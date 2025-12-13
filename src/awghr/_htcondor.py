@@ -103,6 +103,10 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                 jobscriptdir = job_dir_from_ID(batchdir / "job_scripts", job["ID"])
                 jobscriptdir.mkdir(parents=True, exist_ok=True)
 
+                # All input and output files for HTCondor to transfer
+                job_all_infiles = job["infiles"]
+                job_all_outfiles = job["outfiles"] + job["job_script_outfiles"]
+
                 # Write job pre script
                 job_pre_file = jobscriptdir / "job_condor_pre.sh"
                 with FileLineWriter(job_pre_file) as f:
@@ -153,6 +157,44 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                     job_stdout_file = job["dir"] / "job_stdout"
                     job_stderr_file = job["dir"] / "job_stderr"
                     f += f"rm -f '{job_stdout_file}' '{job_stderr_file}'"
+
+                # Write job wrapper script
+                job_wrapper_file = jobscriptdir / "job_condor_wrapper.sh"
+                job_missing_file = jobscriptdir / "job_condor_missing"
+                with FileLineWriter(job_wrapper_file) as f:
+
+                    # Exit on any script errors
+                    f += "set -e"
+
+                    # Set trap to ensure that all output file exist on exit, as
+                    # required by HTCondor's output file transfer mechanism, and
+                    # record missing output files for later processing
+                    # - for signals, exit with 128+<signal number>
+                    f += "function trap_outfiles() {"
+                    with f.indent(4):
+                        f += """
+                        local status=$1
+                        touch ./job_condor_missing
+                        """
+                        for outfile in job_all_outfiles:
+                            f += f"""
+                            if ! test -f './{outfile.name}'; then
+                                echo '{outfile}' >> ./job_condor_missing
+                                touch './{outfile.name}'
+                            fi
+                            """
+                        f += "exit ${status}"
+                    f += """
+                    }
+                    trap 'trap_outfiles $?' EXIT
+                    trap 'trap_outfiles 148' TSTP
+                    """
+
+                    # Run job script
+                    f += "source ./job_script.sh"
+
+                job_all_infiles.append(job_wrapper_file)
+                job_all_outfiles.append(job_missing_file)
 
                 # Write job post script
                 job_post_file = jobscriptdir / "job_condor_post.sh"
@@ -207,6 +249,16 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                     echo "${{JOBID}}" > '{jobbatchID_file}'
                     """
 
+                    # Remove empty output files created by job wrapper script to
+                    # ensure that all output file exist on exit, as required by
+                    # HTCondor's output file transfer mechanism
+                    f += f"""
+                    missing_files=`cat '{job_missing_file}'`
+                    if test "X${{missing_files}}" != X; then
+                        rm -f ${{missing_files}}
+                    fi
+                    """
+
                     # Skip post script if job was skipped
                     f += """
                     if test ${RETURN} -eq 77; then
@@ -215,7 +267,7 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                     """
 
                     # Check for output files, and link to final output directory
-                    for outfile in job["outfiles"] + job["job_script_outfiles"]:
+                    for outfile in job_all_outfiles:
                         f += f"test -f '{outfile}' || fail 'Missing output file {outfile.name}'"
                     if job["outfinal"]:
                         for outfile in job["outfiles"]:
@@ -244,7 +296,7 @@ class HTCondorWorkflowWriter(WorkflowWriter):
 
                 # - Job script
                 sub["EXECUTABLE"] = "/bin/bash"
-                sub["ARGUMENTS"] = "./job_script.sh"
+                sub["ARGUMENTS"] = "./" + job_wrapper_file.name
                 sub["TRANSFER_EXECUTABLE"] = "FALSE"
                 sub["GETENV"] = "FALSE"
 
@@ -259,7 +311,15 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                 #   - HTCondor automatically identifies and transfers output files
                 sub["SHOULD_TRANSFER_FILES"] = "YES"
                 sub["TRANSFER_INPUT_FILES"] = ",".join(
-                    str(infile) for infile in job["infiles"]
+                    str(infile) for infile in job_all_infiles
+                )
+                sub["TRANSFER_OUTPUT_FILES"] = ",".join(
+                    outfile.name for outfile in job_all_outfiles
+                )
+                sub["TRANSFER_OUTPUT_REMAPS"] = '"{}"'.format(
+                    ";".join(
+                        f"{outfile.name}={outfile}" for outfile in job_all_outfiles
+                    )
                 )
                 sub["WHEN_TO_TRANSFER_OUTPUT"] = "ON_EXIT"
 
