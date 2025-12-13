@@ -926,8 +926,9 @@ class Workflow:
                     sleepfor="$1"
                     shift
             esac
+            export PAGER=cat
             until {all_workstatefiles_exist}; do
-                "$@" </dev/null 2>&1 | cat
+                "$@" </dev/null 2>&1
                 sleep ${{sleepfor}}
             done
             allworkstate=SUCCESS
