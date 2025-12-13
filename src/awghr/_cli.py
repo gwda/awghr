@@ -6,6 +6,7 @@
 
 import argparse
 import json
+import os
 import pickle
 import re
 import shlex
@@ -504,7 +505,10 @@ def cli(*argv: str):
     # - Ignore errors if pipe is broken
     try:
         with subprocess.Popen(
-            ["less", "-FRX"], shell=False, stdin=subprocess.PIPE, text=True
+            os.getenv("PAGER", "less -FRX"),
+            shell=True,
+            stdin=subprocess.PIPE,
+            text=True,
         ) as p:
             with redirect_stdout(p.stdin):
                 args.subcommand(args)
