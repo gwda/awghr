@@ -12,7 +12,7 @@ import shlex
 import subprocess
 import sys
 import time
-from collections import deque
+from collections import defaultdict, deque
 from contextlib import redirect_stdout
 from datetime import datetime
 from pathlib import Path
@@ -234,9 +234,9 @@ def _show_jobs(args):
     # Show job, ordered jobs by their arguments
     ordered_jobs = sorted([(cache["sorted_args"][job], job) for job in filtered_jobs])
     len_n = len(str(len(ordered_jobs)))
+    job_state_counts = defaultdict(int)
     for n, (job_args, job) in enumerate(ordered_jobs, start=1):
-        if n > 1:
-            print("")
+        print("")
 
         # Create prefix for all printed output
         prefix = f"{n:0{len_n}d}" + " {:<5}"
@@ -317,9 +317,20 @@ def _show_jobs(args):
 
         sys.stdout.flush()
 
-    # Print coda
+        # Count job states
+        job_state_counts[job_state_cache[job]] += 1
+
     print("")
-    print("DONE", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+    # Create prefix for coda
+    prefix = ("-" * len_n) + " {:<5}"
+
+    # Print counts of job states
+    for job_state, job_state_count in sorted(job_state_counts.items()):
+        print(prefix.format("STATE"), f"{job_state_count:{len_n}d}", job_state)
+
+    # Print date
+    print(prefix.format("DATE"), datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
 
 def cli(*argv: str):
