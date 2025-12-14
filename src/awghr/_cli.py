@@ -13,7 +13,7 @@ import shlex
 import subprocess
 import sys
 import time
-from collections import defaultdict, deque
+from collections import defaultdict
 from contextlib import redirect_stdout
 from datetime import datetime
 from pathlib import Path
@@ -38,16 +38,50 @@ def _positive_int(value):
 
 def _show_stdouterr(prefix, stdfile, grep_regex, last_n_lines):
 
-    # Store lines in deque
-    last_lines = deque()
-    max_last_lines = False
-
     # Open standard output/error file
-    with stdfile.open() as f:
+    with stdfile.open("rb") as f:
+
+        if last_n_lines > 0:  # pragma: no cover
+
+            # Get preferred chunk size
+            try:
+                chunk_size = os.fstat(f.fileno()).st_blksize
+            except Exception:
+                chunk_size = 512
+
+            # Read backwards from end of file to find last lines
+            try:
+
+                # Position to read last chunk before end of file
+                f.seek(-chunk_size - 1, os.SEEK_END)
+
+                found_lines = 0
+                while True:
+
+                    # Read chunk and rewind
+                    chunk = f.read(chunk_size)
+                    f.seek(-chunk_size, os.SEEK_CUR)
+
+                    # Break if found enough lines
+                    found_lines += chunk.count(b"\n")
+                    if found_lines > last_n_lines:
+                        break
+
+                    # Rewind to previous chunk
+                    f.seek(-chunk_size, os.SEEK_CUR)
+
+            except OSError:
+
+                # Go back to start of file
+                f.seek(0, os.SEEK_SET)
 
         # Read lines
-        for line in f:
-            line = line.rstrip()
+        lines = []
+        while True:
+            line = f.readline()
+            if line == b"":
+                break
+            line = line.decode("utf-8").rstrip()
 
             # Discard lines not matching regex
             discard_line = False
@@ -58,23 +92,16 @@ def _show_stdouterr(prefix, stdfile, grep_regex, last_n_lines):
             if discard_line:
                 continue
 
-            # If not showing last lines, print straight away
-            if last_n_lines == 0:
-                print(prefix, line)
-                continue
+            lines.append(line)
 
-            # Add lines to deque, keeping only the `last_n_lines` lines
-            if max_last_lines:
-                last_lines.popleft()
-                last_lines.append(line)
-            else:
-                last_lines.append(line)
-                if len(last_lines) == last_n_lines:
-                    max_last_lines = True
+        if last_n_lines > 0:
 
-    # Print any last lines
-    for line in last_lines:
-        print(prefix, line)
+            # Keep only last lines
+            lines = lines[-last_n_lines:]
+
+        # Print lines
+        for line in lines:
+            print(prefix, line)
 
 
 def _show_jobs(args):
