@@ -197,6 +197,7 @@ def _show_jobs(args):
     filtered_jobs = []
     job_state_cache = {}
     job_state_last_modified_cache = {}
+    job_state_counts = defaultdict(int)
     for job in tqdm(jobs, desc="Filtering", disable=None, leave=False):
 
         # Filter jobs by batch system ID
@@ -227,6 +228,7 @@ def _show_jobs(args):
         else:
             job_state = "PENDING"
         job_state_cache[job] = job_state
+        job_state_counts[job_state] += 1
         if args.state != "ALL" and args.state != job_state:
             continue
 
@@ -235,7 +237,6 @@ def _show_jobs(args):
     # Show job, ordered jobs by their arguments
     ordered_jobs = sorted([(cache["sorted_args"][job], job) for job in filtered_jobs])
     len_n = len(str(len(ordered_jobs)))
-    job_state_counts = defaultdict(int)
     for n, (job_args, job) in enumerate(ordered_jobs, start=1):
         print("")
 
@@ -317,9 +318,6 @@ def _show_jobs(args):
                         print(prefix.format("USAGE"), line)
 
         sys.stdout.flush()
-
-        # Count job states
-        job_state_counts[job_state_cache[job]] += 1
 
     print("")
 
