@@ -225,6 +225,9 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
 
             with FileLineWriter(jobarray_script_file) as f:
 
+                # Exit on any script errors
+                f += "set -e"
+
                 # Write shell function fail() for reporting errors
                 f += """
                 function fail() {
@@ -381,6 +384,9 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
 
         with FileLineWriter(workstate_script_file) as f:
 
+            # Exit on any script errors
+            f += "set -e"
+
             # Ensure list of directories of failed jobs does not exist
             f += f"rm -f '{failedjobfile}'"
 
@@ -439,6 +445,9 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
             f += f"source '{all_jobs_script_file}'"
 
         with FileLineWriter(all_jobs_script_file) as f:
+
+            # Exit on any script errors
+            f += "set -e"
 
             # Set trap to write the workflow state if errors are encountered
             # - for signals, exit with 128+<signal number>
