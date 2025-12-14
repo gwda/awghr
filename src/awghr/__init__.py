@@ -240,6 +240,7 @@ class Workflow:
         disk: Union[Tuple[float, str], Dict[str, Tuple[float, str]]],
         ncpus: Union[int, Dict[str, int]] = 1,
         ngpus: Union[int, Dict[str, int]] = 0,
+        env: Optional[Dict[str, Any]] = None,
         needs: Optional[List[str]] = None,
         inputs: Optional[List[Union[Path, Tuple[str, ...]]]] = None,
         outputs: List[str],
@@ -324,6 +325,10 @@ class Workflow:
                 If a dictionary, lists different resource requirements for
                 different clusters and/or batch systems; see the ``account``
                 option to :py:meth:`Workflow`.
+
+            env (Optional[Dict[str, Any]]):
+                List of environment variables to save/set in job script.
+                Overrides any values given in ``~/.awghr.cfg``.
 
             needs (Optional[List[str]]):
                 A list of IDs of prerequisite jobs in the same workflow.
@@ -433,6 +438,11 @@ class Workflow:
         job["resources"] = {
             f"_{k}": job[k] for k in {"time_min", "mem_MB", "disk_MB", "ncpus", "ngpus"}
         }
+
+        # Store job environment
+        job["env"] = self._env.copy()
+        if env is not None:
+            job["env"].update(env)
 
         # Create job directory
         jobdir = job_dir_from_ID(self.workdir / "jobs", job_ID)
@@ -725,8 +735,8 @@ class Workflow:
                 f += "set -e"
 
                 # Write job environment
-                for var in self._env:
-                    val = self._env[var].format(**job["resources"])
+                for var, val in job["env"].items():
+                    val = str(val).format(**job["resources"])
                     f += "export {}={}".format(var, shlex.quote(val))
 
                 # Ensure job directory is searched first for commands

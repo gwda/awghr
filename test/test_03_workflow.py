@@ -75,6 +75,7 @@ job_args: Dict[str, Any] = dict(
     disk=(10, "MB"),
     ncpus=2,
     ngpus=1,
+    env=dict(WHY="now"),
     inputs=[Path("/usr/bin/true")],
     outputs=["out_{index}.txt"],
     batchopt=job_batchopt,
