@@ -5,7 +5,7 @@
 """A(nother) Workflow Generator for High-throughput computeRing.
 
 Configuration:
-    Default workflow configurations are retrieved from :literal:`~/.awghr.cfg`.
+    Default workflow configurations are retrieved from ``~/.awghr.cfg``.
 
     This is a ``ConfigParser``-style configuration file with the following syntax::
 
@@ -127,14 +127,14 @@ class Workflow:
         cluster (str):
             Name of the computer cluster where the workflow is being generated.
             Cluster names are defined by the user by matching against batch system,
-            host name, etc. in a configuration section in :literal:`~/.awghr.cfg`.
+            host name, etc. in a configuration section in ``~/.awghr.cfg``.
 
         batch_system (str):
             Batch system of the computer cluster where the workflow is being generated.
 
         account (str):
             Account the workflow should be charged against.
-            If not given, use the default value given in :literal:`~/.awghr.cfg`.
+            If not given, use the default value given in ``~/.awghr.cfg``.
 
         ID (str):
             A unique string representing the workflow.
