@@ -344,8 +344,6 @@ def _show_jobs(args):
                     if re.search(usage_regex, line, re.IGNORECASE) is not None:
                         print(prefix.format("USAGE"), line)
 
-        sys.stdout.flush()
-
     print("")
 
     # Create prefix for coda
@@ -537,5 +535,6 @@ def cli(*argv: str):
         ) as p:
             with redirect_stdout(p.stdin):
                 args.subcommand(args)
+                sys.stdout.flush()
     except (KeyboardInterrupt, BrokenPipeError):  # pragma: no cover
         pass
