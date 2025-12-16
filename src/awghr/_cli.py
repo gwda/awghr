@@ -530,7 +530,7 @@ def cli(*argv: str):
     # - Ignore errors if pipe is broken
     try:
         with subprocess.Popen(
-            os.getenv("PAGER", "less -FRX"),
+            os.getenv("PAGER", "less -FRSX"),
             shell=True,
             stdin=subprocess.PIPE,
             text=True,
