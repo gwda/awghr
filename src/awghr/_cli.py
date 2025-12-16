@@ -537,4 +537,4 @@ def cli(*argv: str):
                 args.subcommand(args)
                 sys.stdout.flush()
     except (KeyboardInterrupt, BrokenPipeError):  # pragma: no cover
-        pass
+        p.terminate()
