@@ -273,6 +273,7 @@ class Workflow:
                 Commands may contain ``{format}`` strings which will be filled by:
 
                 * the dictionary supplied in ``args``;
+                * ``_id``: the unique string representing the job.
                 * ``_in``: input file(s) supplied in ``inputs``, separated by spaces.
                 * ``_in[re:sep]``: the input file(s) supplied in ``inputs`` that
                   match the regular expression ``re``, separated by ``sep``.
@@ -509,6 +510,7 @@ class Workflow:
 
         # Parse and store commands
         format_cmd = dict(args)
+        format_cmd["_id"] = job_ID
         format_cmd["_in"] = JobFileList("_in", [p.name for p in job["infiles"]])
         format_cmd["_out"] = JobFileList("_out", [p.name for p in job["outfiles"]])
         format_cmd.update(job["resources"])
