@@ -202,11 +202,12 @@ def _show_jobs(args):
             job_args_counts = {}
             for job in jobs:
                 for arg, val in cache["args"][job].items():
+                    val_str = json.dumps(val, sort_keys=True)
                     if arg not in job_args_counts:
                         job_args_counts[arg] = {}
-                    if val not in job_args_counts[arg]:
-                        job_args_counts[arg][val] = 0
-                    job_args_counts[arg][val] += 1
+                    if val_str not in job_args_counts[arg]:
+                        job_args_counts[arg][val_str] = 0
+                    job_args_counts[arg][val_str] += 1
 
             # Argument is constant if it only has one value
             for arg in job_args_counts:
