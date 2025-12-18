@@ -27,6 +27,7 @@ class SlurmWorkflowWriter(BatchQWorkflowWriter):
     #SBATCH --cpus-per-task={ncpus}
     #SBATCH --output={stdout}
     #SBATCH --error={stderr}
+    #SBATCH --signal=B:TERM@30
     """
 
     BATCHQ_HEADER_NGPUS = "#SBATCH --gres=gpu:{n}"
