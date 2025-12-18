@@ -75,6 +75,7 @@ class HTCondorWorkflowWriter(WorkflowWriter):
         failedjobfile,
         workstatefile,
         submittedfile,
+        skip_exit_code,
     ) -> None:
         """Write workflow."""
 
@@ -138,7 +139,7 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                         jobstate=`cat '{needs_jobstate_file}' 2>/dev/null || true`
                         if test "X${{jobstate}}" = XSUCCESS/SKIPPED; then
                             echo SUCCESS/SKIPPED > '{jobstate_file}'
-                            exit 77
+                            exit {skip_exit_code}
                         fi
                         """
 
@@ -224,7 +225,7 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                         if test ${{status}} -eq 0; then
                             echo SUCCESS > '{jobstate_file}'
                             exit 0
-                        elif test ${{status}} -eq 77; then
+                        elif test ${{status}} -eq {skip_exit_code}; then
                             echo SUCCESS/SKIPPED > '{jobstate_file}'
                             exit 0
                         else
@@ -260,9 +261,9 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                     """
 
                     # Skip post script if job was skipped
-                    f += """
-                    if test ${RETURN} -eq 77; then
-                        exit ${RETURN}
+                    f += f"""
+                    if test ${{RETURN}} -eq {skip_exit_code}; then
+                        exit ${{RETURN}}
                     fi
                     """
 
@@ -353,7 +354,7 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                 # - Define pre- and post-job script
                 F += f"""
                 SCRIPT PRE {job_ID} /bin/bash {job_pre_file}
-                PRE_SKIP {job_ID} 77
+                PRE_SKIP {job_ID} {skip_exit_code}
                 SCRIPT POST {job_ID} /bin/bash {job_post_file} $JOBID $RETURN
                 """
 

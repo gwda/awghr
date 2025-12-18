@@ -48,6 +48,7 @@ class WorkflowWriter(ABC):
         failedjobfile,
         workstatefile,
         submittedfile,
+        skip_exit_code,
     ) -> None:
         """Write workflow."""
 

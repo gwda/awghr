@@ -132,6 +132,7 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
         failedjobfile,
         workstatefile,
         submittedfile,
+        skip_exit_code,
     ) -> None:
         """Write workflow."""
 
@@ -289,7 +290,7 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
                                 if test ${{status}} -eq 0; then
                                     echo SUCCESS > '{jobstate_file}'
                                     exit 0
-                                elif test ${{status}} -eq 77; then
+                                elif test ${{status}} -eq {skip_exit_code}; then
                                     echo SUCCESS/SKIPPED > '{jobstate_file}'
                                     exit 0
                                 else
@@ -314,7 +315,7 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
                                 f += f"""
                                 jobstate=`cat '{needs_jobstate_file}' 2>/dev/null || true`
                                 if test "X${{jobstate}}" = XSUCCESS/SKIPPED; then
-                                    exit 77
+                                    exit {skip_exit_code}
                                 elif test "X${{jobstate}}" != XSUCCESS; then
                                     fail 'Prerequisite job {needs_job_ID} was not successful'
                                 fi

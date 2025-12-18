@@ -116,6 +116,10 @@ class Workflow:
             If not given, use the default value given in ``~/.awghr.cfg``;
             if no default value is defined, an error is raised.
 
+        skip_exit_code (Optional[int]):
+            Exit code used to indicate that a job should be skipped.
+            Default is 77.
+
     Attributes:
         name (str):
             Name of workflow. Must start with a letter, and may contain only
@@ -158,6 +162,7 @@ class Workflow:
         basedir: Optional[Path] = None,
         subdir: Optional[Path] = None,
         account: Optional[Union[str, Dict[str, str]]] = None,
+        skip_exit_code: Optional[int] = 77,
     ):
 
         # Read configuration
@@ -202,6 +207,7 @@ class Workflow:
             raise WorkflowException(msg)
 
         # Set internal variables
+        self._skip_exit_code = skip_exit_code
         self._workflow_writer = cfg["workflow_writer"](
             batchsyscfg=cfg["batch_system_cfg"]
         )
@@ -813,6 +819,7 @@ class Workflow:
             failedjobfile=failedjobfile,
             workstatefile=workstatefile,
             submittedfile=submittedfile,
+            skip_exit_code=self._skip_exit_code,
         )
 
         # List of all workflow IDs that have been written,
