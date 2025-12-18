@@ -284,7 +284,7 @@ class Workflow:
                 * ``_in[re:sep]``: the input file(s) supplied in ``inputs`` that
                   match the regular expression ``re``, separated by ``sep``.
                   Both arguments are optional.
-                  Example: ``_in[\.dat$:,]`` returns file(s) with ``.dat`` extensions,
+                  Example: ``_in[\\.dat$:,]`` returns file(s) with ``.dat`` extensions,
                   separated by commas.
                 * ``_out``: output file(s) supplied in ``outputs``, separated by spaces.
                 * ``_out[re:sep]``: the output file(s) supplied in ``outputs`` that
