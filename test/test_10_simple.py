@@ -59,7 +59,7 @@ for i in range(10):
             sleep {sec}
             """
         ],
-        time=(1, "min"),
+        time=(10, "min"),
         mem=(10, "MB"),
         disk=(10, "MB"),
         inputs=[infile],

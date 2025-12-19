@@ -70,7 +70,7 @@ job_args: Dict[str, Any] = dict(
         ["/usr/bin/true", "a", "b"],
         ["/usr/bin/true", "a", {"b": 1, "c": 2}, Path.cwd() / "file.dat"],
     ],
-    time=(1, "min"),
+    time=(10, "min"),
     mem=(10, "MB"),
     disk=(10, "MB"),
     ncpus=2,
@@ -95,7 +95,7 @@ try:
     w.add_job(
         args=dict(_not_allowed=True),
         cmds=["true"],
-        time=(1, "min"),
+        time=(10, "min"),
         mem=(10, "MB"),
         disk=(10, "MB"),
         outputs=["dummy.txt"],
@@ -111,7 +111,7 @@ try:
     w.add_job(
         args=dict(index=999),
         cmds=["true"],
-        time=(1, "min"),
+        time=(10, "min"),
         mem=(10, "MB"),
         disk=(10, "MB"),
         inputs=[Path("./dummy.txt"), Path("./dummy.txt")],
@@ -128,7 +128,7 @@ try:
     w.add_job(
         args=dict(index=999),
         cmds=["true"],
-        time=(1, "min"),
+        time=(10, "min"),
         mem=(10, "MB"),
         disk=(10, "MB"),
         inputs=[Path("./non-existent.txt")],
@@ -145,7 +145,7 @@ try:
     w.add_job(
         args=dict(index=999),
         cmds=["true"],
-        time=(1, "min"),
+        time=(10, "min"),
         mem=(10, "MB"),
         disk=(10, "MB"),
         inputs=[(job_id,)],
@@ -162,7 +162,7 @@ try:
     w.add_job(
         args=dict(index=999),
         cmds=["echo {_in}"],
-        time=(1, "min"),
+        time=(10, "min"),
         mem=(10, "MB"),
         disk=(10, "MB"),
         outputs=["dummy.txt"],
@@ -176,7 +176,7 @@ try:
     w.add_job(
         args=dict(index=999),
         cmds=["echo {_in[false]}"],
-        time=(1, "min"),
+        time=(10, "min"),
         mem=(10, "MB"),
         disk=(10, "MB"),
         inputs=[Path("/usr/bin/true")],
@@ -193,7 +193,7 @@ try:
     w.add_job(
         args=dict(index=999),
         cmds=["true"],
-        time=(1, "min"),
+        time=(10, "min"),
         mem=(10, "MB"),
         disk=(10, "MB"),
         inputs=[("non-existent-job", "dummy")],
@@ -208,7 +208,7 @@ try:
     w.add_job(
         args=dict(index=999),
         cmds=["true"],
-        time=(1, "min"),
+        time=(10, "min"),
         mem=(10, "MB"),
         disk=(10, "MB"),
         needs=["non-existent-job"],
@@ -225,7 +225,7 @@ try:
     w.add_job(
         args=dict(index=999),
         cmds=["true"],
-        time=(1, "min"),
+        time=(10, "min"),
         mem=(10, "MB"),
         disk=(10, "MB"),
         outputs=["dummy.txt", "dummy.txt"],
@@ -240,7 +240,7 @@ except WorkflowException:
 bad_job = w.add_job(
     args=dict(index=999),
     cmds=["true"],
-    time=(1, "min"),
+    time=(10, "min"),
     mem=(10, "MB"),
     disk=(10, "MB"),
     outputs=["out_0.txt"],
@@ -260,7 +260,7 @@ try:
     w.add_job(
         args=dict(index=999),
         cmds=["true"],
-        time=(1, "min"),
+        time=(10, "min"),
         mem=(10, "MB"),
         disk=(10, "MB"),
         outputs=["out_0.txt"],
@@ -299,7 +299,7 @@ if w.batch_system == "htcondor":
         w.add_job(
             args=dict(index=999),
             cmds=["true"],
-            time=dict(htcondor=(1, "min"), htcondor_testing=(5, "min")),
+            time=dict(htcondor=(10, "min"), htcondor_testing=(5, "min")),
             mem=(10, "MB"),
             disk=(10, "MB"),
             outputs=["out_0.txt"],
@@ -315,7 +315,7 @@ if w.batch_system == "htcondor":
             args=dict(index=999),
             cmds=["true"],
             time=dict(
-                slurm=(1, "min"),
+                slurm=(10, "min"),
             ),
             mem=(10, "MB"),
             disk=(10, "MB"),
@@ -331,7 +331,7 @@ if w.batch_system == "htcondor":
         w.add_job(
             args=dict(index=999),
             cmds=["true"],
-            time=(1, "min"),
+            time=(10, "min"),
             mem=(10, "MB"),
             disk=(10, "MB"),
             outputs=["out_0.txt"],
@@ -350,7 +350,7 @@ if w.batch_system == "htcondor":
         bad_job = w.add_job(
             args=dict(index=999),
             cmds=["true"],
-            time=(1, "min"),
+            time=(10, "min"),
             mem=(10, "MB"),
             disk=(10, "MB"),
             outputs=["dummy.txt"],

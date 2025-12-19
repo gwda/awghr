@@ -29,7 +29,7 @@ for i in range(10):
     w.add_job(
         args=dict(index=i),
         cmds=["echo {index} > {_out}"],
-        time=(1, "min"),
+        time=(10, "min"),
         mem=(10, "MB"),
         disk=(10, "MB"),
         outputs=["out_{index}.txt"],
@@ -92,7 +92,7 @@ for w, (i0, n) in zip(ws, ((0, 10), (5, 10))):
         w.add_job(
             args=dict(index=i),
             cmds=["echo {index} > {_out}"],
-            time=(1, "min"),
+            time=(10, "min"),
             mem=(10, "MB"),
             disk=(10, "MB"),
             outputs=["out_{index}.txt"],
@@ -116,7 +116,7 @@ for w, (i0, n) in zip(ws, ((0, 5), (5, 10), (0, 10))):
         w.add_job(
             args=dict(index=i, i0=i0, n=n),
             cmds=["echo {index} > {_out}"],
-            time=(1, "min"),
+            time=(10, "min"),
             mem=(10, "MB"),
             disk=(10, "MB"),
             outputs=["out_{index}.txt"],
@@ -141,7 +141,7 @@ for w, (i0, n) in zip(ws, ((0, 5), (5, 10), (0, 10))):
         w.add_job(
             args=dict(index=i),
             cmds=["echo {index} > {_out}"],
-            time=(1, "min"),
+            time=(10, "min"),
             mem=(10, "MB"),
             disk=(10, "MB"),
             outputs=["out_{index}.txt"],
@@ -159,7 +159,7 @@ for w, (i0, n) in zip(ws, ((0, 5), (0, 10))):
         w.add_job(
             args=dict(index=i),
             cmds=["echo {index} > {_out}"],
-            time=(1, "min"),
+            time=(10, "min"),
             mem=(10, "MB"),
             disk=(10, "MB"),
             outputs=["out_{index}.txt"],

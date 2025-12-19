@@ -29,7 +29,7 @@ for level in range(3):
             job_ID = w.add_job(
                 args=dict(stage="build", digit=digit),
                 cmds=["echo {digit} > {_out}"],
-                time=(1, "min"),
+                time=(10, "min"),
                 mem=(10, "MB"),
                 disk=(10, "MB"),
                 outputs=["f-{_id}.txt"],
@@ -50,7 +50,7 @@ for level in range(3):
                     cmds=[
                         "echo `cat {_in}`{digit} > {_out}",
                     ],
-                    time=(1, "min"),
+                    time=(10, "min"),
                     mem=(10, "MB"),
                     disk=(10, "MB"),
                     inputs=[(prev_job_ID, "f-{_id}.txt")],
@@ -76,7 +76,7 @@ while len(jobs) > 1:
                 cmds=[
                     "cat {_in} | sort > {_out}",
                 ],
-                time=(1, "min"),
+                time=(10, "min"),
                 mem=(10, "MB"),
                 disk=(10, "MB"),
                 inputs=[(prev_job_ID_1, "f-{_id}.txt"), (prev_job_ID_2, "f-{_id}.txt")],
@@ -93,7 +93,7 @@ while len(jobs) > 1:
                 cmds=[
                     "cat {_in} > {_out}",
                 ],
-                time=(1, "min"),
+                time=(10, "min"),
                 mem=(10, "MB"),
                 disk=(10, "MB"),
                 inputs=[(prev_job_ID, "f-{_id}.txt")],

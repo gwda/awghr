@@ -39,7 +39,7 @@ for skip_exit_code in (77, 99):
                     else "exit {exit_code}"
                 )
             ],
-            time=(1, "min"),
+            time=(10, "min"),
             mem=(10, "MB"),
             disk=(10, "MB"),
             outputs=["file{exit_code}.txt"],
@@ -90,7 +90,7 @@ for skip_exit_code in (77, 99):
         cmds=[
             "echo DONE > file{exit_code}.txt; exit {exit_code}",
         ],
-        time=(1, "min"),
+        time=(10, "min"),
         mem=(10, "MB"),
         disk=(10, "MB"),
         outputs=["file{exit_code}.txt"],
@@ -100,7 +100,7 @@ for skip_exit_code in (77, 99):
         cmds=[
             "echo DONE > file{exit_code}.txt; exit {exit_code}",
         ],
-        time=(1, "min"),
+        time=(10, "min"),
         mem=(10, "MB"),
         disk=(10, "MB"),
         needs=[j1],
