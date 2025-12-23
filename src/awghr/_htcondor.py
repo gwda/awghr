@@ -106,7 +106,7 @@ class HTCondorWorkflowWriter(WorkflowWriter):
 
                 # All input and output files for HTCondor to transfer
                 job_all_infiles = job["infiles"]
-                job_all_outfiles = job["outfiles"] + job["job_script_outfiles"]
+                job_all_outfiles = job["outfiles"] + job["joboutfiles"]
 
                 # Write job pre script
                 job_pre_file = jobscriptdir / "job_condor_pre.sh"

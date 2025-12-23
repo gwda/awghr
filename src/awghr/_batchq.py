@@ -338,7 +338,7 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
                             f += "source ./job_script.sh"
 
                             # Copy output files out of job scratch directory
-                            for outfile in job["outfiles"] + job["job_script_outfiles"]:
+                            for outfile in job["outfiles"] + job["joboutfiles"]:
                                 f += f"test -f './{outfile.name}' || fail 'Missing output file {outfile.name}'"
                                 f += f"cp './{outfile.name}' '{outfile}'"
                             if job["outfinal"]:

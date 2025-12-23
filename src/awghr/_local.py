@@ -177,7 +177,7 @@ class LocalWorkflowWriter(WorkflowWriter):
                     f += f"source ./job_script.sh >'{job_stdout_file}' 2>'{job_stderr_file}'"
 
                     # Hard-link output files out of job directory
-                    for outfile in job["outfiles"] + job["job_script_outfiles"]:
+                    for outfile in job["outfiles"] + job["joboutfiles"]:
                         f += f"test -f './{outfile.name}' || fail 'Missing output file {outfile.name}'"
                         f += f"ln -f './{outfile.name}' '{outfile}'"
                     if job["outfinal"]:

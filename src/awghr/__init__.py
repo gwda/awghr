@@ -745,7 +745,7 @@ class Workflow:
             # Write job script
             job_script_file = job["dir"] / "job_script.sh"
             job["infiles"].append(job_script_file)
-            job["job_script_outfiles"] = [job["dir"] / "job_usage"]
+            job["joboutfiles"] = [job["dir"] / "job_usage"]
             with FileLineWriter(job_script_file) as f:
                 f += "set -e"
 
