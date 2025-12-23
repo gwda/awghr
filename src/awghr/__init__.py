@@ -984,6 +984,7 @@ class Workflow:
             esac
             export PAGER=cat
             until {all_workstatefiles_exist}; do
+                echo "${{0##*/}}: `date`"
                 "$@" </dev/null 2>&1
                 sleep ${{sleepfor}}
             done
