@@ -4,15 +4,19 @@
 
 """Test command-line interface help."""
 
-from awghr._cli import cli
+from awghr._config import cli as config_cli
+from awghr._manage import cli as manage_cli
 
-for args in (
-    ("--help",),
-    ("jobs", "-h"),
-    ("config", "-h"),
+for cli, arg in (
+    (
+        config_cli,
+        "--help",
+    ),
+    (config_cli, "-h"),
+    (manage_cli, "-h"),
 ):
     try:
-        cli(*args)
+        cli(arg)
         msg = "should have exited"
         raise AssertionError(msg)
     except SystemExit:

@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 from awghr import Workflow, WorkflowException
-from awghr._cli import cli
+from awghr._manage import cli as manage_cli
 
 # Set up logging
 logging.basicConfig(
@@ -40,12 +40,12 @@ for w in ws:
 
 logger.info("test command line interface")
 print("-----", flush=True)
-cli("-d", str(w.workdir), "-Pb")
+manage_cli("-Pb", workflow_dir=w.workdir)
 print("-----", flush=True)
 
 logger.info("submit workflow and wait for it to finish")
 subprocess.run([w.workdir / "submit"], check=True)
-subprocess.run([w.workdir / "wait", "-n", "1", w.workdir / "queue"], check=True)
+subprocess.run([w.workdir / "await", "-n", "1", w.workdir / "queue"], check=True)
 
 logger.info("check for workflow files")
 for w in ws:
@@ -65,7 +65,7 @@ for w in ws:
     statefile = w.workdir / "workflows" / w.ID / "state"
     statefile.unlink()
     subprocess.run([w.workdir / "submit"], check=True)
-    subprocess.run([w.workdir / "wait"], check=True)
+    subprocess.run([w.workdir / "await"], check=True)
     state = statefile.read_text().strip()
     assert state == "SUCCESS"
 

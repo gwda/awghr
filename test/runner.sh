@@ -41,7 +41,7 @@ coverage erase
 log "configuration"
 (
     export AWGHR_CFGFILE="/testing/test/awghr.cfg"
-    coverage run -a /testing/venv/bin/awghr config --batch="${batch_system}"
+    coverage run -a /testing/venv/bin/awghr-config --batch="${batch_system}"
 )
 
 baseworkdir="/testing/workdir"

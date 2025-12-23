@@ -41,7 +41,7 @@ w.write()
 
 logger.info("submit workflow and wait for it to time out")
 subprocess.run([w.workdir / "submit"], check=True)
-subprocess.run([w.workdir / "wait", w.workdir / "queue"], check=True)
+subprocess.run([w.workdir / "await", w.workdir / "queue"], check=True)
 
 logger.info("check for workflow files")
 statefile = w.workdir / "workflows" / w.ID / "state"

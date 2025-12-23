@@ -106,7 +106,7 @@ w.write()
 
 logger.info("submit workflow and wait for it to finish")
 subprocess.run([w.workdir / "submit"], check=True)
-subprocess.run([w.workdir / "wait", w.workdir / "queue"], check=True)
+subprocess.run([w.workdir / "await", w.workdir / "queue"], check=True)
 
 logger.info("check for workflow files")
 joblistfile = w.workdir / "workflows" / w.ID / "all_jobs"

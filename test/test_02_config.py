@@ -8,8 +8,7 @@ from pathlib import Path
 from textwrap import dedent
 
 import awghr._config
-from awghr._cli import cli
-from awghr._config import ConfigException, _batch_systems, read_config
+from awghr._config import ConfigException, _batch_systems, cli, read_config
 
 default_src = """
 [DEFAULT SLURM]
@@ -536,4 +535,4 @@ def batch_system_keys():
 
 @test
 def show_config():
-    cli("config")
+    cli()

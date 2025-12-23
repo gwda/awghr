@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""Command-line parser."""
+"""Manage workflow jobs."""
 
 import argparse
 import json
@@ -20,12 +20,6 @@ from pathlib import Path
 
 from pint import Quantity
 from tqdm import tqdm
-
-from ._config import show_config
-
-
-def _resolved_path(value):
-    return Path(value).resolve(strict=True)
 
 
 def positive_int(value):
@@ -104,12 +98,12 @@ def show_stdouterr(prefix, stdfile, grep_regex, last_n_lines):
             print(prefix, line)
 
 
-def show_jobs(args):
+def manage_jobs(args, workflow_dir):
 
     # Check for workflows
-    job_list_files = list(args.workflow_dir.glob("workflows/*/all_jobs"))
+    job_list_files = list(workflow_dir.glob("workflows/*/all_jobs"))
     if len(job_list_files) == 0:
-        msg = f"'{args.workflow_dir}' is not a workflow directory"
+        msg = f"'{workflow_dir}' is not a workflow directory"
         raise FileNotFoundError(msg)
 
     # Get list of jobs to examine
@@ -133,7 +127,7 @@ def show_jobs(args):
 
     # Load cache
     cache = {}
-    cache_file = args.workflow_dir / "jobs" / ".cache"
+    cache_file = workflow_dir / "jobs" / ".cache"
     if cache_file.is_file():
 
         # Check cache is not older than this source file
@@ -358,28 +352,12 @@ def show_jobs(args):
     print(prefix.format("DATE"), datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
 
-def cli(*argv: str):
-    """Command-line parser entry point."""
+def cli(*argv: str, workflow_dir: Path = Path.cwd()):
+    """Command-line interface: manage jobs."""
 
     # Build command-line argument parser
-    parser = argparse.ArgumentParser(
-        description="yet another high-throughput workflow manager"
-    )
-    subparsers = parser.add_subparsers(required=True, help="sub-commands")
-
-    # Add show jobs sub-command
-    parser_show_jobs = subparsers.add_parser(
-        "jobs", description="show jobs", help="show jobs (default)"
-    )
-    parser_show_jobs.add_argument(
-        "-d",
-        "--workflow-dir",
-        metavar="DIR",
-        type=_resolved_path,
-        default=Path.cwd(),
-        help="set workflow directory to DIR",
-    )
-    parser_show_jobs.add_argument(
+    parser = argparse.ArgumentParser(prog="manage", description="manage jobs")
+    parser.add_argument(
         "-A",
         "--all",
         dest="state",
@@ -387,7 +365,7 @@ def cli(*argv: str):
         const="ALL",
         help="show all jobs",
     )
-    parser_show_jobs.add_argument(
+    parser.add_argument(
         "-P",
         "--pending",
         dest="state",
@@ -395,7 +373,7 @@ def cli(*argv: str):
         const="PENDING",
         help="show only pending jobs",
     )
-    parser_show_jobs.add_argument(
+    parser.add_argument(
         "-R",
         "--running",
         dest="state",
@@ -403,7 +381,7 @@ def cli(*argv: str):
         const="RUNNING",
         help="show only running jobs",
     )
-    parser_show_jobs.add_argument(
+    parser.add_argument(
         "-S",
         "--success",
         dest="state",
@@ -411,7 +389,7 @@ def cli(*argv: str):
         const="SUCCESS",
         help="show only successful jobs",
     )
-    parser_show_jobs.add_argument(
+    parser.add_argument(
         "-K",
         "--skipped",
         dest="state",
@@ -419,7 +397,7 @@ def cli(*argv: str):
         const="SUCCESS/SKIPPED",
         help="show only skipped jobs",
     )
-    parser_show_jobs.add_argument(
+    parser.add_argument(
         "-F",
         "--failed",
         dest="state",
@@ -427,8 +405,8 @@ def cli(*argv: str):
         const="FAILED",
         help="show only failed jobs (default)",
     )
-    parser_show_jobs.set_defaults(state="FAILED")
-    parser_show_jobs.add_argument(
+    parser.set_defaults(state="FAILED")
+    parser.add_argument(
         "-i",
         "--batch-ID",
         metavar="ID",
@@ -436,7 +414,7 @@ def cli(*argv: str):
         default=None,
         help="show only job with the given batch system ID",
     )
-    parser_show_jobs.add_argument(
+    parser.add_argument(
         "-f",
         "--filter",
         metavar="EXPR",
@@ -445,22 +423,22 @@ def cli(*argv: str):
         default=None,
         help="evaluate EXPR to filter jobs by their arguments",
     )
-    parser_show_jobs.add_argument(
+    parser.add_argument(
         "-b", "--batch-dir", action="store_true", help="show the batch directory"
     )
-    parser_show_jobs.add_argument(
+    parser.add_argument(
         "-j", "--job-dir", action="store_true", help="show the job directory"
     )
-    parser_show_jobs.add_argument(
+    parser.add_argument(
         "-l", "--files", action="store_true", help="show files in job directory"
     )
-    parser_show_jobs.add_argument(
+    parser.add_argument(
         "-o", "--output", action="store_true", help="show standard output"
     )
-    parser_show_jobs.add_argument(
+    parser.add_argument(
         "-e", "--error", action="store_true", help="show standard error"
     )
-    parser_show_jobs.add_argument(
+    parser.add_argument(
         "-g",
         "--grep",
         metavar="REGEX",
@@ -470,7 +448,7 @@ def cli(*argv: str):
         default=[],
         help="filter lines of standard output/error through REGEX",
     )
-    parser_show_jobs.add_argument(
+    parser.add_argument(
         "-n",
         "--last",
         metavar="N",
@@ -479,7 +457,7 @@ def cli(*argv: str):
         default=10,
         help="show the last N lines of standard output/error (default: 10)",
     )
-    parser_show_jobs.add_argument(
+    parser.add_argument(
         "-z",
         "--full",
         dest="last_n_lines",
@@ -487,14 +465,14 @@ def cli(*argv: str):
         const=0,
         help="show the full standard output/error",
     )
-    parser_show_jobs.add_argument(
+    parser.add_argument(
         "-u",
         "--usage",
         type=str,
         nargs="*",
         help="show matching lines from job usage statistics",
     )
-    parser_show_jobs.add_argument(
+    parser.add_argument(
         "-@",
         "--get-batch-IDs",
         metavar="RATE",
@@ -503,29 +481,11 @@ def cli(*argv: str):
         default=0,
         help="retrieve batch IDs at the given rate (per second)",
     )
-    parser_show_jobs.set_defaults(subcommand=show_jobs)
-
-    # Add show configuration sub-command
-    parser_show_config = subparsers.add_parser(
-        "config", description="show configuration", help="show configuration"
-    )
-    parser_show_config.add_argument("--tags", nargs="+", help="assume these tags")
-    parser_show_config.add_argument(
-        "--batch",
-        metavar="BATCH_SYSTEM",
-        type=str,
-        default=None,
-        help="assume this batch system",
-    )
-    parser_show_config.set_defaults(subcommand=show_config)
 
     # Parse command line
-    parse_argv = list(argv if len(argv) > 0 else sys.argv[1:])
-    if len(parse_argv) == 0 or parse_argv[0] not in ("-h", "--help", "jobs", "config"):
-        parse_argv.insert(0, "jobs")
-    args = parser.parse_args(parse_argv)
+    args = parser.parse_args(argv if len(argv) > 0 else sys.argv[1:])
 
-    # Execute sub-command, pipe output through a pager
+    # Run command, pipe output through a pager
     # - Ignore errors if pipe is broken
     try:
         with subprocess.Popen(
@@ -535,7 +495,11 @@ def cli(*argv: str):
             text=True,
         ) as p:
             with redirect_stdout(p.stdin):
-                args.subcommand(args)
+                manage_jobs(args, workflow_dir)
                 sys.stdout.flush()
     except (KeyboardInterrupt, BrokenPipeError):  # pragma: no cover
         p.terminate()
+
+
+if __name__ == "__main__":
+    cli()

@@ -2,10 +2,12 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""Workflow configuration."""
+"""Workflow generator configuration."""
 
+import argparse
 import os
 import re
+import sys
 from configparser import ConfigParser
 from pathlib import Path
 from shutil import which
@@ -267,15 +269,32 @@ def read_config(
     return cfg
 
 
-def show_config(args):
-    """Show configuration."""
+def print_aligned(d):
+    """Helper function to print a dictionary with alignment."""
+    m = max(len(k) for k in d.keys())
+    for k, v in sorted(d.items()):
+        vs = "<undefined>" if v is None else str(v)
+        print(f"    {k:<{m}} : {vs}")
 
-    # Helper function to print a dictionary with alignment
-    def print_aligned(d):
-        m = max(len(k) for k in d.keys())
-        for k, v in sorted(d.items()):
-            vs = "<undefined>" if v is None else str(v)
-            print(f"    {k:<{m}} : {vs}")
+
+def cli(*argv: str):
+    """Command-line interface: show configuration."""
+
+    # Build command-line argument parser
+    parser = argparse.ArgumentParser(
+        description="show configuration",
+    )
+    parser.add_argument("--tags", nargs="+", help="assume these tags")
+    parser.add_argument(
+        "--batch",
+        metavar="BATCH_SYSTEM",
+        type=str,
+        default=None,
+        help="assume this batch system",
+    )
+
+    # Parse command line
+    args = parser.parse_args(argv if len(argv) > 0 else sys.argv[1:])
 
     # Read configuration
     cfg = read_config(tags=args.tags, select_batch_system=args.batch)

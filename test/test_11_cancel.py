@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 
 from awghr import Workflow
-from awghr._cli import cli
+from awghr._manage import cli as manage_cli
 
 # Set up logging
 logging.basicConfig(
@@ -69,7 +69,7 @@ assert state == "FAILED"
 
 logger.info("test command line interface")
 print("-----", flush=True)
-cli("jobs", "-d", str(w.workdir))
+manage_cli(workflow_dir=w.workdir)
 print("-----", flush=True)
 
 logger.info("check that re-writing workflow removes unsuccessful states")

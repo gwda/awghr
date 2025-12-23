@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 from awghr import Workflow
-from awghr._cli import cli
+from awghr._manage import cli as manage_cli
 
 # Set up logging
 logging.basicConfig(
@@ -135,7 +135,7 @@ while True:
         len(fail_files),
     )
     subprocess.run([w.workdir / "submit"], check=True)
-    subprocess.run([w.workdir / "wait", w.workdir / "queue"], check=True)
+    subprocess.run([w.workdir / "await", w.workdir / "queue"], check=True)
 
     logger.info("check for workflow files (%i fail files exist)", len(fail_files))
     joblistfile = w.workdir / "workflows" / w.ID / "all_jobs"
@@ -171,10 +171,10 @@ while True:
 
     logger.info("test command line interface")
     print("-----", flush=True)
-    cli("jobs", "-d", str(w.workdir), "-e")
+    manage_cli("-e", workflow_dir=w.workdir)
     print("-----", flush=True)
     tmpstatefile = statefile.replace(statefile.with_suffix(".tmp"))
-    cli("jobs", "-d", str(w.workdir), "-e")
+    manage_cli("-e", workflow_dir=w.workdir)
     tmpstatefile.replace(statefile)
     print("-----", flush=True)
 
@@ -197,7 +197,7 @@ for i in range(3):
 
 logger.info("test command line interface")
 print("-----", flush=True)
-cli("jobs", "-d", str(w.workdir), "-e")
+manage_cli("-e", workflow_dir=w.workdir)
 print("-----", flush=True)
-cli("jobs", "-d", str(w.workdir), "-Af", "stage=='build' and digit==0")
+manage_cli("-Af", "stage=='build' and digit==0", workflow_dir=w.workdir)
 print("-----", flush=True)

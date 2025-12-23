@@ -961,7 +961,7 @@ class Workflow:
             """
 
         # Write top-level control script: wait for all workflows to complete
-        with FileLineWriter(self.workdir / "wait", executable=True) as f:
+        with FileLineWriter(self.workdir / "await", executable=True) as f:
             all_workstatefiles_exist = " && ".join(
                 [
                     f"test -f '{f}'"
@@ -997,6 +997,14 @@ class Workflow:
                 fi
             done
             echo "workflow state: ${{allworkstate}}"
+            """
+
+        # Write top-level control script: manage jobs
+        with FileLineWriter(self.workdir / "manage", executable=True) as f:
+            f += f"""
+            #!/bin/bash
+            cd '{self.workdir}'
+            exec {sys.executable} -m awghr._manage "$@"
             """
 
         # Log completion

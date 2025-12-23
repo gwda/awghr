@@ -19,7 +19,7 @@ license-files = ["LICENSES/MIT.txt"]
 dynamic = ["version"]
 
 [project.scripts]
-awghr = "awghr._cli:cli"
+awghr-config = "awghr._config:cli"
 
 [tool.setuptools.dynamic]
 version = {attr = "awghr.__version__"}

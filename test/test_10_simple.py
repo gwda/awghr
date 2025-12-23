@@ -13,7 +13,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from awghr import Workflow
-from awghr._cli import cli
+from awghr._manage import cli as manage_cli
 
 
 @contextmanager
@@ -83,7 +83,7 @@ for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
 
 logger.info("test command line interface")
 print("-----", flush=True)
-cli("-d", str(w.workdir), "-P")
+manage_cli("-P", workflow_dir=w.workdir)
 print("-----", flush=True)
 
 logger.info("submit workflow and wait for it to finish")
@@ -91,13 +91,14 @@ with in_directory(w.workdir):
     subprocess.run(["./submit"], check=True)
     subprocess.run(
         [
-            "./wait",
+            "./await",
             "-n",
             "1",
             "coverage",
             "run",
             "-a",
-            "/testing/venv/bin/awghr",
+            "-m",
+            "awghr._manage",
             "-A",
             "-@",
             "10",
@@ -118,7 +119,7 @@ assert state == "SUCCESS"
 logger.info("check that state is re-created")
 statefile.unlink()
 subprocess.run([w.workdir / "submit"], check=True)
-subprocess.run([w.workdir / "wait"], check=True)
+subprocess.run([w.workdir / "await"], check=True)
 state = statefile.read_text().strip()
 assert state == "SUCCESS"
 assert not submittedfile.is_file()
@@ -172,10 +173,7 @@ for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
 
 logger.info("test command line interface")
 print("-----", flush=True)
-cli(
-    "jobs",
-    "-d",
-    str(w.workdir),
+manage_cli(
     "-Ae",
     "-n",
     "1",
@@ -184,18 +182,19 @@ cli(
     "-u",
     "wall clock",
     "maximum",
+    workflow_dir=w.workdir,
 )
 print("-----", flush=True)
-cli("-d", str(w.workdir), "-f", "index < 5", "-Abjloz")
+manage_cli("-f", "index < 5", "-Abjloz", workflow_dir=w.workdir)
 print("-----", flush=True)
 try:
-    cli("jobs", "-d", str(w.workdir), "-n", "0")
+    manage_cli("-n", "0", workflow_dir=w.workdir)
     msg = "should have exited"
     raise AssertionError(msg)
 except SystemExit:
     pass
 try:
-    cli("jobs")
+    manage_cli()
     msg = "should have raised a FileNotFoundError"
     raise AssertionError(msg)
 except FileNotFoundError:
