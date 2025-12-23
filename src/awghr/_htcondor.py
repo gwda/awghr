@@ -80,10 +80,10 @@ class HTCondorWorkflowWriter(WorkflowWriter):
         """Write workflow."""
 
         # HTCondor job log
-        job_log = batchdir / "batch_condor.log"
+        job_log = batchdir / "condor.log"
 
         # Write HTCondor DAG input file
-        dag_file = batchdir / "batch_condor.dag"
+        dag_file = batchdir / "condor.dag"
         with FileLineWriter(dag_file) as F:
 
             # Write jobs
@@ -271,6 +271,7 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                     for outfile in job_all_outfiles:
                         f += f"test -f '{outfile}' || fail 'Missing output file {outfile.name}'"
                     if job["outfinal"]:
+                        f += f"mkdir -p '{outfinaldir}'"
                         for outfile in job["outfiles"]:
                             outfinaldir_file = outfinaldir / outfile.name
                             f += f"test ! -f '{outfinaldir_file}' || fail 'Output file {outfile.name} already exists in {outfinaldir}'"
@@ -366,7 +367,7 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                     F += f"PARENT {job_parent_IDs} CHILD {job_ID}"
 
             # Write workflow state job script
-            workstate_script_file = batchdir / "batch_workstate.sh"
+            workstate_script_file = batchdir / "workstate.sh"
             with FileLineWriter(workstate_script_file) as f:
 
                 # Exit on any script errors
@@ -379,7 +380,7 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                 f += "workstate=SUCCESS"
 
                 # Check DAG output for exit status
-                dagman_out = batchdir / "batch_condor.dag.dagman.out"
+                dagman_out = batchdir / "condor.dag.dagman.out"
                 f += f"""
                 if tail -n 1 '{dagman_out}' | grep -q -v "EXITING WITH STATUS"; then
                     echo "info: monitoring '{dagman_out}' for DAG exit status..."
@@ -415,23 +416,23 @@ class HTCondorWorkflowWriter(WorkflowWriter):
 
             # Write workflow state HTCondor job submit file
             # - This is decoupled from the DAG so it can monitor its output
-            workstate_sub_file = batchdir / "batch_workstate_condor.sub"
+            workstate_sub_file = batchdir / "workstate_condor.sub"
             self._write_sub(
                 account,
                 workstate_sub_file,
                 {
                     "batch_name": f"{workflowname}_{ID}_state",
                     "universe": "local",
-                    "log": batchdir / "batch_workstate_condor.log",
+                    "log": batchdir / "workstate_condor.log",
                     "executable": "/bin/bash",
                     "arguments": f'"{workstate_script_file} $(DAG_STATUS)"',
-                    "output": batchdir / "batch_workstate_stdout",
-                    "error": batchdir / "batch_workstate_stderr",
+                    "output": batchdir / "workstate_stdout",
+                    "error": batchdir / "workstate_stderr",
                 },
             )
 
             # Write submit file for final HTCondor DAG
-            final_sub_file = batchdir / "batch_final_condor.sub"
+            final_sub_file = batchdir / "final_condor.sub"
             self._write_sub(
                 account,
                 final_sub_file,
@@ -440,36 +441,38 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                     "log": job_log,
                     "executable": "/bin/bash",
                     "arguments": f'''"-c 'condor_submit {workstate_sub_file}'"''',
-                    "output": batchdir / "batch_final_stdout",
-                    "error": batchdir / "batch_final_stderr",
+                    "output": batchdir / "final_stdout",
+                    "error": batchdir / "final_stderr",
                 },
             )
 
             # Write job to HTCondor DAG input file
             F += f"FINAL final {final_sub_file}"
 
-    def get_ctrl_commands(self, *, workflowname, basebatchdir) -> Tuple[str, str, str]:
+    def get_ctrl_commands(
+        self, *, workflowname, baseworkflowdir
+    ) -> Tuple[str, str, str]:
         """Get top-level control script commands."""
 
-        # Shell function to submit workflows in `basebatchdir` with IDs in $@
+        # Shell function to submit workflows in `baseworkflowdir` with IDs in $@
         # - If HTCondor DAG has already been run successfully, recreate workflow state
         submit = f"""
         submit() {{
             local ID=
             for ID in $@; do
-                cd "{basebatchdir}/${{ID}}"
-                local dagman_out="./batch_condor.dag.dagman.out"
-                local rescue_dags=`shopt -s nullglob; echo ./batch_condor.dag.rescue*`
+                cd "{baseworkflowdir}/${{ID}}"
+                local dagman_out="./batch_scripts/condor.dag.dagman.out"
+                local rescue_dags=`shopt -s nullglob; echo ./batch_scripts/condor.dag.rescue*`
                 if test -f "${{dagman_out}}" && test "X${{rescue_dags}}" = X; then
-                    /bin/bash ./batch_workstate.sh
+                    /bin/bash ./batch_scripts/workstate.sh
                 else
-                    condor_submit_dag -AlwaysRunPost -batch-name "{workflowname}_${{ID}}" ./batch_condor.dag >/dev/null
+                    condor_submit_dag -AlwaysRunPost -batch-name "{workflowname}_${{ID}}" ./batch_scripts/condor.dag >/dev/null
                 fi
             done
         }}
         """
 
-        # Shell function to display all queued jobs from workflows in `basebatchdir` with IDs in $@
+        # Shell function to display all queued jobs from workflows in `baseworkflowdir` with IDs in $@
         queue = f"""
         queue() {{
             local constraint=
@@ -480,7 +483,7 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                     constraint="${{constraint}} || "
                 fi
                 constraint="${{constraint}}JobBatchName == \\\"{workflowname}_${{ID}}\\\""
-                local dagman_out="{basebatchdir}/${{ID}}/batch_condor.dag.dagman.out"
+                local dagman_out="{baseworkflowdir}/${{ID}}/batch_scripts/condor.dag.dagman.out"
                 if test -f "${{dagman_out}}"; then
                     dagman_outs="${{dagman_outs}} ${{dagman_out}}"
                 fi
@@ -498,13 +501,13 @@ class HTCondorWorkflowWriter(WorkflowWriter):
         }}
         """
 
-        # Shell function to cancel all jobs from from workflows in `basebatchdir` with IDs in $@
+        # Shell function to cancel all jobs from from workflows in `baseworkflowdir` with IDs in $@
         cancel = f"""
         cancel() {{
             local constraint=
             local ID=
             for ID in $@; do
-                local dagman_out="{basebatchdir}/${{ID}}/batch_condor.dag.dagman.out"
+                local dagman_out="{baseworkflowdir}/${{ID}}/batch_scripts/condor.dag.dagman.out"
                 if grep -q -v "Event: ULOG_SUBMIT" "${{dagman_out}}"; then
                     echo "info: monitoring '${{dagman_out}}' for job submit events..."
                     ( tail -f -n 10 "${{dagman_out}}" & ) | grep -q "Event: ULOG_SUBMIT"

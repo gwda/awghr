@@ -109,13 +109,13 @@ subprocess.run([w.workdir / "submit"], check=True)
 subprocess.run([w.workdir / "wait", w.workdir / "queue"], check=True)
 
 logger.info("check for workflow files")
-joblistfile = w.workdir / "batch" / w.ID / "workflow_all_jobs"
+joblistfile = w.workdir / "workflows" / w.ID / "all_jobs"
 assert joblistfile.is_file()
-statefile = w.workdir / "batch" / w.ID / "workflow_state"
+statefile = w.workdir / "workflows" / w.ID / "state"
 assert statefile.is_file()
 
 logger.info("check workflow state is SUCCESS")
-statefile = w.workdir / "batch" / w.ID / "workflow_state"
+statefile = w.workdir / "workflows" / w.ID / "state"
 assert statefile.is_file()
 state = statefile.read_text().strip()
 assert state == "SUCCESS"

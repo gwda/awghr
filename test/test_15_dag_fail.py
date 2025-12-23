@@ -138,12 +138,12 @@ while True:
     subprocess.run([w.workdir / "wait", w.workdir / "queue"], check=True)
 
     logger.info("check for workflow files (%i fail files exist)", len(fail_files))
-    joblistfile = w.workdir / "batch" / w.ID / "workflow_all_jobs"
+    joblistfile = w.workdir / "workflows" / w.ID / "all_jobs"
     assert joblistfile.is_file()
-    statefile = w.workdir / "batch" / w.ID / "workflow_state"
+    statefile = w.workdir / "workflows" / w.ID / "state"
     assert statefile.is_file()
 
-    failedjoblistfile = w.workdir / "batch" / w.ID / "workflow_failed_jobs"
+    failedjoblistfile = w.workdir / "workflows" / w.ID / "failed_jobs"
     if len(fail_files) == 0:
         assert not failedjoblistfile.is_file()
     else:

@@ -342,6 +342,7 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
                                 f += f"test -f './{outfile.name}' || fail 'Missing output file {outfile.name}'"
                                 f += f"cp './{outfile.name}' '{outfile}'"
                             if job["outfinal"]:
+                                f += f"mkdir -p '{outfinaldir}'"
                                 for outfile in job["outfiles"]:
                                     outfinaldir_file = outfinaldir / outfile.name
                                     f += f"test ! -f '{outfinaldir_file}' || fail 'Output file {outfile.name} already exists in {outfinaldir}'"
@@ -360,8 +361,8 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
                 f += "esac"
 
         # Write submission script to check all jobs have succeeded
-        workstate_submit_script_file = batchdir / "batch_workstate_submit.sh"
-        workstate_script_file = batchdir / "batch_workstate_script.sh"
+        workstate_submit_script_file = batchdir / "workstate_submit.sh"
+        workstate_script_file = batchdir / "workstate_script.sh"
         with FileLineWriter(workstate_submit_script_file) as f:
             f += "#!/bin/bash"
 
@@ -373,8 +374,8 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
                 mem_MB=10,
                 disk_MB=10,
                 ncpus=1,
-                stdout=batchdir / "batch_workstate_stdout",
-                stderr=batchdir / "batch_workstate_stderr",
+                stdout=batchdir / "workstate_stdout",
+                stderr=batchdir / "workstate_stderr",
             )
 
             # Exit on any script errors
@@ -422,8 +423,8 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
         all_jobs_ID_written = set()
 
         # Write submission script to submit all jobs
-        all_jobs_submit_script_file = batchdir / "batch_all_submit.sh"
-        all_jobs_script_file = batchdir / "batch_all_script.sh"
+        all_jobs_submit_script_file = batchdir / "all_submit.sh"
+        all_jobs_script_file = batchdir / "all_script.sh"
         with FileLineWriter(all_jobs_submit_script_file) as f:
             f += "#!/bin/bash"
 
@@ -435,8 +436,8 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
                 mem_MB=10,
                 disk_MB=10,
                 ncpus=1,
-                stdout=batchdir / "batch_all_stdout",
-                stderr=batchdir / "batch_all_stderr",
+                stdout=batchdir / "all_stdout",
+                stderr=batchdir / "all_stderr",
             )
 
             # Exit on any script errors
@@ -613,25 +614,27 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
             echo "info: submitted state job, batch ID ${{batchq_ID}}"
             """
 
-    def get_ctrl_commands(self, *, workflowname, basebatchdir) -> Tuple[str, str, str]:
+    def get_ctrl_commands(
+        self, *, workflowname, baseworkflowdir
+    ) -> Tuple[str, str, str]:
         """Get top-level control script commands."""
 
         # Get batch system commands
         submit, queue, cancel = self.batchq_ctrl_commands()
 
-        # Shell function to submit workflows in `basebatchdir` with IDs in $@
+        # Shell function to submit workflows in `baseworkflowdir` with IDs in $@
         submit += f"""
         submit() {{
             local scripts=
             local ID=
             for ID in $@; do
-                scripts="${{scripts}} {basebatchdir}/${{ID}}/batch_all_submit.sh"
+                scripts="${{scripts}} {baseworkflowdir}/${{ID}}/batch_scripts/all_submit.sh"
             done
             batchq_submit ${{scripts}}
         }}
         """
 
-        # Shell function to display all queued jobs from workflows in `basebatchdir` with IDs in $@
+        # Shell function to display all queued jobs from workflows in `baseworkflowdir` with IDs in $@
         queue += f"""
         queue() {{
             local jobnames=
@@ -643,7 +646,7 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
         }}
         """
 
-        # Shell function to cancel all jobs from from workflows in `basebatchdir` with IDs in $@
+        # Shell function to cancel all jobs from from workflows in `baseworkflowdir` with IDs in $@
         cancel += f"""
         cancel() {{
             local jobnames=

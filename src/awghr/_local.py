@@ -41,10 +41,10 @@ class LocalWorkflowWriter(WorkflowWriter):
         """Write workflow."""
 
         # Write script to run all jobs
-        all_jobs_script_file = batchdir / "batch_all_script.sh"
-        all_jobs_stdout_file = batchdir / "batch_all_stdout"
-        all_jobs_stderr_file = batchdir / "batch_all_stderr"
-        all_jobs_pid_file = batchdir / "batch_all_pid"
+        all_jobs_script_file = batchdir / "all_script.sh"
+        all_jobs_stdout_file = batchdir / "all_stdout"
+        all_jobs_stderr_file = batchdir / "all_stderr"
+        all_jobs_pid_file = batchdir / "all_pid"
         with FileLineWriter(all_jobs_script_file) as f:
             f += "#!/bin/bash"
 
@@ -101,7 +101,8 @@ class LocalWorkflowWriter(WorkflowWriter):
             f += f"rm -f '{failedjobfile}'"
 
             # Run jobs in order
-            for n, job in enumerate(jobs.values(), start=1):
+            jobs_in_order = sorted(jobs.values(), key=lambda job: job["order"])
+            for n, job in enumerate(jobs_in_order, start=1):
 
                 # Run jobs inside a sub-shell
                 f += "("
@@ -181,6 +182,7 @@ class LocalWorkflowWriter(WorkflowWriter):
                         f += f"test -f './{outfile.name}' || fail 'Missing output file {outfile.name}'"
                         f += f"ln -f './{outfile.name}' '{outfile}'"
                     if job["outfinal"]:
+                        f += f"mkdir -p '{outfinaldir}'"
                         for outfile in job["outfiles"]:
                             outfinaldir_file = outfinaldir / outfile.name
                             f += f"test ! -f '{outfinaldir_file}' || fail 'Output file {outfile.name} already exists in {outfinaldir}'"
@@ -191,10 +193,12 @@ class LocalWorkflowWriter(WorkflowWriter):
 
                 f += ")"
 
-    def get_ctrl_commands(self, *, workflowname, basebatchdir) -> Tuple[str, str, str]:
+    def get_ctrl_commands(
+        self, *, workflowname, baseworkflowdir
+    ) -> Tuple[str, str, str]:
         """Get top-level control script commands."""
 
-        # Shell function to submit workflows in `basebatchdir` with IDs in $@
+        # Shell function to submit workflows in `baseworkflowdir` with IDs in $@
         submit = f"""
         submit() {{
             local cmd=
@@ -203,19 +207,19 @@ class LocalWorkflowWriter(WorkflowWriter):
                 if test "X${{cmd}}" != X; then
                     cmd="${{cmd}}; "
                 fi
-                cmd="${{cmd}}bash '{basebatchdir}/${{ID}}/batch_all_script.sh'"
+                cmd="${{cmd}}bash '{baseworkflowdir}/${{ID}}/batch_scripts/all_script.sh'"
             done
             setsid bash -c "${{cmd}}" &
         }}
         """
 
-        # Shell function to display all queued jobs from workflows in `basebatchdir` with IDs in $@
+        # Shell function to display all queued jobs from workflows in `baseworkflowdir` with IDs in $@
         queue = f"""
         queue() {{
             local stdoutfiles=
             local ID=
             for ID in $@; do
-                local stdoutfile="{basebatchdir}/${{ID}}/batch_all_stdout"
+                local stdoutfile="{baseworkflowdir}/${{ID}}/batch_scripts/all_stdout"
                 if test -f "${{stdoutfile}}"; then
                     stdoutfiles="${{stdoutfiles}} ${{stdoutfile}}"
                 fi
@@ -226,13 +230,13 @@ class LocalWorkflowWriter(WorkflowWriter):
         }}
         """
 
-        # Shell function to cancel all jobs from from workflows in `basebatchdir` with IDs in $@
+        # Shell function to cancel all jobs from from workflows in `baseworkflowdir` with IDs in $@
         cancel = f"""
         cancel() {{
             local pids=
             local ID=
             for ID in $@; do
-                local pidfile="{basebatchdir}/${{ID}}/batch_all_pid"
+                local pidfile="{baseworkflowdir}/${{ID}}/batch_scripts/all_pid"
                 if test -f "${{pidfile}}"; then
                     pid=`cat "${{pidfile}}"`
                     pids="${{pids}} ${{pid}}"

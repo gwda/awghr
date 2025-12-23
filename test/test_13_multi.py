@@ -49,20 +49,20 @@ subprocess.run([w.workdir / "wait", "-n", "1", w.workdir / "queue"], check=True)
 
 logger.info("check for workflow files")
 for w in ws:
-    statefile = w.workdir / "batch" / w.ID / "workflow_state"
+    statefile = w.workdir / "workflows" / w.ID / "state"
     assert statefile.is_file()
-    submittedfile = w.workdir / "batch" / w.ID / "workflow_submitted"
+    submittedfile = w.workdir / "workflows" / w.ID / "submitted"
     assert not submittedfile.is_file()
 
 logger.info("check workflow state is SUCCESS")
 for w in ws:
-    statefile = w.workdir / "batch" / w.ID / "workflow_state"
+    statefile = w.workdir / "workflows" / w.ID / "state"
     state = statefile.read_text().strip()
     assert state == "SUCCESS"
 
 logger.info("check that state is re-created")
 for w in ws:
-    statefile = w.workdir / "batch" / w.ID / "workflow_state"
+    statefile = w.workdir / "workflows" / w.ID / "state"
     statefile.unlink()
     subprocess.run([w.workdir / "submit"], check=True)
     subprocess.run([w.workdir / "wait"], check=True)
@@ -78,7 +78,7 @@ for i in range(10):
 logger.info("check that re-writing workflow does not remove successful states")
 for w in ws:
     w.write()
-joblistfile = w.workdir / "batch" / w.ID / "workflow_all_jobs"
+joblistfile = w.workdir / "workflows" / w.ID / "all_jobs"
 assert joblistfile.is_file()
 for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
     assert (jobdir / "job_state").is_file()

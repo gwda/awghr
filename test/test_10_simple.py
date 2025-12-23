@@ -69,15 +69,11 @@ for i in range(10):
 w.write()
 
 logger.info("check generated files")
-for f in (w.workdir / "batch" / w.ID).iterdir():
-    assert (
-        f.name in ("workflow_all_jobs", "workflow_outputs")
-        or f.name.startswith("batch_")
-        or f.name.startswith("job_")
-    )
+for f in (w.workdir / "workflows" / w.ID).iterdir():
+    assert f.name in ("all_jobs", "batch_scripts", "outputs", "workflow.json")
 
 logger.info("check for job files that should (not) exist before submission")
-joblistfile = w.workdir / "batch" / w.ID / "workflow_all_jobs"
+joblistfile = w.workdir / "workflows" / w.ID / "all_jobs"
 assert joblistfile.is_file()
 for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
     assert not (jobdir / "job_batchID").is_file()
@@ -110,9 +106,9 @@ with in_directory(w.workdir):
     )
 
 logger.info("check for workflow files")
-statefile = w.workdir / "batch" / w.ID / "workflow_state"
+statefile = w.workdir / "workflows" / w.ID / "state"
 assert statefile.is_file()
-submittedfile = w.workdir / "batch" / w.ID / "workflow_submitted"
+submittedfile = w.workdir / "workflows" / w.ID / "submitted"
 assert not submittedfile.is_file()
 
 logger.info("check workflow state is SUCCESS")
@@ -169,7 +165,7 @@ for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
 
 logger.info("check that re-writing workflow does not remove successful states")
 w.write()
-joblistfile = w.workdir / "batch" / w.ID / "workflow_all_jobs"
+joblistfile = w.workdir / "workflows" / w.ID / "all_jobs"
 assert joblistfile.is_file()
 for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
     assert (jobdir / "job_state").is_file()

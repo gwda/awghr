@@ -12,7 +12,6 @@ from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from pathlib import Path
 from textwrap import dedent
-from typing import Tuple
 
 from pint import Quantity
 
@@ -51,10 +50,6 @@ class WorkflowWriter(ABC):
         skip_exit_code,
     ) -> None:
         """Write workflow."""
-
-    @abstractmethod
-    def get_ctrl_commands(self, *, workflowname, basebatchdir) -> Tuple[str, str, str]:
-        """Get top-level control script commands."""
 
 
 def job_dir_from_ID(basedir: Path, job_ID: str):

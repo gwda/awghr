@@ -28,7 +28,7 @@ def _resolved_path(value):
     return Path(value).resolve(strict=True)
 
 
-def _positive_int(value):
+def positive_int(value):
     value = int(value)
     if value <= 0:
         msg = f"'{value}' is not a positive integer"
@@ -36,7 +36,7 @@ def _positive_int(value):
     return value
 
 
-def _show_stdouterr(prefix, stdfile, grep_regex, last_n_lines):
+def show_stdouterr(prefix, stdfile, grep_regex, last_n_lines):
 
     # Open standard output/error file
     with stdfile.open("rb") as f:
@@ -104,10 +104,10 @@ def _show_stdouterr(prefix, stdfile, grep_regex, last_n_lines):
             print(prefix, line)
 
 
-def _show_jobs(args):
+def show_jobs(args):
 
     # Check for workflows
-    job_list_files = list(args.workflow_dir.glob("batch/*/workflow_all_jobs"))
+    job_list_files = list(args.workflow_dir.glob("workflows/*/all_jobs"))
     if len(job_list_files) == 0:
         msg = f"'{args.workflow_dir}' is not a workflow directory"
         raise FileNotFoundError(msg)
@@ -118,7 +118,7 @@ def _show_jobs(args):
     for job_list_file in job_list_files:
 
         # If only showing failed jobs, use failed jobs list if possible
-        failed_job_list_file = job_list_file.parent / "workflow_failed_jobs"
+        failed_job_list_file = job_list_file.parent / "failed_jobs"
         if args.state == "FAILED" and failed_job_list_file.is_file():
             use_job_list_file = failed_job_list_file
         else:
@@ -316,7 +316,7 @@ def _show_jobs(args):
             for job_stdout_names in ("job_stdout_pre", "job_stdout", "job_stdout_post"):
                 job_stdout = job / job_stdout_names
                 if job_stdout.is_file():
-                    _show_stdouterr(
+                    show_stdouterr(
                         prefix.format("OUT"),
                         job_stdout,
                         args.grep_regex,
@@ -328,7 +328,7 @@ def _show_jobs(args):
             for job_stderr_names in ("job_stderr_pre", "job_stderr", "job_stderr_post"):
                 job_stderr = job / job_stderr_names
                 if job_stderr.is_file():
-                    _show_stdouterr(
+                    show_stdouterr(
                         prefix.format("ERR"),
                         job_stderr,
                         args.grep_regex,
@@ -475,7 +475,7 @@ def cli(*argv: str):
         "--last",
         metavar="N",
         dest="last_n_lines",
-        type=_positive_int,
+        type=positive_int,
         default=10,
         help="show the last N lines of standard output/error (default: 10)",
     )
@@ -503,7 +503,7 @@ def cli(*argv: str):
         default=0,
         help="retrieve batch IDs at the given rate (per second)",
     )
-    parser_show_jobs.set_defaults(subcommand=_show_jobs)
+    parser_show_jobs.set_defaults(subcommand=show_jobs)
 
     # Add show configuration sub-command
     parser_show_config = subparsers.add_parser(

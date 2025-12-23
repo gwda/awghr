@@ -279,7 +279,7 @@ w.write()
 
 # Test that workflow cannot be rewritten once submitted
 try:
-    submittedfile = w.workdir / "batch" / w.ID / "workflow_submitted"
+    submittedfile = w.workdir / "workflows" / w.ID / "submitted"
     submittedfile.touch()
     w.write()
     msg = "should have raised a WorkflowException"

@@ -44,9 +44,9 @@ subprocess.run([w.workdir / "submit"], check=True)
 subprocess.run([w.workdir / "wait", w.workdir / "queue"], check=True)
 
 logger.info("check for workflow files")
-statefile = w.workdir / "batch" / w.ID / "workflow_state"
+statefile = w.workdir / "workflows" / w.ID / "state"
 assert statefile.is_file()
-submittedfile = w.workdir / "batch" / w.ID / "workflow_submitted"
+submittedfile = w.workdir / "workflows" / w.ID / "submitted"
 assert not submittedfile.is_file()
 
 logger.info("check workflow state is FAILED")
@@ -54,7 +54,7 @@ state = statefile.read_text().strip()
 assert state == "FAILED"
 
 logger.info("check job state is FAILED")
-joblistfile = w.workdir / "batch" / w.ID / "workflow_all_jobs"
+joblistfile = w.workdir / "workflows" / w.ID / "all_jobs"
 assert joblistfile.is_file()
 for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
     jobstate = (jobdir / "job_state").read_text().strip()
