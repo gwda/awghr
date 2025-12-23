@@ -879,7 +879,7 @@ class Workflow:
             #!/bin/bash
             set -e
             if test "X$1" != X; then
-                echo "usage: $0" >&2
+                echo "usage: ${{0##*/}}" >&2
                 exit 1
             fi
             workflow_IDs=
@@ -936,7 +936,7 @@ class Workflow:
             #!/bin/bash
             set -e
             if test "X$1" != X; then
-                echo "usage: $0" >&2
+                echo "usage: ${{0##*/}}" >&2
                 exit 1
             fi
             """
@@ -951,7 +951,7 @@ class Workflow:
             #!/bin/bash
             set -e
             if test "X$1" != X; then
-                echo "usage: $0" >&2
+                echo "usage: ${{0##*/}}" >&2
                 exit 1
             fi
             """
@@ -974,7 +974,7 @@ class Workflow:
             sleepfor=5.0
             case "$1" in
                 -h|--help)
-                    echo "usage: $0 [-n sleepfor] [command args...]" >&2
+                    echo "usage: ${{0##*/}} [-n sleepfor] [command args...]" >&2
                     exit 1
                     ;;
                 -n)
