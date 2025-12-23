@@ -236,6 +236,49 @@ class Workflow:
         _logger.info("workflow directory: %s", self.workdir)
         _logger.info("batch system: %s", self.batch_system)
 
+    def _select_on_cluster_batch_system(self, label, arg, *, always, required, multi):
+        """Select argument based on cluster name and/or batch system."""
+
+        # If no cluster name and/or batch system options, just return arg
+        if not always and not isinstance(arg, dict):
+            return arg
+
+        # Iterate over cluster name/batch system selectors
+        selected_args = []
+        for cluster_batch_system_str, cluster_batch_system_arg in arg.items():
+
+            # Check selectors are valid cluster name or batch systems
+            cluster_batch_system = cluster_batch_system_str.split("_")
+            for s in cluster_batch_system:
+                if s not in cluster_names and s not in batch_system_names():
+                    msg = f"'{s}' selector for '{label}' does not match either a cluster name or a batch system name"
+                    raise WorkflowException(msg)
+
+            # Selection found
+            if (
+                self.cluster in cluster_batch_system
+                or self.batch_system in cluster_batch_system
+            ):
+                selected_args.append(cluster_batch_system_arg)
+
+        # Return selections
+        if len(selected_args) > 0:
+            if multi:
+                return selected_args
+            else:
+                if len(selected_args) > 1:
+                    msg = f"multiple '{label}' matches for cluster name '{self.cluster}' and/or batch system '{self.batch_system}'"
+                    raise WorkflowException(msg)
+                else:
+                    return selected_args[0]
+
+        # No selection found
+        if required:
+            msg = f"no '{label}' match for cluster name '{self.cluster}' and/or batch system '{self.batch_system}'"
+            raise WorkflowException(msg)
+        else:
+            return [] if multi else None
+
     def add_job(
         self,
         *,
@@ -971,46 +1014,3 @@ class Workflow:
 
         # Log completion
         _logger.info("workflow has been written")
-
-    def _select_on_cluster_batch_system(self, label, arg, *, always, required, multi):
-        """Select argument based on cluster name and/or batch system."""
-
-        # If no cluster name and/or batch system options, just return arg
-        if not always and not isinstance(arg, dict):
-            return arg
-
-        # Iterate over cluster name/batch system selectors
-        selected_args = []
-        for cluster_batch_system_str, cluster_batch_system_arg in arg.items():
-
-            # Check selectors are valid cluster name or batch systems
-            cluster_batch_system = cluster_batch_system_str.split("_")
-            for s in cluster_batch_system:
-                if s not in cluster_names and s not in batch_system_names():
-                    msg = f"'{s}' selector for '{label}' does not match either a cluster name or a batch system name"
-                    raise WorkflowException(msg)
-
-            # Selection found
-            if (
-                self.cluster in cluster_batch_system
-                or self.batch_system in cluster_batch_system
-            ):
-                selected_args.append(cluster_batch_system_arg)
-
-        # Return selections
-        if len(selected_args) > 0:
-            if multi:
-                return selected_args
-            else:
-                if len(selected_args) > 1:
-                    msg = f"multiple '{label}' matches for cluster name '{self.cluster}' and/or batch system '{self.batch_system}'"
-                    raise WorkflowException(msg)
-                else:
-                    return selected_args[0]
-
-        # No selection found
-        if required:
-            msg = f"no '{label}' match for cluster name '{self.cluster}' and/or batch system '{self.batch_system}'"
-            raise WorkflowException(msg)
-        else:
-            return [] if multi else None
