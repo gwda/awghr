@@ -42,7 +42,7 @@ def quantity_with_unit(unit, unit_desc):
     return _quantity_magnitude
 
 
-def show_stdouterr(prefix, stdfile, grep_regex, last_n_lines):
+def filter_stdouterr(stdfile, grep_regex, last_n_lines):
 
     # Open standard output/error file
     with stdfile.open("rb") as f:
@@ -105,9 +105,7 @@ def show_stdouterr(prefix, stdfile, grep_regex, last_n_lines):
             # Keep only last lines
             lines = lines[-last_n_lines:]
 
-        # Print lines
-        for line in lines:
-            print(prefix, line)
+    return lines
 
 
 def manage_jobs(args, workflow_dir):
@@ -245,6 +243,7 @@ def manage_jobs(args, workflow_dir):
     job_state_cache = {}
     job_state_last_modified_cache = {}
     job_state_counts = defaultdict(int)
+    job_stdouterr = {}
     for job_dir in tqdm(jobs, desc="Filtering", disable=None, leave=False):
 
         # Filter jobs by batch system ID
@@ -278,6 +277,26 @@ def manage_jobs(args, workflow_dir):
         job_state_counts[job_state] += 1
         if args.state != "ALL" and args.state != job_state:
             continue
+
+        # Filter jobs by standard output/error
+        job_stdouterr[job_dir] = {}
+        for flag, outerr in ((args.output, "out"), (args.error, "err")):
+            job_stdouterr[job_dir][outerr] = []
+            if flag:
+                for job_stdouterr_suffix in ("_pre", "", "_post"):
+                    job_stdouterr_file = (
+                        job_dir / f"job_std{outerr}{job_stdouterr_suffix}"
+                    )
+                    if job_stdouterr_file.is_file():
+                        job_stdouterr[job_dir][outerr].extend(
+                            filter_stdouterr(
+                                job_stdouterr_file,
+                                args.grep_regex,
+                                args.last_n_lines,
+                            )
+                        )
+                if len(job_stdouterr[job_dir][outerr]) == 0:
+                    continue
 
         filtered_jobs.append(job_dir)
 
@@ -373,29 +392,10 @@ def manage_jobs(args, workflow_dir):
                 f_size = Quantity(f.stat().st_size, "byte").to_compact()
                 print(prefix.format("FILE"), f, "SIZE", format(f_size, "0.1f~"))
 
-        # Show standard output
-        if args.output:
-            for job_stdout_names in ("job_stdout_pre", "job_stdout", "job_stdout_post"):
-                job_stdout = job_dir / job_stdout_names
-                if job_stdout.is_file():
-                    show_stdouterr(
-                        prefix.format("OUT"),
-                        job_stdout,
-                        args.grep_regex,
-                        args.last_n_lines,
-                    )
-
-        # Show standard error
-        if args.error:
-            for job_stderr_names in ("job_stderr_pre", "job_stderr", "job_stderr_post"):
-                job_stderr = job_dir / job_stderr_names
-                if job_stderr.is_file():
-                    show_stdouterr(
-                        prefix.format("ERR"),
-                        job_stderr,
-                        args.grep_regex,
-                        args.last_n_lines,
-                    )
+        # Show standard output/error
+        for outerr in ("out", "err"):
+            for line in job_stdouterr[job_dir][outerr]:
+                print(prefix.format(outerr.upper()), line)
 
         # Show job usage statistics
         if args.usage:
