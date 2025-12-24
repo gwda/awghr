@@ -49,6 +49,7 @@ import re
 import shlex
 import shutil
 import sys
+from datetime import datetime
 from hashlib import blake2b
 from pathlib import Path
 from textwrap import dedent
@@ -877,7 +878,6 @@ class Workflow:
             fi
             workflow_IDs=
             for ID in {all_workflow_IDs_str}; do
-                workflow_file="{baseworkflowdir}/${{ID}}/workflow.json"
                 state_file="{baseworkflowdir}/${{ID}}/state"
                 failed_file="{baseworkflowdir}${{ID}}/failed_jobs"
                 sub_file="{baseworkflowdir}/${{ID}}/submitted"
@@ -887,12 +887,14 @@ class Workflow:
                         echo "info: workflow ${{ID}} has already been successfully run"
                         continue
                     fi
-                    if test "${{workflow_file}}" -nt "${{state_file}}"; then
-                        {sys.executable} -m awghr.__init__ write-workflow "${{workflow_file}}"
-                    fi
                 elif test -f "${{sub_file}}"; then
                     echo "info: workflow ${{ID}} has already been submitted"
                     continue
+                fi
+                workflow_file="{baseworkflowdir}/${{ID}}/workflow.json"
+                timestamp_file="{baseworkflowdir}/${{ID}}/batch_scripts/.timestamp"
+                if test "${{workflow_file}}" -nt "${{timestamp_file}}"; then
+                    {sys.executable} -m awghr.__init__ write-workflow "${{workflow_file}}"
                 fi
                 workflow_IDs="${{workflow_IDs}} ${{ID}}"
                 rm -f "${{state_file}}" "${{failed_file}}" "${{sub_file}}"
@@ -1084,6 +1086,10 @@ def _write_workflow(workflow_file, workflow_writer=None):
         submittedfile=submittedfile,
         skip_exit_code=workflow["skip_exit_code"],
     )
+
+    # Write timestamp
+    timestampfile = batchdir / ".timestamp"
+    timestampfile.write_text(str(datetime.now()))
 
     # Log completion
     _logger.info("workflow has been written")
