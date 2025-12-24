@@ -150,7 +150,7 @@ def manage_jobs(args, workflow_dir):
 
     # Load cache
     cache = {}
-    cache_file = baseworkflowdir / ".manage-cache"
+    cache_file = workflow_dir / ".manage-cache"
     if cache_file.is_file():
 
         # Check cache is not older than this source file
