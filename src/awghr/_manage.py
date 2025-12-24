@@ -31,12 +31,12 @@ def positive_int(value):
     return value
 
 
-def quantity_with_unit(unit):
+def quantity_with_unit(unit, unit_desc):
     def _quantity_magnitude(value):
         try:
             return int(math.ceil(Quantity(value).to(unit).magnitude))
         except Exception:
-            msg = f"'{value}' is not a value of unit '{unit}'"
+            msg = f"'{value}' is not a value with units of {unit_desc}"
             raise argparse.ArgumentTypeError(msg)
 
     return _quantity_magnitude
@@ -283,8 +283,13 @@ def manage_jobs(args, workflow_dir):
 
     # Update resources of filtered jobs
     workflows_to_write = set()
-    for res in ("time_min", "mem_MB", "disk_MB"):
+    for res_name, res_unit in (
+        ("time", "min"),
+        ("mem", "MB"),
+        ("disk", "MB"),
+    ):
         for prefix in ("set", "add"):
+            res = f"{res_name}_{res_unit}"
             res_val = getattr(args, f"{prefix}_{res}", 0)
             if res_val != 0:
                 for job_dir in filtered_jobs:
@@ -348,12 +353,17 @@ def manage_jobs(args, workflow_dir):
         # Show job resources
         if args.resources:
             job = jobs_from_dir[job_dir]["job"]
-            job_time = Quantity(job["time_min"], "minute").to_compact()
-            print(prefix.format("RES"), "TIME", format(job_time, "0.1f~"))
-            job_mem = Quantity(job["mem_MB"], "megabyte").to_compact()
-            print(prefix.format("RES"), "MEM", format(job_mem, "0.1f~"))
-            job_disk = Quantity(job["disk_MB"], "megabyte").to_compact()
-            print(prefix.format("RES"), "DISK", format(job_disk, "0.1f~"))
+            for res_name, res_unit in (
+                ("time", "min"),
+                ("mem", "MB"),
+                ("disk", "MB"),
+            ):
+                job_res_val = Quantity(
+                    job[f"{res_name}_{res_unit}"], res_unit
+                ).to_compact()
+                print(
+                    prefix.format("RES"), res_name.upper(), format(job_res_val, "0.1f~")
+                )
 
         # Show files in job directory
         if args.files:
@@ -547,20 +557,20 @@ def cli(*argv: str, workflow_dir: Path = Path.cwd()):
         default=0,
         help="retrieve batch IDs at the given rate (per second)",
     )
-    for c, name, metavar, res, unit, desc in (
-        ("T", "time", "TIME", "time_min", "minute", "wall time"),
-        ("M", "mem", "SIZE", "mem_MB", "megabyte", "memory"),
-        ("D", "disk", "SIZE", "disk_MB", "megabyte", "temporary disk space"),
+    for c, res_name, res_unit, unit_desc, res_desc in (
+        ("T", "time", "min", "time", "wall time"),
+        ("M", "mem", "MB", "size", "memory"),
+        ("D", "disk", "MB", "size", "temporary disk space"),
     ):
         for p, prefix, verb in (("-", "set", "set"), ("+", "add", "add to")):
             parser.add_argument(
                 f"{p}{c}",
-                f"{p}{p}{name}",
-                metavar=metavar,
-                dest=f"{prefix}_{res}",
-                type=quantity_with_unit(unit),
+                f"{p}{p}{res_name}",
+                metavar=unit_desc.upper(),
+                dest=f"{prefix}_{res_name}_{res_unit}",
+                type=quantity_with_unit(res_unit, unit_desc),
                 default=0,
-                help=f"{verb} the requested {desc} of the selected jobs",
+                help=f"{verb} the requested {res_desc} of the selected jobs",
             )
 
     # Parse command line

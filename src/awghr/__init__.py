@@ -463,30 +463,22 @@ class Workflow:
         job["args_json"] = args_json
 
         # Normalise and store resource requests
-        _time = self._select_on_cluster_batch_system(
-            "time", time, always=False, required=True, multi=False
-        )
-        job["time_min"] = int(
-            math.ceil(Quantity(_time[0], _time[1]).to("minute").magnitude)
-        )
-        _mem = self._select_on_cluster_batch_system(
-            "mem", mem, always=False, required=True, multi=False
-        )
-        job["mem_MB"] = int(
-            math.ceil(Quantity(_mem[0], _mem[1]).to("megabyte").magnitude)
-        )
-        _disk = self._select_on_cluster_batch_system(
-            "disk", disk, always=False, required=True, multi=False
-        )
-        job["disk_MB"] = int(
-            math.ceil(Quantity(_disk[0], _disk[1]).to("megabyte").magnitude)
-        )
-        job["ncpus"] = self._select_on_cluster_batch_system(
-            "ncpus", ncpus, always=False, required=True, multi=False
-        )
-        job["ngpus"] = self._select_on_cluster_batch_system(
-            "ngpus", ngpus, always=False, required=True, multi=False
-        )
+        res_val: Any
+        for res_val, res_name, res_unit in (
+            (time, "time", "min"),
+            (mem, "mem", "MB"),
+            (disk, "disk", "MB"),
+        ):
+            _res_val = self._select_on_cluster_batch_system(
+                res_name, res_val, always=False, required=True, multi=False
+            )
+            job[f"{res_name}_{res_unit}"] = int(
+                math.ceil(Quantity(_res_val[0], _res_val[1]).to(res_unit).magnitude)
+            )
+        for res_val, res_name in ((ncpus, "ncpus"), (ngpus, "ngpus")):
+            job[res_name] = self._select_on_cluster_batch_system(
+                res_name, res_val, always=False, required=True, multi=False
+            )
         job["resources"] = {
             f"_{k}": job[k] for k in {"time_min", "mem_MB", "disk_MB", "ncpus", "ngpus"}
         }
