@@ -14,7 +14,7 @@ from typing import Any, Dict, Tuple
 
 from ._util import FileLineWriter, ProgressLogger, WorkflowWriter, job_dir_from_ID
 
-_logger = logging.getLogger(__name__)
+_logger = logging.getLogger("awghr")
 
 
 class BatchQWorkflowWriter(WorkflowWriter, ABC):

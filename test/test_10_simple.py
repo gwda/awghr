@@ -185,7 +185,7 @@ manage_cli(
     workflow_dir=w.workdir,
 )
 print("-----", flush=True)
-manage_cli("-f", "index < 5", "-Abjloz", workflow_dir=w.workdir)
+manage_cli("-f", "index < 5", "-Awjloz", workflow_dir=w.workdir)
 print("-----", flush=True)
 try:
     manage_cli("-n", "0", workflow_dir=w.workdir)

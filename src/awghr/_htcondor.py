@@ -16,7 +16,7 @@ from ._util import (
     job_dir_from_ID,
 )
 
-_logger = logging.getLogger(__name__)
+_logger = logging.getLogger("awghr")
 
 
 class HTCondorWorkflowWriter(WorkflowWriter):

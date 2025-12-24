@@ -40,7 +40,7 @@ for w in ws:
 
 logger.info("test command line interface")
 print("-----", flush=True)
-manage_cli("-Pb", workflow_dir=w.workdir)
+manage_cli("-Pw", workflow_dir=w.workdir)
 print("-----", flush=True)
 
 logger.info("submit workflow and wait for it to finish")

@@ -5,11 +5,14 @@
 """Test that a timed out job fails gracefully."""
 
 import logging
+import os
+import stat
 import subprocess
 import sys
 from pathlib import Path
 
 from awghr import Workflow
+from awghr._manage import cli as manage_cli
 
 # Set up logging
 logging.basicConfig(
@@ -29,7 +32,7 @@ if w.batch_system not in ("pbs", "slurm"):
     sys.exit(0)
 
 w.add_job(
-    args=dict(sleep=1000),
+    args=dict(sleep=90),
     cmds=["sleep {sleep}"],
     time=(1, "min"),
     mem=(10, "MB"),
@@ -38,6 +41,16 @@ w.add_job(
 )
 
 w.write()
+
+submit_script_file = w.workdir / "submit"
+submit_script_mode = stat.S_IMODE(os.stat(submit_script_file).st_mode)
+os.chmod(submit_script_file, submit_script_mode | stat.S_IWUSR)
+with submit_script_file.open("r") as f:
+    submit_script = f.read()
+submit_script = submit_script.replace(sys.executable, "coverage run -a")
+with submit_script_file.open("w") as f:
+    f.write(submit_script)
+os.chmod(submit_script_file, submit_script_mode)
 
 logger.info("submit workflow and wait for it to time out")
 subprocess.run([w.workdir / "submit"], check=True)
@@ -59,3 +72,30 @@ assert joblistfile.is_file()
 for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
     jobstate = (jobdir / "job_state").read_text().strip()
     assert jobstate == "FAILED"
+
+logger.info("show job resources before any changes")
+manage_cli("-F", "-r", workflow_dir=w.workdir)
+
+logger.info("increase job time limit")
+try:
+    manage_cli("-F", "-r", "+T", "9", workflow_dir=w.workdir)
+    msg = "should have exited"
+    raise AssertionError(msg)
+except SystemExit:
+    pass
+manage_cli("-F", "-r", "+T", "9min", "-M", "15MB", workflow_dir=w.workdir)
+
+logger.info("submit workflow and wait for it to finish")
+subprocess.run([w.workdir / "submit"], check=True)
+subprocess.run([w.workdir / "await", w.workdir / "queue"], check=True)
+
+logger.info("check workflow state is SUCCESS")
+state = statefile.read_text().strip()
+assert state == "SUCCESS"
+
+logger.info("check job state is SUCCESS")
+joblistfile = w.workdir / "workflows" / w.ID / "all_jobs"
+assert joblistfile.is_file()
+for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
+    jobstate = (jobdir / "job_state").read_text().strip()
+    assert jobstate == "SUCCESS"

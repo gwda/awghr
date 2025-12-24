@@ -40,6 +40,7 @@ Configuration:
         ...
 """
 
+import argparse
 import json
 import logging
 import math
@@ -73,7 +74,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(levelname)s %(asctime)s %(name)s : %(message)s",
 )
-_logger = logging.getLogger(__name__)
+_logger = logging.getLogger("awghr")
 
 
 class Workflow:
@@ -884,6 +885,7 @@ class Workflow:
             fi
             workflow_IDs=
             for ID in {all_workflow_IDs_str}; do
+                workflow_file="{baseworkflowdir}/${{ID}}/workflow.json"
                 state_file="{baseworkflowdir}/${{ID}}/state"
                 failed_file="{baseworkflowdir}${{ID}}/failed_jobs"
                 sub_file="{baseworkflowdir}/${{ID}}/submitted"
@@ -892,6 +894,9 @@ class Workflow:
                     if test "X${{workstate}}" = XSUCCESS; then
                         echo "info: workflow ${{ID}} has already been successfully run"
                         continue
+                    fi
+                    if test "${{workflow_file}}" -nt "${{state_file}}"; then
+                        {sys.executable} -m awghr.__init__ write-workflow "${{workflow_file}}"
                     fi
                 elif test -f "${{sub_file}}"; then
                     echo "info: workflow ${{ID}} has already been submitted"
@@ -1090,3 +1095,26 @@ def _write_workflow(workflow_file, workflow_writer=None):
 
     # Log completion
     _logger.info("workflow has been written")
+
+
+def _cli(*argv: str):
+    """Command-line interface: manage workflows."""
+
+    # Build command-line parser
+    parser = argparse.ArgumentParser(prog="workflows", description="manage workflows")
+    subparsers = parser.add_subparsers(required=True, help="sub-commands")
+    parser_write = subparsers.add_parser("write-workflow", help="write workflow")
+    parser_write.add_argument("workflow_file", type=Path, help="workflow file")
+    parser_write.set_defaults(
+        subcommand=lambda args: _write_workflow(args.workflow_file)
+    )
+
+    # Parse command line
+    args = parser.parse_args(argv if len(argv) > 0 else sys.argv[1:])
+
+    # Execute sub-command
+    args.subcommand(args)
+
+
+if __name__ == "__main__":
+    _cli()
