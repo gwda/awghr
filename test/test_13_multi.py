@@ -167,3 +167,45 @@ for w, (i0, n) in zip(ws, ((0, 5), (0, 10))):
 
 for w in ws:
     w.write()
+
+# -- Test workflows sharing jobs
+
+ws = [Workflow(name="multi6") for n in range(2)]
+
+for w in ws:
+    setup_id = w.add_job(
+        args=dict(stage="setup"),
+        cmds=["echo setup > setup.txt"],
+        time=(10, "min"),
+        mem=(10, "MB"),
+        disk=(10, "MB"),
+        outputs=["setup.txt"],
+    )
+
+for i, w in enumerate(ws):
+    w.add_job(
+        args=dict(stage="use", index=i),
+        cmds=["echo `cat setup.txt`{index} > out_{index}.txt"],
+        time=(10, "min"),
+        mem=(10, "MB"),
+        disk=(10, "MB"),
+        inputs=[(setup_id, "setup.txt")],
+        outputs=["out_{index}.txt"],
+    )
+
+    w.write()
+
+    logger.info("submit workflow and wait for it to finish")
+    subprocess.run([w.workdir / "submit"], check=True)
+    subprocess.run([w.workdir / "await", "-n", "1", w.workdir / "queue"], check=True)
+
+    logger.info("check for workflow files")
+    statefile = w.workdir / "workflows" / w.ID / "state"
+    assert statefile.is_file()
+    submittedfile = w.workdir / "workflows" / w.ID / "submitted"
+    assert not submittedfile.is_file()
+
+    logger.info("check workflow state is SUCCESS")
+    statefile = w.workdir / "workflows" / w.ID / "state"
+    state = statefile.read_text().strip()
+    assert state == "SUCCESS"

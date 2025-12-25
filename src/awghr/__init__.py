@@ -698,7 +698,7 @@ class Workflow:
                 existing_workflow_workflowdir / "submitted"
             ).is_file()
 
-            # Check for duplicate jobs
+            # Check for duplicate jobs that have not been run successfully
             existing_workflow_jobs: Set[Path] = set()
             existing_workflow_jobs_file = existing_workflow_workflowdir / "all_jobs"
             if existing_workflow_jobs_file.is_file():
@@ -707,10 +707,23 @@ class Workflow:
                     for line in existing_workflow_jobs_file.read_text().split()
                 )
             this_workflow_jobs = set(job["dir"] for job in self._jobs.values())
-            num_duplicate_jobs = len(existing_workflow_jobs & this_workflow_jobs)
+            duplicate_jobs = []
+            duplicate_jobs_state = {}
+            for job_dir in existing_workflow_jobs & this_workflow_jobs:
+                job_state_file = job_dir / "job_state"
+                if job_state_file.is_file():
+                    job_state = job_state_file.read_text().strip()
+                else:
+                    job_state = "PENDING"
+                if job_state != "SUCCESS":
+                    duplicate_jobs.append(job_dir)
+                duplicate_jobs_state[job_dir] = job_state
+            num_duplicate_jobs = len(duplicate_jobs)
+
+            # Check if all existing jobs are a subset of this workflow
             all_duplicate_jobs = existing_workflow_jobs.issubset(this_workflow_jobs)
 
-            # Check for duplicate outputs
+            # Check for duplicate final outputs
             existing_workflow_outputs: Set[str] = set()
             existing_workflow_outputs_file = existing_workflow_workflowdir / "outputs"
             if existing_workflow_outputs_file.is_file():
@@ -719,10 +732,11 @@ class Workflow:
                 )
             this_workflow_outputs = set()
             for job in self._jobs.values():
-                this_workflow_outputs.update([outp.name for outp in job["outfiles"]])
-            num_duplicate_outputs = len(
-                existing_workflow_outputs & this_workflow_outputs
-            )
+                this_workflow_outputs.update(
+                    [outp.name for outp in job["outfiles"] if job["outfinal"]]
+                )
+            duplicate_outputs = list(existing_workflow_outputs & this_workflow_outputs)
+            num_duplicate_outputs = len(duplicate_outputs)
             all_duplicate_outputs = existing_workflow_outputs.issubset(
                 this_workflow_outputs
             )
@@ -740,7 +754,15 @@ class Workflow:
             elif num_duplicate_jobs > 0 or num_duplicate_outputs > 0:
 
                 # Raise error on partial job/output duplication with existing workflow
-                msg = f"this workflow duplicates {num_duplicate_jobs} jobs and {num_duplicate_outputs} outputs with existing workflow {existing_workflow_ID}"
+                msg = ""
+                if num_duplicate_jobs > 0:
+                    msg += f"this workflow duplicates {num_duplicate_jobs} jobs with existing workflow {existing_workflow_ID}:\n"
+                    for job_dir in duplicate_jobs:
+                        msg += f"    {job_dir} (job state: {duplicate_jobs_state[job_dir]})\n"
+                if num_duplicate_outputs > 0:
+                    msg += f"this workflow duplicates {num_duplicate_outputs} outputs with existing workflow {existing_workflow_ID}:\n"
+                    for outp_name in duplicate_outputs:
+                        msg += f"    {outp_name}\n"
                 raise WorkflowException(msg)
 
         for job in ProgressLogger(
@@ -1050,12 +1072,13 @@ def _write_workflow(workflow_file, workflow_writer=None):
         for job in workflow["jobs"].values():
             f += job["dir"]
 
-    # Write list of all output files
+    # Write list of all final output files
     joboutputsfile = workflowdir / "outputs"
     with FileLineWriter(joboutputsfile) as f:
         for job in workflow["jobs"].values():
-            for outp in job["outfiles"]:
-                f += outp.name
+            if job["outfinal"]:
+                for outp in job["outfiles"]:
+                    f += outp.name
 
     # Name of file containing directories of any failed jobs
     # - Remove any existing file
