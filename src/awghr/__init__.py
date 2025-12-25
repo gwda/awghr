@@ -208,7 +208,7 @@ class Workflow:
         )
         self._workflow_hash = blake2b(digest_size=8, usedforsecurity=False)
         self._jobs: Dict[str, Dict[str, Any]] = {}
-        self._log_add_jobs = ProgressLogger(msg="added %s jobs to workflow")
+        self._log_add_jobs = ProgressLogger(msg="added %s jobs")
 
         # Process environment variables
         self._env = {}
@@ -757,7 +757,7 @@ class Workflow:
 
         for job in ProgressLogger(
             self._jobs.values(),
-            msg="wrote %s job directories in workflow",
+            msg="wrote %s job directories",
         ):
 
             # Make job directory
