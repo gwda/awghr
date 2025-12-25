@@ -131,22 +131,38 @@ def manage_jobs(args, workflow_dir):
 
     # Get list of jobs to examine
     jobs = set()
+    job_state_counts = defaultdict(int)
     job_workflow_dirs = {}
     for d in workflowdirs:
 
-        # If only showing failed jobs, use failed jobs list if possible
-        failed_job_list_file = d / "failed_jobs"
-        if args.state == "FAILED" and failed_job_list_file.is_file():
-            use_job_list_file = failed_job_list_file
+        # Read workflow state
+        workstatefile = d / "state"
+        if workstatefile.is_file():
+            workstate = workstatefile.read_text().strip()
         else:
-            # Otherwise use full jobs list
-            use_job_list_file = d / "all_jobs"
+            workstate = None
+        if workstate == "SUCCESS":
 
-        # Update list of jobs
-        new_jobs = [Path(line) for line in use_job_list_file.read_text().split()]
-        jobs.update(new_jobs)
-        wflowdir = str(d)
-        job_workflow_dirs.update(dict.fromkeys(new_jobs, wflowdir))
+            # Just count number of successful jobs
+            use_job_list_file = d / "all_jobs"
+            successful_jobs = use_job_list_file.read_text().split()
+            job_state_counts["SUCCESS"] += len(successful_jobs)
+
+        else:
+
+            # If only showing failed jobs, use failed jobs list if possible
+            failed_job_list_file = d / "failed_jobs"
+            if args.state == "FAILED" and failed_job_list_file.is_file():
+                use_job_list_file = failed_job_list_file
+            else:
+                # Otherwise use full jobs list
+                use_job_list_file = d / "all_jobs"
+
+            # Update list of jobs
+            new_jobs = [Path(line) for line in use_job_list_file.read_text().split()]
+            jobs.update(new_jobs)
+            wflowdir = str(d)
+            job_workflow_dirs.update(dict.fromkeys(new_jobs, wflowdir))
 
     # Load cache
     cache = {}
@@ -242,7 +258,6 @@ def manage_jobs(args, workflow_dir):
     filtered_jobs = []
     job_state_cache = {}
     job_state_last_modified_cache = {}
-    job_state_counts = defaultdict(int)
     job_stdouterr = {}
     for job_dir in tqdm(jobs, desc="Filtering", disable=None, leave=False):
 
