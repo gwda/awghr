@@ -496,6 +496,14 @@ def cli(*argv: str, workflow_dir: Path = Path.cwd()):
     )
     parser.set_defaults(state="FAILED")
     parser.add_argument(
+        "-Y",
+        "--summary",
+        dest="state",
+        action="store_const",
+        const=None,
+        help="show only summary",
+    )
+    parser.add_argument(
         "-i",
         "--batch-ID",
         metavar="ID",
