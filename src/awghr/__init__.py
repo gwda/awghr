@@ -757,11 +757,11 @@ class Workflow:
             jobbatchID_file.unlink(missing_ok=True)
 
             # Remove job files, if job was not successful or skipped
-            jobstate_file = job["dir"] / "job_state"
-            if jobstate_file.is_file():
-                jobstate = jobstate_file.read_text().strip()
-                if not jobstate.startswith("SUCCESS"):
-                    jobstate_file.unlink(missing_ok=True)
+            job_state_file = job["dir"] / "job_state"
+            if job_state_file.is_file():
+                job_state = job_state_file.read_text().strip()
+                if not job_state.startswith("SUCCESS"):
+                    job_state_file.unlink(missing_ok=True)
                     for job_file in (
                         "job_batchID",
                         "job_stdout",
