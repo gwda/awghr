@@ -4,7 +4,6 @@
 
 """HTCondor workflows."""
 
-import logging
 import shlex
 from typing import Any, Dict, Optional, Tuple
 
@@ -15,8 +14,6 @@ from ._util import (
     WorkflowWriter,
     job_dir_from_ID,
 )
-
-_logger = logging.getLogger("awghr")
 
 
 class HTCondorWorkflowWriter(WorkflowWriter):
@@ -87,9 +84,7 @@ class HTCondorWorkflowWriter(WorkflowWriter):
         with FileLineWriter(dag_file) as F:
 
             # Write jobs
-            for job in ProgressLogger(
-                jobs.values(), logger=_logger, msg="wrote %s jobs in workflow"
-            ):
+            for job in ProgressLogger(jobs.values(), msg="wrote %s jobs in workflow"):
 
                 # Job ID string for use in HTCondor submission files
                 job_ID = "job_" + job["ID"]

@@ -4,9 +4,11 @@
 
 """Utility functions."""
 
+import logging
 import os
 import re
 import stat
+import sys
 import time
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
@@ -14,6 +16,14 @@ from pathlib import Path
 from textwrap import dedent
 
 from pint import Quantity
+
+# Set up logging
+logging.basicConfig(
+    stream=sys.stdout,
+    level=logging.INFO,
+    format="%(levelname)s %(asctime)s %(name)s : %(message)s",
+)
+logger = logging.getLogger("awghr")
 
 
 class WorkflowException(Exception):
@@ -96,13 +106,12 @@ class JobFileList:
 class ProgressLogger:
     """Log progress at progressively longer intervals."""
 
-    def __init__(self, items=None, *, logger, msg):
+    def __init__(self, items=None, *, msg):
         if items is not None:
             self._items = list(items)
             self._total = len(items)
         else:
             self._total = 0
-        self._logger = logger
         self._msg = msg
         self._count = 0
         self._t0 = time.time()
@@ -115,7 +124,7 @@ class ProgressLogger:
         dt = time.time() - self._t0
         if dt > self._dt_print_prog:  # pragma: no cover
             r = (self._count / Quantity(dt, "second")).to_compact()
-            self._logger.info(self._msg + " (%s)", str(self._count), format(r, "0.1f~"))
+            logger.info(self._msg + " (%s)", str(self._count), format(r, "0.1f~"))
             self._ddt_print_prog += 5
             self._dt_print_prog += self._ddt_print_prog
 
@@ -123,7 +132,7 @@ class ProgressLogger:
         """Finish log progress."""
         dt = time.time() - self._t0
         r = (self._count / Quantity(dt, "second")).to_compact()
-        self._logger.info(
+        logger.info(
             self._msg + " (%s)",
             "a total of " + str(self._count),
             format(r, "0.1f~"),

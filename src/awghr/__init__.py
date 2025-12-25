@@ -42,7 +42,6 @@ Configuration:
 
 import argparse
 import json
-import logging
 import math
 import os
 import re
@@ -64,18 +63,11 @@ from ._util import (
     ProgressLogger,
     WorkflowException,
     job_dir_from_ID,
+    logger,
 )
 
 __author__ = "Karl Wette"
 __version__ = "0.1"
-
-# Set up logging
-logging.basicConfig(
-    stream=sys.stdout,
-    level=logging.INFO,
-    format="%(levelname)s %(asctime)s %(name)s : %(message)s",
-)
-_logger = logging.getLogger("awghr")
 
 
 class Workflow:
@@ -168,7 +160,7 @@ class Workflow:
     ):
 
         # Read configuration
-        _logger.info("reading configuration")
+        logger.info("reading configuration")
         cfg = read_config(tags=tags)
 
         # Check name
@@ -216,9 +208,7 @@ class Workflow:
         )
         self._workflow_hash = blake2b(digest_size=8, usedforsecurity=False)
         self._jobs: Dict[str, Dict[str, Any]] = {}
-        self._log_add_jobs = ProgressLogger(
-            logger=_logger, msg="added %s jobs to workflow"
-        )
+        self._log_add_jobs = ProgressLogger(msg="added %s jobs to workflow")
 
         # Process environment variables
         self._env = {}
@@ -234,10 +224,10 @@ class Workflow:
                     self._env[var] = val
 
         # Log details
-        _logger.info("workflow name: %s", self.name)
-        _logger.info("workflow account: %s", self.account)
-        _logger.info("workflow directory: %s", self.workdir)
-        _logger.info("batch system: %s", self.batch_system)
+        logger.info("workflow name: %s", self.name)
+        logger.info("workflow account: %s", self.account)
+        logger.info("workflow directory: %s", self.workdir)
+        logger.info("batch system: %s", self.batch_system)
 
     def _select_on_cluster_batch_system(self, label, arg, *, always, required, multi):
         """Select argument based on cluster name and/or batch system."""
@@ -749,7 +739,7 @@ class Workflow:
 
                 # Remove duplicate workflow
                 shutil.rmtree(existing_workflow_workflowdir)
-                _logger.info("removed duplicate workflow %s", existing_workflow_ID)
+                logger.info("removed duplicate workflow %s", existing_workflow_ID)
 
             elif num_duplicate_jobs > 0 or num_duplicate_outputs > 0:
 
@@ -767,7 +757,6 @@ class Workflow:
 
         for job in ProgressLogger(
             self._jobs.values(),
-            logger=_logger,
             msg="wrote %s job directories in workflow",
         ):
 
@@ -1030,7 +1019,7 @@ class Workflow:
             """
 
         # Log completion
-        _logger.info("all workflow files and directories have been written")
+        logger.info("all workflow files and directories have been written")
 
 
 def _write_workflow(workflow_file, workflow_writer=None):
@@ -1044,12 +1033,12 @@ def _write_workflow(workflow_file, workflow_writer=None):
         job["dir"] = Path(job["dir"])
         for k in ("infiles", "joboutfiles", "outfiles"):
             job[k] = [Path(v) for v in job[k]]
-    _logger.info("read workflow from %s", workflow_file)
+    logger.info("read workflow from %s", workflow_file)
 
     if workflow_writer is None:
 
         # Read configuration
-        _logger.info("reading configuration")
+        logger.info("reading configuration")
         cfg = read_config(tags=workflow["tags"])
 
         # Get workflow writer
@@ -1115,7 +1104,7 @@ def _write_workflow(workflow_file, workflow_writer=None):
     timestampfile.write_text(str(datetime.now()))
 
     # Log completion
-    _logger.info("workflow has been written")
+    logger.info("workflow has been written")
 
 
 def _cli(*argv: str):

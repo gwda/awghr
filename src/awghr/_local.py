@@ -7,12 +7,9 @@
 Runs jobs on local machine for debugging purposes.
 """
 
-import logging
 from typing import Any, Dict, Tuple
 
 from ._util import FileLineWriter, WorkflowWriter, job_dir_from_ID
-
-_logger = logging.getLogger("awghr")
 
 
 class LocalWorkflowWriter(WorkflowWriter):

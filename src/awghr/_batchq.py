@@ -7,14 +7,11 @@
 Generic workflow writer for PBS/Slurm/etc. style batch systems.
 """
 
-import logging
 import math
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Tuple
 
 from ._util import FileLineWriter, ProgressLogger, WorkflowWriter, job_dir_from_ID
-
-_logger = logging.getLogger("awghr")
 
 
 class BatchQWorkflowWriter(WorkflowWriter, ABC):
@@ -181,7 +178,6 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
         job_ID_to_job_array_ID_index = {}
         for (_, job_array_ID), job_array in ProgressLogger(
             sorted(job_arrays.items()),
-            logger=_logger,
             msg="wrote %s job arrays in workflow",
         ):
 
