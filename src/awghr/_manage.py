@@ -16,7 +16,7 @@ import sys
 import time
 from collections import defaultdict
 from contextlib import redirect_stdout
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from pint import Quantity
@@ -40,6 +40,14 @@ def quantity_with_unit(unit, unit_desc):
             raise argparse.ArgumentTypeError(msg)
 
     return _quantity_magnitude
+
+
+def format_quantity(qty):
+    return format(qty.to_compact(), "0.1f~")
+
+
+def format_time_quantity(qty):
+    return str(timedelta(seconds=qty.to("sec").magnitude))
 
 
 def filter_stdouterr(stdfile, grep_regex, last_n_lines):
@@ -387,25 +395,21 @@ def manage_jobs(args, workflow_dir):
         # Show job resources
         if args.resources:
             job = jobs_from_dir[job_dir]["job"]
-            for res_name, res_unit in (
-                ("time", "min"),
-                ("mem", "MB"),
-                ("disk", "MB"),
+            for res_name, res_unit, res_fmt in (
+                ("time", "min", format_time_quantity),
+                ("mem", "MB", format_quantity),
+                ("disk", "MB", format_quantity),
             ):
-                job_res_val = Quantity(
-                    job[f"{res_name}_{res_unit}"], res_unit
-                ).to_compact()
-                print(
-                    prefix.format("RES"), res_name.upper(), format(job_res_val, "0.1f~")
-                )
+                job_res_val = Quantity(job[f"{res_name}_{res_unit}"], res_unit)
+                print(prefix.format("RES"), res_name.upper(), res_fmt(job_res_val))
 
         # Show files in job directory
         if args.files:
             for f in sorted(
                 job_dir.iterdir(), key=lambda j: (not j.name.startswith("job_"), j)
             ):
-                f_size = Quantity(f.stat().st_size, "byte").to_compact()
-                print(prefix.format("FILE"), f, "SIZE", format(f_size, "0.1f~"))
+                f_size = Quantity(f.stat().st_size, "byte")
+                print(prefix.format("FILE"), f, "SIZE", format_quantity(f_size))
 
         # Show standard output/error
         for outerr in ("out", "err"):
