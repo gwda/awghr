@@ -56,7 +56,7 @@ RUN <<EOF
 set -e
 tar xf slurm-${SLURM_VERSION}.tar.bz2
 cd /tmp/slurm-${SLURM_VERSION}
-./configure --prefix=/usr/local --with-systemdsystemunitdir=/lib/systemd/system
+./configure --prefix=/usr/local --with-systemdsystemunitdir=/lib/systemd/system --with-mysql_conf=/path/to/mysql_config
 make all contrib
 make install install-contrib DESTDIR=/tmp/slurm-install
 EOF
@@ -104,6 +104,8 @@ apt-get -y install \
     librrd8 \
     libswitch-perl \
     libyaml-0-2 \
+    mysql-client \
+    mysql-server \
     nano \
     perl \
     python3-pip \
@@ -151,14 +153,16 @@ Waittime=0
 SchedulerType=sched/backfill
 SelectType=select/cons_tres
 SelectTypeParameters=CR_Core
-AccountingStorageType=accounting_storage/none
+AccountingStorageEnforce=associations,limits
+AccountingStorageType=accounting_storage/slurmdbd
+AccountingStorageHost=127.0.0.1
 JobCompType=jobcomp/none
 JobAcctGatherFrequency=30
 JobAcctGatherType=jobacct_gather/none
 SlurmctldDebug=info
-SlurmctldLogFile=/var/log/slurmctld.log
+SlurmctldLogFile=/var/log/slurm/slurmctld.log
 SlurmdDebug=info
-SlurmdLogFile=/var/log/slurmd.log
+SlurmdLogFile=/var/log/slurm/slurmd.log
 AuthType=auth/none
 CredType=cred/none
 JobContainerType=job_container/none
@@ -166,8 +170,26 @@ MaxArraySize=10
 NodeName=localhost Sockets=2 CoresPerSocket=1 RealMemory=500 TmpDisk=100 State=UNKNOWN
 PartitionName=LocalQ Nodes=ALL Default=YES MaxTime=INFINITE State=UP
 EOF
+COPY <<EOF /usr/local/etc/slurmdbd.conf
+DbdAddr=localhost
+DbdHost=localhost
+SlurmUser=slurm
+LogFile=/var/log/slurm/slurmdbd.log
+PidFile=/var/run/slurmdbd.pid
+AuthType=auth/none
+StorageType=accounting_storage/mysql
+StorageUser=slurm
+StorageHost=127.0.0.1
+EOF
 COPY <<EOF /usr/local/etc/cgroup.conf
 CgroupPlugin=cgroup/v1
+EOF
+COPY <<EOF /etc/mysql/mysql.conf.d/slurmdbd.cnf
+[mysqld]
+innodb_buffer_pool_size=4096M
+innodb_log_file_size=1024M
+innodb_lock_wait_timeout=900
+max_allowed_packet=16M
 EOF
 
 # Configure Slurm
@@ -175,19 +197,53 @@ RUN <<EOF
 set -e
 groupadd slurm
 useradd -g slurm -d /nonexistent -s /usr/sbin/nologin slurm
-chown slurm:slurm /usr/local/etc/slurm.conf /usr/local/etc/cgroup.conf
-chmod 0444 /usr/local/etc/slurm.conf /usr/local/etc/cgroup.conf
-mkdir -p /var/spool/slurmd /var/spool/slurmctld
-chown slurm:slurm /var/spool/slurmd /var/spool/slurmctld
+chown slurm:slurm /usr/local/etc/slurm.conf
+chown slurm:slurm /usr/local/etc/slurmdbd.conf
+chown slurm:slurm /usr/local/etc/cgroup.conf
+chmod 0444 /usr/local/etc/slurm.conf
+chmod 0600 /usr/local/etc/slurmdbd.conf
+chmod 0444 /usr/local/etc/cgroup.conf
+mkdir -p /var/log/slurm
+chown slurm:slurm /var/log/slurm
+chmod 0755 /var/log/slurm
+mkdir -p /var/spool/slurmd
+chown slurm:slurm /var/spool/slurmd
 chmod 0755 /var/spool/slurmd
+mkdir -p /var/spool/slurmctld
+chown slurm:slurm /var/spool/slurmctld
 chmod 0700 /var/spool/slurmctld
+mysqld_safe &
+while ! test -e /var/run/mysqld/mysqld.sock; do
+    echo "INFO: waiting for mysqld..."
+    sleep 0.5
+done
+mysql <<_EOF_
+create user 'slurm'@'localhost';
+grant all on slurm_acct_db.* TO 'slurm'@'localhost';
+create user 'slurm'@'slurm-ubuntu-host';
+grant all on slurm_acct_db.* TO 'slurm'@'slurm-ubuntu-host';
+create database slurm_acct_db;
+_EOF_
+systemctl enable slurmdbd slurmctld slurmd
+if ! systemctl restart slurmdbd slurmctld slurmd; then
+    echo "ERROR: could not start Slurm" >&2
+    exit 1
+fi
+sacctmgr -i add user testuser Account=root
+systemctl stop slurmdbd slurmctld slurmd
+mysqladmin -u root shutdown
 EOF
 
 # Create entrypoint
 COPY <<EOF /usr/local/bin/entrypoint
 #!/bin/bash
 set -e
-if ! systemctl restart slurmctld slurmd; then
+mysqld_safe &
+while ! test -e /var/run/mysqld/mysqld.sock; do
+    echo "INFO: waiting for mysqld..."
+    sleep 0.5
+done
+if ! systemctl restart slurmdbd slurmctld slurmd; then
     echo "ERROR: could not start Slurm" >&2
     exit 1
 fi
@@ -197,7 +253,8 @@ _shutdown_slurm() {
     status=\$?
     scancel --me --full --hurry
     scontrol update nodename=localhost state=down reason=shutdown
-    systemctl stop slurmctld slurmd
+    systemctl stop slurmdbd slurmctld slurmd
+    mysqladmin -u root shutdown
     exit \${status}
 }
 trap _shutdown_slurm EXIT INT TERM
