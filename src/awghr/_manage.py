@@ -303,6 +303,7 @@ def manage_jobs(args, workflow_dir):
 
         # Filter jobs by standard output/error
         job_stdouterr[job_dir] = {}
+        job_stdouterr_len = 0
         for flag, outerr in ((args.output, "out"), (args.error, "err")):
             job_stdouterr[job_dir][outerr] = []
             if flag:
@@ -318,8 +319,9 @@ def manage_jobs(args, workflow_dir):
                                 args.last_n_lines,
                             )
                         )
-                if len(job_stdouterr[job_dir][outerr]) == 0:
-                    continue
+            job_stdouterr_len += len(job_stdouterr[job_dir][outerr])
+        if (args.output or args.error) and args.grep_regex and job_stdouterr_len == 0:
+            continue
 
         filtered_jobs.append(job_dir)
 
