@@ -168,7 +168,8 @@ if ! systemctl restart pbs; then
     exit 1
 fi
 while true; do
-    sleep 0.2
+    echo "INFO: waiting for pbsnodes..."
+    sleep 0.5
     nodeparams=`( pbsnodes -F dsv pbs-ubuntu-host || true ) 2>/dev/null`
     case "\${nodeparams}"  in
         *"|state=free|"*)

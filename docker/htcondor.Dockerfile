@@ -70,6 +70,7 @@ if ! systemctl restart condor; then
 fi
 trap 'status=\$?; systemctl stop condor; exit \${status}' EXIT INT TERM
 while ! pidof condor_collector >/dev/null; do
+    echo "INFO: waiting for condor_collector..."
     sleep 0.5
 done
 chown -R testuser:testuser /testing
