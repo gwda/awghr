@@ -67,14 +67,6 @@ LABEL name="Testing Slurm batch system" maintainer="Karl Wette"
 
 WORKDIR /tmp
 
-# Configure test user
-RUN <<EOF
-set -e
-mkdir -p /testing
-groupadd testuser
-useradd -g testuser -d /testing -s /bin/bash testuser
-EOF
-
 # Install prerequisites
 ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
@@ -111,6 +103,7 @@ apt-get -y install \
     python3-pip \
     python3.10 \
     python3.10-venv \
+    sudo \
     systemctl \
     time \
     ;
@@ -118,6 +111,15 @@ update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 update-alternatives --set python /usr/bin/python3
 update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
 update-alternatives --set python3 /usr/bin/python3.10
+EOF
+
+# Configure test user
+RUN <<EOF
+set -e
+mkdir -p /testing
+groupadd testuser
+useradd -g testuser -d /testing -s /bin/bash testuser
+echo 'testuser ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 EOF
 
 # Copy installed Slurm from build image
