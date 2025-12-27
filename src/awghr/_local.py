@@ -71,6 +71,9 @@ class LocalWorkflowWriter(WorkflowWriter):
             function trap_workflow_state() {
                 local status=$1
                 workstate=SUCCESS
+                if test ${status} -ne 0; then
+                    workstate=FAILED
+                fi
             """
             with f.indent(4):
                 for job in jobs.values():

@@ -454,6 +454,7 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
                 local status=$1
                 if test ${{status}} -ne 0; then
                     echo FAILED > '{workstatefile}'
+                    rm -f '{submittedfile}'
                 fi
                 exit ${{status}}
             }}
@@ -636,6 +637,9 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
             local jobnames=
             local ID=
             for ID in $@; do
+                if test -s "{baseworkflowdir}/${{ID}}/batch_scripts/all_stderr"; then
+                    sed "s/^/ERROR: ${{ID}}: /" "{baseworkflowdir}/${{ID}}/batch_scripts/all_stderr"
+                fi
                 jobnames="${{jobnames}} {workflowname}_${{ID}}"
             done
             batchq_queue ${{jobnames}}

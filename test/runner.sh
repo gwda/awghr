@@ -17,10 +17,15 @@ case "${batch_system}" in
     pbs)
         ( qdel `qselect` >/dev/null 2>&1 ) || true
         rm -rf /tmp/pbs-*
+        sudo qmgr -c "set queue workq max_queuable = 1000"
         ;;
     slurm)
         scancel -u 0
         rm -rf /tmp/slurm-*
+        sudo sacctmgr -i -Q add account default || true
+        sudo sacctmgr -i -Q add user testuser Account=default || true
+        sudo sacctmgr -i -Q modify user where name=testuser set DefaultAccount=default || true
+        sudo sacctmgr -i -Q modify user testuser set MaxSubmitJobs=1000 || true
         ;;
 esac
 
