@@ -184,6 +184,8 @@ def manage_jobs(args, workflow_dir):
             cache = pickle.load(cache_file.open("rb"))
 
     # Check that cache includes required fields
+    if "state" not in cache:
+        cache["state"] = {}
     if "batchID" not in cache:
         cache["batchID"] = {}
     if "args" not in cache or "sorted_args" not in cache:
@@ -193,7 +195,25 @@ def manage_jobs(args, workflow_dir):
         cache["constant_args"] = None
 
     # Add information that will not change (once known) while workflow is running to cache
+    job_state_cache = {}
+    job_state_last_modified_cache = {}
     for job_dir in tqdm(jobs, desc="Cacheing ", disable=None, leave=False):
+
+        # Add job state to temporary cache; for successful jobs, add to persistent cache
+        try:
+            job_state_cache[job_dir] = cache["state"][job_dir]
+        except KeyError:
+            job_state_file = job_dir / "job_state"
+            if job_state_file.is_file():
+                job_state = job_state_file.read_text().strip()
+                job_state_last_modified_cache[job_dir] = datetime.fromtimestamp(
+                    job_state_file.stat().st_mtime
+                )
+            else:
+                job_state = "PENDING"
+            job_state_cache[job_dir] = job_state
+            if job_state == "SUCCESS":
+                cache["state"][job_dir] = job_state
 
         # Add job batch IDs to cache
         if job_dir not in cache["batchID"]:
@@ -204,24 +224,20 @@ def manage_jobs(args, workflow_dir):
 
                     # Run command to get batch ID
                     if args.batch_ID_rate > 0:
-                        job_state_file = job_dir / "job_state"
-                        if job_state_file.is_file():
-                            job_state = job_state_file.read_text().strip()
-                            if job_state == "RUNNING":
-                                job_batchID_cmd = job_batchID[1:]
-                                try:
-                                    job_batchID = subprocess.check_output(
-                                        job_batchID_cmd, shell=True, text=True
-                                    ).strip()
-                                    if len(job_batchID) > 0:
-                                        cache["batchID"][job_dir] = job_batchID
-                                except (
-                                    subprocess.CalledProcessError
-                                ):  # pragma: no cover
-                                    pass
+                        job_state = job_state_cache[job_dir]
+                        if job_state == "RUNNING":
+                            job_batchID_cmd = job_batchID[1:]
+                            try:
+                                job_batchID = subprocess.check_output(
+                                    job_batchID_cmd, shell=True, text=True
+                                ).strip()
+                                if len(job_batchID) > 0:
+                                    cache["batchID"][job_dir] = job_batchID
+                            except subprocess.CalledProcessError:  # pragma: no cover
+                                pass
 
-                                # Rate limit batch ID commands
-                                time.sleep(1.0 / args.batch_ID_rate)
+                            # Rate limit batch ID commands
+                            time.sleep(1.0 / args.batch_ID_rate)
 
                 else:  # Static batch ID
                     cache["batchID"][job_dir] = job_batchID
@@ -264,8 +280,6 @@ def manage_jobs(args, workflow_dir):
 
     # Filter jobs
     filtered_jobs = []
-    job_state_cache = {}
-    job_state_last_modified_cache = {}
     job_stdouterr = {}
     for job_dir in tqdm(jobs, desc="Filtering", disable=None, leave=False):
 
@@ -288,17 +302,9 @@ def manage_jobs(args, workflow_dir):
                 continue
 
         # Filter jobs by state
-        job_state_file = job_dir / "job_state"
-        if job_state_file.is_file():
-            job_state = job_state_file.read_text().strip()
-            job_state_last_modified_cache[job_dir] = datetime.fromtimestamp(
-                job_state_file.stat().st_mtime
-            )
-        else:
-            job_state = "PENDING"
-        job_state_cache[job_dir] = job_state
+        job_state = job_state_cache[job_dir]
         job_state_counts[job_state] += 1
-        if args.state != "ALL" and args.state != job_state:
+        if args.state != "ALL" and not job_state.startswith(args.state):
             continue
 
         # Filter jobs by standard output/error
@@ -377,12 +383,13 @@ def manage_jobs(args, workflow_dir):
         print(prefix.format("ARGS"), job_args_str)
 
         # Show job state, date it was last modified, and batch system ID
-        job_state_str = job_state_cache[job_dir]
+        job_state = job_state_cache[job_dir]
+        job_state_str = job_state
         if job_dir in job_state_last_modified_cache:
             job_state_str += job_state_last_modified_cache[job_dir].strftime(
                 " %Y-%m-%d %H:%M:%S"
             )
-        if job_state_cache[job_dir] == "RUNNING":
+        if job_state == "RUNNING":
             job_state_str += " BATCHID " + cache["batchID"].get(job_dir, "unknown")
         print(prefix.format("STATE"), job_state_str)
 
@@ -502,7 +509,7 @@ def cli(*argv: str, workflow_dir: Path = Path.cwd()):
         "--summary",
         dest="state",
         action="store_const",
-        const=None,
+        const="summary",
         help="show only summary",
     )
     parser.add_argument(
