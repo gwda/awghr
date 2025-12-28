@@ -216,6 +216,7 @@ def manage_jobs(args, workflow_dir):
             job_state_cache[job_dir] = job_state
             if job_state == "SUCCESS":
                 cache["state"][job_dir] = job_state
+        job_state_counts[job_state_cache[job_dir]] += 1
 
         # Add job batch IDs to cache
         if job_dir not in cache["batchID"]:
@@ -338,6 +339,7 @@ def manage_jobs(args, workflow_dir):
 
         # Iterate over resources, update job status with changes
         job_state = job_state_cache[job_dir]
+        job_state_counts[job_state] -= 1
         for res_name, res_unit in (
             ("time", "min"),
             ("mem", "MB"),
@@ -357,6 +359,7 @@ def manage_jobs(args, workflow_dir):
                     workflows_to_write.add(jobs_from_dir[job_dir]["workflow_file"])
 
         # Write updated job status to cache, file
+        job_state_counts[job_state] += 1
         job_state_cache[job_dir] = job_state
         job_state_file = job_dir / "job_state"
         job_state_file.write_text(job_state)
@@ -448,9 +451,6 @@ def manage_jobs(args, workflow_dir):
                     if re.search(usage_regex, line, re.IGNORECASE) is not None:
                         print(prefix.format("USAGE"), line)
 
-        # Count job states
-        job_state_counts[job_state] += 1
-
     print("")
 
     # Create prefix for coda
@@ -458,7 +458,8 @@ def manage_jobs(args, workflow_dir):
 
     # Print counts of job states
     for job_state, job_state_count in sorted(job_state_counts.items()):
-        print(prefix.format("STATE"), f"{job_state_count:{len_n}d}", job_state)
+        if job_state_count > 0:
+            print(prefix.format("STATE"), f"{job_state_count:{len_n}d}", job_state)
 
     # Print date
     print(prefix.format("DATE"), datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
