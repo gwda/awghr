@@ -77,12 +77,21 @@ logger.info("show job resources before any changes")
 manage_cli("-F", "-r", workflow_dir=w.workdir)
 
 logger.info("increase job time limit")
+print("-----", flush=True)
 try:
     manage_cli("-F", "-r", "+T", "9", workflow_dir=w.workdir)
     msg = "should have exited"
     raise AssertionError(msg)
 except SystemExit:
     pass
+print("-----", flush=True)
+try:
+    manage_cli("-S", "-r", "+T", "9min", workflow_dir=w.workdir)
+    msg = "should have exited"
+    raise AssertionError(msg)
+except SystemExit:
+    pass
+print("-----", flush=True)
 manage_cli("-F", "-r", "+T", "9min", "-M", "15MB", workflow_dir=w.workdir)
 
 logger.info("submit workflow and wait for it to finish")

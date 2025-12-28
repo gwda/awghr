@@ -22,6 +22,8 @@ from pathlib import Path
 from pint import Quantity
 from tqdm import tqdm
 
+from ._util import logger
+
 
 def positive_int(value):
     value = int(value)
@@ -303,7 +305,6 @@ def manage_jobs(args, workflow_dir):
 
         # Filter jobs by state
         job_state = job_state_cache[job_dir]
-        job_state_counts[job_state] += 1
         if args.state != "ALL" and not job_state.startswith(args.state):
             continue
 
@@ -333,22 +334,34 @@ def manage_jobs(args, workflow_dir):
 
     # Update resources of filtered jobs
     workflows_to_write = set()
-    for res_name, res_unit in (
-        ("time", "min"),
-        ("mem", "MB"),
-        ("disk", "MB"),
-    ):
-        for prefix in ("set", "add"):
-            res = f"{res_name}_{res_unit}"
-            res_val = getattr(args, f"{prefix}_{res}", 0)
-            if res_val != 0:
-                for job_dir in filtered_jobs:
+    for job_dir in filtered_jobs:
+
+        # Iterate over resources, update job status with changes
+        job_state = job_state_cache[job_dir]
+        for res_name, res_unit in (
+            ("time", "min"),
+            ("mem", "MB"),
+            ("disk", "MB"),
+        ):
+            for prefix in ("set", "add"):
+                res = f"{res_name}_{res_unit}"
+                res_val = getattr(args, f"{prefix}_{res}", 0)
+                if res_val != 0:
                     job = jobs_from_dir[job_dir]["job"]
                     if prefix == "add":
                         job[res] += res_val
+                        job_state += f"/{res_name}+={res_val}{res_unit}"
                     else:
                         job[res] = res_val
+                        job_state += f"/{res_name}={res_val}{res_unit}"
                     workflows_to_write.add(jobs_from_dir[job_dir]["workflow_file"])
+
+        # Write updated job status to cache, file
+        job_state_cache[job_dir] = job_state
+        job_state_file = job_dir / "job_state"
+        job_state_file.write_text(job_state)
+
+    # Write workflows with updated resources
     for workflow_file in workflows_to_write:
         json.dump(
             workflows[workflow_file],
@@ -434,6 +447,9 @@ def manage_jobs(args, workflow_dir):
                     line = line.strip()
                     if re.search(usage_regex, line, re.IGNORECASE) is not None:
                         print(prefix.format("USAGE"), line)
+
+        # Count job states
+        job_state_counts[job_state] += 1
 
     print("")
 
@@ -593,24 +609,40 @@ def cli(*argv: str, workflow_dir: Path = Path.cwd()):
         default=0,
         help="retrieve batch IDs at the given rate (per second)",
     )
+    resource_args = []
     for c, res_name, res_unit, unit_desc, res_desc in (
         ("T", "time", "min", "time", "wall time"),
         ("M", "mem", "MB", "size", "memory"),
         ("D", "disk", "MB", "size", "temporary disk space"),
     ):
         for p, prefix, verb in (("-", "set", "set"), ("+", "add", "add to")):
+            short_arg = f"{p}{c}"
+            long_arg = f"{p}{p}{res_name}"
+            arg_name = f"{prefix}_{res_name}_{res_unit}"
             parser.add_argument(
-                f"{p}{c}",
-                f"{p}{p}{res_name}",
+                short_arg,
+                long_arg,
                 metavar=unit_desc.upper(),
-                dest=f"{prefix}_{res_name}_{res_unit}",
+                dest=arg_name,
                 type=quantity_with_unit(res_unit, unit_desc),
                 default=0,
                 help=f"{verb} the requested {res_desc} of the selected jobs",
             )
+            resource_args.append((long_arg, arg_name))
 
     # Parse command line
     args = parser.parse_args(argv if len(argv) > 0 else sys.argv[1:])
+
+    # Check arguments
+    resource_args_used = [
+        long_arg for long_arg, arg_name in resource_args if getattr(args, arg_name) != 0
+    ]
+    if resource_args_used and args.state != "FAILED":
+        logger.critical(
+            "argument(s) %s can only be used to update resources of FAILED jobs",
+            ", ".join(resource_args_used),
+        )
+        sys.exit(1)
 
     # Run command, pipe output through a pager
     # - Ignore errors if pipe is broken
