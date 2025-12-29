@@ -6,11 +6,13 @@
 
 import logging
 import os
+import pickle
 import re
 import stat
 import sys
 import time
 from abc import ABC, abstractmethod
+from collections import UserDict
 from contextlib import contextmanager
 from pathlib import Path
 from textwrap import dedent
@@ -188,3 +190,29 @@ class FileLineWriter:
         lines = "\n".join(self._prefix + line.rstrip() for line in lines.split("\n"))
         print(lines, file=self._file)
         return self
+
+
+class DictCache(UserDict):
+    """Load and save a dictionary to a cache file."""
+
+    def __init__(self, cachefile: Path, sourcefile: str):
+        super().__init__()
+        self._cachefile = cachefile
+        self._sourcefile_mtime = Path(sourcefile).stat().st_mtime
+
+    def __enter__(self):
+        """Load cache."""
+        if self._cachefile.is_file():
+
+            # Check cache is not older than reference source file
+            cache_mtime = self._cachefile.stat().st_mtime
+            if cache_mtime > self._sourcefile_mtime:
+
+                # Load cache
+                self.data = pickle.load(self._cachefile.open("rb"))
+
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        """Save cache."""
+        pickle.dump(self.data, self._cachefile.open("wb"))
