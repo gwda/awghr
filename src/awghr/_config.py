@@ -319,3 +319,5 @@ def cli(*argv: str):
         print_aligned(cfg["batch_system_cfg"])
     else:
         print("    none")
+
+    return 0
