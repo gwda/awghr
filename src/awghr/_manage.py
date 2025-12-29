@@ -5,6 +5,7 @@
 """Manage workflow jobs."""
 
 import argparse
+import asyncio
 import json
 import math
 import os
@@ -21,6 +22,7 @@ from textwrap import dedent
 
 from pint import Quantity
 from tqdm import tqdm
+from tqdm.asyncio import tqdm_asyncio
 
 from ._util import LOGGER, DictCache, write_atomic
 
@@ -52,8 +54,14 @@ def format_time_quantity(qty):
     return str(timedelta(seconds=qty.to("sec").magnitude))
 
 
-def read_job_file(
-    filepath, last_n_lines, filetext_if_not_exist, filetext_if_error, *, timeout
+async def read_job_file(
+    filepath,
+    last_n_lines,
+    filetext_if_not_exist,
+    filetext_if_error,
+    *,
+    semaphore,
+    timeout,
 ):
 
     # Reading job files on cluster file systems may be impacted by servers
@@ -64,49 +72,57 @@ def read_job_file(
     # the script is run in a child process, if it does end up in a D state, the
     # parent process can at worst abandon the child process and continue.
 
-    # Build shell script
-    script = dedent(
-        """
-        if test -r '{filepath}'; then
-            ( stat -c %Y '{filepath}' || echo 0 ) 2>/dev/null
-            {cat_cmd} '{filepath}'
-        else
-            echo -1
-        fi
-        """
-    ).format(
-        filepath=filepath,
-        cat_cmd=f"tail -n {last_n_lines}" if last_n_lines > 0 else "cat",
-    )
+    async with semaphore:
 
-    # Run shell script
-    try:
-        res = subprocess.run(
-            script,
-            shell=True,
-            check=True,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
+        # Build shell script
+        script = dedent(
+            """
+            if test -r '{filepath}'; then
+                ( stat -c %Y '{filepath}' || echo 0 ) 2>/dev/null
+                {cat_cmd} '{filepath}'
+            else
+                echo -1
+            fi
+            """
+        ).format(
+            filepath=filepath,
+            cat_cmd=f"tail -n {last_n_lines}" if last_n_lines > 0 else "cat",
         )
-    except (
-        subprocess.CalledProcessError,
-        subprocess.TimeoutExpired,
-    ):  # pragma: no cover
-        return filetext_if_error, None
 
-    # Parse shell script output
-    filemtime_text, filetext = res.stdout.split("\n", maxsplit=1)
-    filemtime_int = int(filemtime_text.strip())
-    if filemtime_int < 0:
-        return filetext_if_not_exist, None
-    filemtime = datetime.fromtimestamp(filemtime_int)
-    filetext = filetext.strip()
+        # Run shell script
+        proc = await asyncio.create_subprocess_shell(
+            script,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        try:
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+        except asyncio.TimeoutError:  # pragma: no cover
+            try:
+                proc.kill()
+                await proc.communicate()
+            except Exception:
+                pass
+            return filetext_if_error, None
+        finally:
+            if proc.returncode is None:  # pragma: no cover
+                proc.terminate()
+                await proc.wait()
+        if proc.returncode != 0:  # pragma: no cover
+            return filetext_if_error, None
 
-    return filetext, filemtime
+        # Parse shell script output
+        filemtime_text, filetext = stdout.decode().split("\n", maxsplit=1)
+        filemtime_int = int(filemtime_text.strip())
+        if filemtime_int < 0:
+            return filetext_if_not_exist, None
+        filemtime = datetime.fromtimestamp(filemtime_int)
+        filetext = filetext.strip()
+
+        return filetext, filemtime
 
 
-def manage_jobs(args, workflow_dir):
+async def manage_jobs(args, workflow_dir):
 
     # Check for workflows
     baseworkflowdir = workflow_dir / "workflows"
@@ -216,17 +232,27 @@ def manage_jobs(args, workflow_dir):
                 job_usage_file = job_dir / "job_usage"
                 read_job_file_args_list.append((job_usage_file, 0, "", ""))
 
-        # Read files
-        job_files = {}
-        for read_job_file_args in tqdm(
-            read_job_file_args_list,
-            desc="Reading job files ",
-            disable=None,
-            leave=False,
-        ):
-            job_files[read_job_file_args[0]] = read_job_file(
-                *read_job_file_args, timeout=args.timeout
+        # Limit number of concurrent job file reading tasks
+        job_files_semaphore = asyncio.Semaphore(args.concurrent)
+
+        # Build list of tasks
+        job_files_tasks = [
+            read_job_file(
+                *read_job_file_args, semaphore=job_files_semaphore, timeout=args.timeout
             )
+            for read_job_file_args in read_job_file_args_list
+        ]
+
+        # Run tasks concurrently
+        job_files_results = await tqdm_asyncio.gather(
+            *job_files_tasks, desc="Reading job files ", disable=None, leave=False
+        )
+        job_files = {
+            read_job_file_args[0]: job_file_result
+            for read_job_file_args, job_file_result in zip(
+                read_job_file_args_list, job_files_results
+            )
+        }
 
         # Compile filter
         if args.filter_expr:
@@ -667,6 +693,9 @@ def cli(*argv: str, workflow_dir: Path = Path.cwd()):
             )
             resource_args.append((long_arg, arg_name))
     parser.add_argument(
+        "--concurrent", type=int, default=8, help="limit on concurrent I/O subprocesses"
+    )
+    parser.add_argument(
         "--timeout",
         type=positive_int,
         default=15,
@@ -697,7 +726,7 @@ def cli(*argv: str, workflow_dir: Path = Path.cwd()):
             text=True,
         ) as proc:
             with redirect_stdout(proc.stdin):
-                manage_jobs(args, workflow_dir)
+                asyncio.run(manage_jobs(args, workflow_dir))
                 sys.stdout.flush()
     except (KeyboardInterrupt, BrokenPipeError):  # pragma: no cover
         proc.terminate()
