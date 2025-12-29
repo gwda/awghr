@@ -1125,6 +1125,8 @@ def _cli(*argv: str):
     # Execute sub-command
     args.subcommand(args)
 
+    return 0
+
 
 if __name__ == "__main__":
-    _cli()
+    sys.exit(_cli())
