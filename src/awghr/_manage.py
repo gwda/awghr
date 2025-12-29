@@ -17,6 +17,7 @@ from collections import defaultdict
 from contextlib import redirect_stdout
 from datetime import datetime, timedelta
 from pathlib import Path
+from textwrap import dedent
 
 from pint import Quantity
 from tqdm import tqdm
@@ -51,70 +52,58 @@ def format_time_quantity(qty):
     return str(timedelta(seconds=qty.to("sec").magnitude))
 
 
-def filter_stdouterr(stdfile, grep_regex, last_n_lines):
+def read_job_file(
+    filepath, last_n_lines, filetext_if_not_exist, filetext_if_error, *, timeout
+):
 
-    # Open standard output/error file
-    with stdfile.open("rb") as f:
+    # Reading job files on cluster file systems may be impacted by servers
+    # falling over, being I/O overloaded, etc. This could result in any process
+    # trying to access files ending up in an unkillable D state. To try to avoid
+    # this, this function runs a shell script which acquries all the job file
+    # information needed: file existence, modification time, and contents. Since
+    # the script is run in a child process, if it does end up in a D state, the
+    # parent process can at worst abandon the child process and continue.
 
-        if last_n_lines > 0:  # pragma: no cover
+    # Build shell script
+    script = dedent(
+        """
+        if test -r '{filepath}'; then
+            ( stat -c %Y '{filepath}' || echo 0 ) 2>/dev/null
+            {cat_cmd} '{filepath}'
+        else
+            echo -1
+        fi
+        """
+    ).format(
+        filepath=filepath,
+        cat_cmd=f"tail -n {last_n_lines}" if last_n_lines > 0 else "cat",
+    )
 
-            # Get preferred chunk size
-            try:
-                chunk_size = os.fstat(f.fileno()).st_blksize
-            except Exception:
-                chunk_size = 512
+    # Run shell script
+    try:
+        res = subprocess.run(
+            script,
+            shell=True,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except (
+        subprocess.CalledProcessError,
+        subprocess.TimeoutExpired,
+    ):  # pragma: no cover
+        return filetext_if_error, None
 
-            # Read backwards from end of file to find last lines
-            try:
+    # Parse shell script output
+    filemtime_text, filetext = res.stdout.split("\n", maxsplit=1)
+    filemtime_int = int(filemtime_text.strip())
+    if filemtime_int < 0:
+        return filetext_if_not_exist, None
+    filemtime = datetime.fromtimestamp(filemtime_int)
+    filetext = filetext.strip()
 
-                # Position to read last chunk before end of file
-                f.seek(-chunk_size - 1, os.SEEK_END)
-
-                found_lines = 0
-                while True:
-
-                    # Read chunk and rewind
-                    chunk = f.read(chunk_size)
-                    f.seek(-chunk_size, os.SEEK_CUR)
-
-                    # Break if found enough lines
-                    found_lines += chunk.count(b"\n")
-                    if found_lines > last_n_lines:
-                        break
-
-                    # Rewind to previous chunk
-                    f.seek(-chunk_size, os.SEEK_CUR)
-
-            except OSError:
-
-                # Go back to start of file
-                f.seek(0, os.SEEK_SET)
-
-        # Read lines
-        lines = []
-        while True:
-            line = f.readline()
-            if line == b"":
-                break
-            line = line.decode("utf-8").rstrip()
-
-            # Discard lines not matching regex
-            discard_line = False
-            for rx in grep_regex:
-                if re.search(rx, line) is None:
-                    discard_line = True
-                    break
-            if discard_line:
-                continue
-
-            lines.append(line)
-
-        if last_n_lines > 0:
-
-            # Keep only last lines
-            lines = lines[-last_n_lines:]
-
-    return lines
+    return filetext, filemtime
 
 
 def manage_jobs(args, workflow_dir):
@@ -184,106 +173,151 @@ def manage_jobs(args, workflow_dir):
         if "args" not in cache or "sorted_args" not in cache:
             cache["args"] = {}
             cache["sorted_args"] = {}
-        if "constant_args" not in cache:
-            cache["constant_args"] = None
 
-        # Add information that will not change (once known) while workflow is running to cache
-        job_state_cache = {}
-        job_state_last_modified_cache = {}
-        for job_dir in tqdm(jobs, desc="Cacheing ", disable=None, leave=False):
+        # Build list of files to read
+        read_job_file_args_list = []
+        for job_dir in jobs:
 
-            # Add job state to temporary cache; for successful jobs, add to persistent cache
-            try:
-                job_state_cache[job_dir] = cache["state"][job_dir]
-            except KeyError:
+            # Read job state
+            if job_dir not in cache["state"]:
                 job_state_file = job_dir / "job_state"
-                if job_state_file.is_file():
-                    job_state = job_state_file.read_text().strip()
-                    job_state_last_modified_cache[job_dir] = datetime.fromtimestamp(
-                        job_state_file.stat().st_mtime
-                    )
-                else:
-                    job_state = "PENDING"
-                job_state_cache[job_dir] = job_state
-                if job_state == "SUCCESS":
-                    cache["state"][job_dir] = job_state
-            job_state_counts[job_state_cache[job_dir]] += 1
+                read_job_file_args_list.append(
+                    (job_state_file, 0, "PENDING", "FAILED/could not read job state")
+                )
 
-            # Add job batch IDs to cache
+            # Read job batch ID
             if job_dir not in cache["batchID"]:
                 job_batchID_file = job_dir / "job_batchID"
-                if job_batchID_file.is_file():
-                    job_batchID = job_batchID_file.read_text().strip()
-                    if job_batchID.startswith("!"):  # Dynamic batch ID
+                read_job_file_args_list.append(
+                    (
+                        job_batchID_file,
+                        0,
+                        "UNKNOWN/job batch ID not present",
+                        "UNKNOWN/could not read job batch ID",
+                    )
+                )
 
-                        # Run command to get batch ID
-                        if args.batch_ID_rate > 0:
-                            job_state = job_state_cache[job_dir]
-                            if job_state == "RUNNING":
-                                job_batchID_cmd = job_batchID[1:]
-                                try:
-                                    job_batchID = subprocess.check_output(
-                                        job_batchID_cmd, shell=True, text=True
-                                    ).strip()
-                                    if len(job_batchID) > 0:
-                                        cache["batchID"][job_dir] = job_batchID
-                                except (
-                                    subprocess.CalledProcessError
-                                ):  # pragma: no cover
-                                    pass
+            # Read job standard output/error
+            for flag, outerr in ((args.output, "out"), (args.error, "err")):
+                if flag:
+                    for outerr_suffix in ("_pre", "", "_post"):
+                        job_stdouterr_file = job_dir / f"job_std{outerr}{outerr_suffix}"
+                        read_job_file_args_list.append(
+                            (
+                                job_stdouterr_file,
+                                args.last_n_lines,
+                                None,
+                                f"ERROR/could not read {job_stdouterr_file.name}",
+                            )
+                        )
 
-                                # Rate limit batch ID commands
-                                time.sleep(1.0 / args.batch_ID_rate)
+            # Read job usage statistics
+            if args.usage:
+                job_usage_file = job_dir / "job_usage"
+                read_job_file_args_list.append((job_usage_file, 0, "", ""))
 
-                    else:  # Static batch ID
-                        cache["batchID"][job_dir] = job_batchID
-
-            # Add job arguments to cache
-            if job_dir not in cache["args"]:
-                cache["args"][job_dir] = jobs_from_dir[job_dir]["job"]["args"]
-                cache["sorted_args"][job_dir] = sorted(cache["args"][job_dir].items())
-                cache["constant_args"] = None
-
-        # Find constant job arguments, in order to hide them in output
-        if cache["constant_args"] is None:
-            cache["constant_args"] = set()
-
-            # Only if there is more than one job
-            if len(jobs) > 1:
-
-                # Count how many different values each argument has
-                job_args_counts = {}
-                for job_dir in jobs:
-                    for arg, val in cache["args"][job_dir].items():
-                        val_str = json.dumps(val, sort_keys=True)
-                        if arg not in job_args_counts:
-                            job_args_counts[arg] = {}
-                        if val_str not in job_args_counts[arg]:
-                            job_args_counts[arg][val_str] = 0
-                        job_args_counts[arg][val_str] += 1
-
-                # Argument is constant if it only has one value
-                for arg in job_args_counts:
-                    if len(job_args_counts[arg]) == 1:
-                        cache["constant_args"].add(arg)
+        # Read files
+        job_files = {}
+        for read_job_file_args in tqdm(
+            read_job_file_args_list,
+            desc="Reading job files ",
+            disable=None,
+            leave=False,
+        ):
+            job_files[read_job_file_args[0]] = read_job_file(
+                *read_job_file_args, timeout=args.timeout
+            )
 
         # Compile filter
         if args.filter_expr:
             filter_code = compile(args.filter_expr, "--filter", "eval")
 
-        # Filter jobs
+        # Process jobs
+        job_state_cache = {}
+        job_state_last_modified_cache = {}
+        job_stdouterr_lines = {}
         filtered_jobs = []
-        job_stdouterr = {}
-        for job_dir in tqdm(jobs, desc="Filtering", disable=None, leave=False):
+        for job_dir in tqdm(jobs, desc="Processing jobs ", disable=None, leave=False):
 
-            # Filter jobs by batch system ID
-            if args.batch_ID:  # pragma: no cover
-                if args.batch_ID != cache["batchID"].get(job_dir, None):
+            # Get job state
+            try:
+                job_state = cache["state"][job_dir]
+                job_state_mtime = None
+            except KeyError:
+                job_state_file = job_dir / "job_state"
+                job_state, job_state_mtime = job_files[job_state_file]
+            job_state_counts[job_state] += 1
+
+            # Add job state to temporary cache; for successful jobs, add to persistent cache
+            job_state_cache[job_dir] = job_state
+            if job_state_mtime is not None:
+                job_state_last_modified_cache[job_dir] = job_state_mtime
+            if job_state == "SUCCESS":
+                cache["state"][job_dir] = job_state
+
+            # Filter jobs by state
+            if args.state != "ALL" and not job_state.startswith(args.state):
+                continue
+
+            if job_state == "RUNNING":
+
+                # Get job batch ID
+                try:
+                    job_batchID = cache["batchID"][job_dir]
+                except KeyError:
+                    job_batchID_file = job_dir / "job_batchID"
+                    job_batchID, _ = job_files[job_batchID_file]
+
+                # If dynamic batch ID, run command to retrieve it
+                if job_batchID.startswith("!"):
+                    if args.batch_ID_rate == 0:  # pragma: no cover
+                        job_batchID = "UNKNOWN/not retrieving job batch ID"
+                    else:
+                        job_batchID_cmd = job_batchID[1:]
+                        try:
+                            res = subprocess.run(
+                                job_batchID_cmd,
+                                shell=True,
+                                check=True,
+                                capture_output=True,
+                                text=True,
+                                timeout=args.timeout,
+                            )
+                            batchID = res.stdout.strip()
+                            if len(batchID) > 0:
+                                job_batchID = batchID
+                            else:
+                                # Job may not exist yet, try again later
+                                job_batchID = None
+                        except subprocess.CalledProcessError:  # pragma: no cover
+                            # Job may not exist yet, try again later
+                            job_batchID = None
+                        except subprocess.TimeoutExpired:  # pragma: no cover
+                            job_batchID = "UNKNOWN/could not retrieve job batch ID"
+
+                        # Rate limit batch ID commands
+                        time.sleep(1.0 / args.batch_ID_rate)
+
+                # Add job batch IDs to persistent cache
+                if job_batchID is not None:
+                    cache["batchID"][job_dir] = job_batchID
+
+                # Filter jobs by batch system ID
+                if (
+                    args.batch_ID is not None and args.batch_ID != job_batchID
+                ):  # pragma: no cover
                     continue
+
+            # Get job arguments
+            try:
+                job_args = cache["args"][job_dir]
+            except KeyError:
+                job_args = jobs_from_dir[job_dir]["job"]["args"]
+                cache["args"][job_dir] = job_args
+                cache["sorted_args"][job_dir] = sorted(job_args.items())
 
             # Filter jobs by arguments
             if args.filter_expr:
-                job_args = cache["args"][job_dir]
 
                 # Set any unrecognised names to None
                 for name in filter_code.co_names:
@@ -294,37 +328,42 @@ def manage_jobs(args, workflow_dir):
                 if not eval(filter_code, {"__builtins__": {}}, job_args):
                     continue
 
-            # Filter jobs by state
-            job_state = job_state_cache[job_dir]
-            if args.state != "ALL" and not job_state.startswith(args.state):
-                continue
+            # Get job standard output/error
+            job_stdouterr_nlines = 0
+            for flag, outerr in ((args.output, "out"), (args.error, "err")):
+                if flag:
+
+                    # Collect standard output/error lines
+                    lines = []
+                    for outerr_suffix in ("_pre", "", "_post"):
+                        job_stdouterr_file = job_dir / f"job_std{outerr}{outerr_suffix}"
+                        if job_stdouterr_file in job_files:
+                            job_stdouterr, _ = job_files[job_stdouterr_file]
+                            if job_stdouterr is not None:
+                                lines.extend(job_stdouterr.split("\n"))
+
+                    # Discard standard output/error lines not matching regex
+                    for rx in args.grep_regex:
+                        lines = [
+                            line
+                            for line in lines
+                            if line.startswith("ERROR/")
+                            or re.search(rx, line) is not None
+                        ]
+
+                    # Save standard output/error lines
+                    job_stdouterr_lines[(job_dir, outerr)] = lines
+                    job_stdouterr_nlines += len(lines)
 
             # Filter jobs by standard output/error
-            job_stdouterr[job_dir] = {}
-            job_stdouterr_len = 0
-            for flag, outerr in ((args.output, "out"), (args.error, "err")):
-                job_stdouterr[job_dir][outerr] = []
-                if flag:
-                    for job_stdouterr_suffix in ("_pre", "", "_post"):
-                        job_stdouterr_file = (
-                            job_dir / f"job_std{outerr}{job_stdouterr_suffix}"
-                        )
-                        if job_stdouterr_file.is_file():
-                            job_stdouterr[job_dir][outerr].extend(
-                                filter_stdouterr(
-                                    job_stdouterr_file,
-                                    args.grep_regex,
-                                    args.last_n_lines,
-                                )
-                            )
-                job_stdouterr_len += len(job_stdouterr[job_dir][outerr])
             if (
                 (args.output or args.error)
                 and args.grep_regex
-                and job_stdouterr_len == 0
+                and job_stdouterr_nlines == 0
             ):
                 continue
 
+            # Add to filtered jobs
             filtered_jobs.append(job_dir)
 
         # Update resources of filtered jobs
@@ -367,10 +406,12 @@ def manage_jobs(args, workflow_dir):
                 sort_keys=True,
             )
 
-        # Show job, ordered jobs by their arguments
+        # Order filtered jobs by their arguments
         ordered_jobs = sorted(
             [(cache["sorted_args"][job_dir], job_dir) for job_dir in filtered_jobs]
         )
+
+        # Show filtered jobs
         len_n = len(str(len(ordered_jobs)))
         for n, (job_args, job_dir) in enumerate(ordered_jobs, start=1):
             print("")
@@ -381,11 +422,7 @@ def manage_jobs(args, workflow_dir):
             # Show job arguments
             # - Formatted so that it can be used as a filter to --filter
             job_args_str_unquoted = " and ".join(
-                [
-                    "{}=={}".format(k, repr(v))
-                    for k, v in job_args
-                    if k not in cache["constant_args"]
-                ]
+                ["{}=={}".format(k, repr(v)) for k, v in job_args]
             )
             if '"' not in job_args_str_unquoted:
                 job_args_str_unquoted = job_args_str_unquoted.replace("'", '"')
@@ -400,7 +437,7 @@ def manage_jobs(args, workflow_dir):
                     " %Y-%m-%d %H:%M:%S"
                 )
             if job_state == "RUNNING":
-                job_state_str += " BATCHID " + cache["batchID"].get(job_dir, "unknown")
+                job_state_str += " BATCHID " + cache["batchID"].get(job_dir, "UNKNOWN")
             print(prefix.format("STATE"), job_state_str)
 
             # Show workflows/ directory
@@ -432,18 +469,19 @@ def manage_jobs(args, workflow_dir):
 
             # Show standard output/error
             for outerr in ("out", "err"):
-                for line in job_stdouterr[job_dir][outerr]:
-                    print(prefix.format(outerr.upper()), line)
+                if (job_dir, outerr) in job_stdouterr_lines:
+                    for line in job_stdouterr_lines[(job_dir, outerr)]:
+                        print(prefix.format(outerr.upper()), line)
 
             # Show job usage statistics
             if args.usage:
                 usage_regex = "|".join(args.usage)
-                job_usage = job_dir / "job_usage"
-                if job_usage.is_file():
-                    for line in job_usage.read_text().split("\n"):
-                        line = line.strip()
-                        if re.search(usage_regex, line, re.IGNORECASE) is not None:
-                            print(prefix.format("USAGE"), line)
+                job_usage_file = job_dir / "job_usage"
+                job_usage, _ = job_files[job_usage_file]
+                for line in job_usage.split("\n"):
+                    line = line.strip()
+                    if re.search(usage_regex, line, re.IGNORECASE) is not None:
+                        print(prefix.format("USAGE"), line)
 
         print("")
 
@@ -624,6 +662,12 @@ def cli(*argv: str, workflow_dir: Path = Path.cwd()):
                 help=f"{verb} the requested {res_desc} of the selected jobs",
             )
             resource_args.append((long_arg, arg_name))
+    parser.add_argument(
+        "--timeout",
+        type=positive_int,
+        default=15,
+        help="timeout (in seconds) for subprocesses",
+    )
 
     # Parse command line
     args = parser.parse_args(argv if len(argv) > 0 else sys.argv[1:])

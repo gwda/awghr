@@ -179,8 +179,6 @@ manage_cli(
     "-Ae",
     "-n",
     "1",
-    "-g",
-    "a",
     "-u",
     "wall clock",
     "maximum",
