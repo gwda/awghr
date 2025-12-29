@@ -80,8 +80,12 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
     # Argument used to submit job array batch indexes
     BATCHQ_SUBMIT_ARG_ARRAY: str
 
-    # Pattern that will be replaced by job array batch index in submit files
-    BATCHQ_SUBMIT_ARRAY_INDEX_REPL: str
+    # Patterns that will be replaced by a string unique to a job array job
+    # (i.e. including the job array index) in:
+    # - job script header directives, and
+    # - the job script itself; should use {batch_index} for the array index
+    BATCHQ_SUBMIT_ARRAY_UNIQ_HEADER: str
+    BATCHQ_SUBMIT_ARRAY_UNIQ_SCRIPT: str
 
     # Command to submit a job array, and the type
     # of dependency to use for prerequisite array jobs.
@@ -203,9 +207,9 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
                     disk_MB=job["disk_MB"],
                     ncpus=job["ncpus"],
                     stdout=jobarraydir
-                    / f"job_stdout_{self.BATCHQ_SUBMIT_ARRAY_INDEX_REPL}",
+                    / f"job_stdout_{self.BATCHQ_SUBMIT_ARRAY_UNIQ_HEADER}",
                     stderr=jobarraydir
-                    / f"job_stderr_{self.BATCHQ_SUBMIT_ARRAY_INDEX_REPL}",
+                    / f"job_stderr_{self.BATCHQ_SUBMIT_ARRAY_UNIQ_HEADER}",
                 )
                 if job["ngpus"] > 0:
                     f += self.BATCHQ_HEADER_NGPUS.format(n=job["ngpus"])
@@ -320,7 +324,11 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
                             # Hard-link standard output/error files from job array back to job directory
                             for stdouterr in ("job_stdout", "job_stderr"):
                                 jobarray_stdouterr_file = jobarraydir / (
-                                    stdouterr + "_" + batch_index
+                                    stdouterr
+                                    + "_"
+                                    + self.BATCHQ_SUBMIT_ARRAY_UNIQ_SCRIPT.format(
+                                        batch_index=batch_index
+                                    )
                                 )
                                 job_stdouterr_file = job["dir"] / stdouterr
                                 f += f'ln -f "{jobarray_stdouterr_file}" "{job_stdouterr_file}"'
