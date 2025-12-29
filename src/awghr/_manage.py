@@ -11,6 +11,7 @@ import math
 import os
 import re
 import shlex
+import signal
 import subprocess
 import sys
 import time
@@ -56,10 +57,10 @@ def format_time_quantity(qty):
 
 async def read_job_file(
     filepath,
+    *,
     last_n_lines,
     filetext_if_not_exist,
     filetext_if_error,
-    *,
     semaphore,
     timeout,
 ):
@@ -74,55 +75,116 @@ async def read_job_file(
 
     async with semaphore:
 
-        # Build shell script
-        script = dedent(
-            """
-            if test -r '{filepath}'; then
-                ( stat -c %Y '{filepath}' || echo 0 ) 2>/dev/null
-                {cat_cmd} '{filepath}'
-            else
-                echo -1
-            fi
-            """
-        ).format(
-            filepath=filepath,
-            cat_cmd=f"tail -n {last_n_lines}" if last_n_lines > 0 else "cat",
-        )
-
-        # Run shell script
-        proc = await asyncio.create_subprocess_shell(
-            script,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
         try:
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-        except asyncio.TimeoutError:  # pragma: no cover
+
+            filetext_if_error = filetext_if_error.format(filepath=filepath)
+
+            # Build shell script
+            script = dedent(
+                """
+                if test -r '{filepath}'; then
+                    ( stat -c %Y '{filepath}' || echo 0 ) 2>/dev/null
+                    {cat_cmd} '{filepath}'
+                else
+                    echo -1
+                fi
+                """
+            ).format(
+                filepath=filepath,
+                cat_cmd=f"tail -n {last_n_lines}" if last_n_lines > 0 else "cat",
+            )
+
+            # Run shell script
+            proc = await asyncio.create_subprocess_shell(
+                script,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
             try:
-                proc.kill()
-                await proc.communicate()
-            except Exception:
-                pass
-            return filetext_if_error, None
-        finally:
-            if proc.returncode is None:  # pragma: no cover
-                proc.terminate()
-                await proc.wait()
-        if proc.returncode != 0:  # pragma: no cover
-            return filetext_if_error, None
+                stdout, stderr = await asyncio.wait_for(
+                    proc.communicate(), timeout=timeout
+                )
+            except asyncio.TimeoutError:  # pragma: no cover
+                try:
+                    proc.kill()
+                    await proc.communicate()
+                except Exception:
+                    pass
+                return filetext_if_error, None
+            finally:
+                if proc.returncode is None:  # pragma: no cover
+                    proc.terminate()
+                    await proc.wait()
+            if proc.returncode != 0:  # pragma: no cover
+                return filetext_if_error, None
 
-        # Parse shell script output
-        filemtime_text, filetext = stdout.decode().split("\n", maxsplit=1)
-        filemtime_int = int(filemtime_text.strip())
-        if filemtime_int < 0:
-            return filetext_if_not_exist, None
-        filemtime = datetime.fromtimestamp(filemtime_int)
-        filetext = filetext.strip()
+            # Parse shell script output
+            filemtime_text, filetext = stdout.decode().split("\n", maxsplit=1)
+            filemtime_int = int(filemtime_text.strip())
+            if filemtime_int < 0:
+                return filetext_if_not_exist, None
+            filemtime = datetime.fromtimestamp(filemtime_int)
+            filetext = filetext.strip()
 
-        return filetext, filemtime
+            return filetext, filemtime
+
+        except asyncio.CancelledError:  # pragma: no cover
+
+            # If cancelled, disable Ctrl+C to ensure graceful cleanup
+            signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+            raise
 
 
-async def manage_jobs(args, workflow_dir):
+async def read_job_files(
+    desc,
+    filepaths,
+    *,
+    last_n_lines,
+    filetext_if_not_exist,
+    filetext_if_error,
+    concurrent,
+    timeout,
+):
+
+    # Limit number of concurrent job file reading tasks
+    job_files_semaphore = asyncio.Semaphore(concurrent)
+
+    job_file_tasks = []
+    try:
+
+        # Build list of tasks
+        for filepath in filepaths:
+            job_file_tasks.append(
+                asyncio.create_task(
+                    read_job_file(
+                        filepath,
+                        last_n_lines=last_n_lines,
+                        filetext_if_not_exist=filetext_if_not_exist,
+                        filetext_if_error=filetext_if_error,
+                        semaphore=job_files_semaphore,
+                        timeout=timeout,
+                    )
+                )
+            )
+
+        # Run tasks concurrently
+        job_file_results = await tqdm_asyncio.gather(
+            *job_file_tasks, desc=f"Reading {desc} ", disable=None, leave=False
+        )
+
+    except asyncio.CancelledError:  # pragma: no cover
+
+        # Cancel tasks
+        for task in job_file_tasks:
+            task.cancel()
+
+        raise
+
+    return dict(zip(filepaths, job_file_results))
+
+
+def manage_jobs(args, workflow_dir, cache):
 
     # Check for workflows
     baseworkflowdir = workflow_dir / "workflows"
@@ -144,13 +206,13 @@ async def manage_jobs(args, workflow_dir):
             jobs_from_dir[Path(job["dir"])] = dict(job=job, workflow_file=workflow_file)
 
     # Get list of jobs to examine
-    jobs = set()
+    job_dirs = set()
     job_state_counts = defaultdict(int)
     job_workflow_dirs = {}
-    for d in workflowdirs:
+    for wflowdir in workflowdirs:
 
         # Read workflow state
-        workstatefile = d / "state"
+        workstatefile = wflowdir / "state"
         if workstatefile.is_file():
             workstate = workstatefile.read_text().strip()
         else:
@@ -165,197 +227,204 @@ async def manage_jobs(args, workflow_dir):
         else:
 
             # If only showing failed jobs, use failed jobs list if possible
-            failed_job_list_file = d / "failed_jobs"
+            failed_job_list_file = wflowdir / "failed_jobs"
             if args.state == "FAILED" and failed_job_list_file.is_file():
                 use_job_list_file = failed_job_list_file
             else:
                 # Otherwise use full jobs list
-                use_job_list_file = d / "all_jobs"
+                use_job_list_file = wflowdir / "all_jobs"
 
             # Update list of jobs
-            new_jobs = [Path(line) for line in use_job_list_file.read_text().split()]
-            jobs.update(new_jobs)
-            wflowdir = str(d)
-            job_workflow_dirs.update(dict.fromkeys(new_jobs, wflowdir))
+            job_dirs_from_list = [
+                Path(line) for line in use_job_list_file.read_text().split()
+            ]
+            job_dirs.update(job_dirs_from_list)
+            job_workflow_dirs.update(dict.fromkeys(job_dirs_from_list, str(wflowdir)))
 
-    # Load cache
-    with DictCache(workflow_dir / ".manage-cache", __file__) as cache:
+    # Get which job states to read
+    if "state" not in cache:
+        cache["state"] = {}
+    job_state_filepaths = [
+        job_dir / "job_state" for job_dir in job_dirs if job_dir not in cache["state"]
+    ]
 
-        # Check that cache includes required fields
-        if "state" not in cache:
-            cache["state"] = {}
-        if "batchID" not in cache:
-            cache["batchID"] = {}
-        if "args" not in cache or "sorted_args" not in cache:
-            cache["args"] = {}
-            cache["sorted_args"] = {}
+    # Read job states
+    job_state_files = asyncio.run(
+        read_job_files(
+            "job states",
+            job_state_filepaths,
+            last_n_lines=0,
+            filetext_if_not_exist="PENDING",
+            filetext_if_error="FAILED/could not read job state",
+            concurrent=args.concurrent,
+            timeout=args.timeout,
+        )
+    )
 
-        # Build list of files to read
-        read_job_file_args_list = []
-        for job_dir in jobs:
+    # Process job states
+    job_state_cache = {}
+    job_state_last_modified_cache = {}
+    for job_dir in job_dirs:
 
-            # Read job state
-            if job_dir not in cache["state"]:
-                job_state_file = job_dir / "job_state"
-                read_job_file_args_list.append(
-                    (job_state_file, 0, "PENDING", "FAILED/could not read job state")
-                )
+        # Get job state
+        try:
+            job_state = cache["state"][job_dir]
+            job_state_mtime = None
+        except KeyError:
+            job_state_file = job_dir / "job_state"
+            job_state, job_state_mtime = job_state_files[job_state_file]
+        job_state_counts[job_state] += 1
 
-            # Read job batch ID
-            if job_dir not in cache["batchID"]:
-                job_batchID_file = job_dir / "job_batchID"
-                read_job_file_args_list.append(
-                    (
-                        job_batchID_file,
-                        0,
-                        "UNKNOWN/job batch ID not present",
-                        "UNKNOWN/could not read job batch ID",
-                    )
-                )
+        # Add job state to temporary cache; for successful jobs, add to persistent cache
+        job_state_cache[job_dir] = job_state
+        if job_state_mtime is not None:
+            job_state_last_modified_cache[job_dir] = job_state_mtime
+        if job_state == "SUCCESS":
+            cache["state"][job_dir] = job_state
 
-            # Read job standard output/error
-            for flag, outerr in ((args.output, "out"), (args.error, "err")):
-                if flag:
-                    for outerr_suffix in ("_pre", "", "_post"):
-                        job_stdouterr_file = job_dir / f"job_std{outerr}{outerr_suffix}"
-                        read_job_file_args_list.append(
-                            (
-                                job_stdouterr_file,
-                                args.last_n_lines,
-                                None,
-                                f"ERROR/could not read {job_stdouterr_file.name}",
-                            )
-                        )
-
-            # Read job usage statistics
-            if args.usage:
-                job_usage_file = job_dir / "job_usage"
-                read_job_file_args_list.append((job_usage_file, 0, "", ""))
-
-        # Limit number of concurrent job file reading tasks
-        job_files_semaphore = asyncio.Semaphore(args.concurrent)
-
-        # Build list of tasks
-        job_files_tasks = [
-            read_job_file(
-                *read_job_file_args, semaphore=job_files_semaphore, timeout=args.timeout
-            )
-            for read_job_file_args in read_job_file_args_list
+    # Filter jobs by state
+    if args.state != "ALL":
+        job_dirs = [
+            job_dir for job_dir in job_dirs if job_state_cache[job_dir] == args.state
         ]
 
-        # Run tasks concurrently
-        job_files_results = await tqdm_asyncio.gather(
-            *job_files_tasks, desc="Reading job files ", disable=None, leave=False
-        )
-        job_files = {
-            read_job_file_args[0]: job_file_result
-            for read_job_file_args, job_file_result in zip(
-                read_job_file_args_list, job_files_results
-            )
-        }
+    # Cache job arguments
+    if "args" not in cache or "sorted_args" not in cache:
+        cache["args"] = {}
+        cache["sorted_args"] = {}
+    for job_dir in job_dirs:
+        if job_dir not in cache["args"]:
+            job_args = jobs_from_dir[job_dir]["job"]["args"]
+            cache["args"][job_dir] = job_args
+            cache["sorted_args"][job_dir] = sorted(job_args.items())
+
+    if args.filter_expr:
 
         # Compile filter
-        if args.filter_expr:
-            filter_code = compile(args.filter_expr, "--filter", "eval")
+        filter_code = compile(args.filter_expr, "--filter", "eval")
 
-        # Process jobs
-        job_state_cache = {}
-        job_state_last_modified_cache = {}
-        job_stdouterr_lines = {}
-        filtered_jobs = []
-        for job_dir in tqdm(jobs, desc="Processing jobs ", disable=None, leave=False):
+        # Default unrecognised names to None
+        default_args = dict.fromkeys(filter_code.co_names, None)
 
-            # Get job state
-            try:
-                job_state = cache["state"][job_dir]
-                job_state_mtime = None
-            except KeyError:
-                job_state_file = job_dir / "job_state"
-                job_state, job_state_mtime = job_files[job_state_file]
-            job_state_counts[job_state] += 1
+        # Filter jobs by arguments
+        job_dirs = [
+            job_dir
+            for job_dir in job_dirs
+            if eval(
+                filter_code,
+                {"__builtins__": {}},
+                {**default_args, **cache["args"][job_dir]},
+            )
+        ]
 
-            # Add job state to temporary cache; for successful jobs, add to persistent cache
-            job_state_cache[job_dir] = job_state
-            if job_state_mtime is not None:
-                job_state_last_modified_cache[job_dir] = job_state_mtime
-            if job_state == "SUCCESS":
-                cache["state"][job_dir] = job_state
+    # Get which job batch IDs to read
+    if "batchID" not in cache:
+        cache["batchID"] = {}
+    job_batchID_filepaths = [
+        job_dir / "job_batchID"
+        for job_dir in job_dirs
+        if job_dir not in cache["batchID"]
+    ]
 
-            # Filter jobs by state
-            if args.state != "ALL" and not job_state.startswith(args.state):
-                continue
+    # Read job batch IDs
+    job_batchID_files = asyncio.run(
+        read_job_files(
+            "job batch IDs",
+            job_batchID_filepaths,
+            last_n_lines=0,
+            filetext_if_not_exist="UNKNOWN",
+            filetext_if_error="UNKNOWN/could not read job batch ID",
+            concurrent=args.concurrent,
+            timeout=args.timeout,
+        )
+    )
 
-            if job_state == "RUNNING":
+    # Process job batch IDs
+    job_batchID_cache = {}
+    for job_dir in job_dirs:
 
-                # Get job batch ID
+        # Get job batch ID
+        try:
+            job_batchID = cache["batchID"][job_dir]
+        except KeyError:
+            job_batchID_file = job_dir / "job_batchID"
+            job_batchID, _ = job_batchID_files[job_batchID_file]
+
+        # If dynamic batch ID, run command to retrieve it
+        if job_batchID.startswith("!"):
+            if args.batch_ID_rate == 0:  # pragma: no cover
+                job_batchID = "UNKNOWN/not retrieving job batch ID"
+            else:
+                job_batchID_cmd = job_batchID[1:]
                 try:
-                    job_batchID = cache["batchID"][job_dir]
-                except KeyError:
-                    job_batchID_file = job_dir / "job_batchID"
-                    job_batchID, _ = job_files[job_batchID_file]
+                    res = subprocess.run(
+                        job_batchID_cmd,
+                        shell=True,
+                        check=True,
+                        capture_output=True,
+                        text=True,
+                        timeout=args.timeout,
+                    )
+                    job_batchID = res.stdout.strip()
+                    if len(job_batchID) == 0:
+                        # Job may not exist yet, try again later
+                        job_batchID = None
+                except subprocess.CalledProcessError:  # pragma: no cover
+                    # Job may not exist yet, try again later
+                    job_batchID = None
+                except subprocess.TimeoutExpired:  # pragma: no cover
+                    job_batchID = "UNKNOWN/could not retrieve job batch ID"
 
-                # If dynamic batch ID, run command to retrieve it
-                if job_batchID.startswith("!"):
-                    if args.batch_ID_rate == 0:  # pragma: no cover
-                        job_batchID = "UNKNOWN/not retrieving job batch ID"
-                    else:
-                        job_batchID_cmd = job_batchID[1:]
-                        try:
-                            res = subprocess.run(
-                                job_batchID_cmd,
-                                shell=True,
-                                check=True,
-                                capture_output=True,
-                                text=True,
-                                timeout=args.timeout,
-                            )
-                            batchID = res.stdout.strip()
-                            if len(batchID) > 0:
-                                job_batchID = batchID
-                            else:
-                                # Job may not exist yet, try again later
-                                job_batchID = None
-                        except subprocess.CalledProcessError:  # pragma: no cover
-                            # Job may not exist yet, try again later
-                            job_batchID = None
-                        except subprocess.TimeoutExpired:  # pragma: no cover
-                            job_batchID = "UNKNOWN/could not retrieve job batch ID"
+                # Rate limit batch ID commands
+                time.sleep(1.0 / args.batch_ID_rate)
 
-                        # Rate limit batch ID commands
-                        time.sleep(1.0 / args.batch_ID_rate)
+        # Add job batch ID to temporary cache; if known, add to persistent cache
+        if job_batchID is not None:
+            job_batchID_cache[job_dir] = job_batchID
+            if not job_batchID.startswith("UNKNOWN"):
+                cache["batchID"][job_dir] = job_batchID
+        else:
+            job_batchID_cache[job_dir] = "UNKNOWN/waiting to retrieve job batch ID"
 
-                # Add job batch IDs to persistent cache
-                if job_batchID is not None:
-                    cache["batchID"][job_dir] = job_batchID
+    # Filter jobs by batch system ID
+    if args.batch_ID is not None:  # pragma: no cover
+        job_dirs = [
+            job_dir
+            for job_dir in job_dirs
+            if job_batchID_cache[job_dir] == args.batchID
+        ]
 
-                # Filter jobs by batch system ID
-                if (
-                    args.batch_ID is not None and args.batch_ID != job_batchID
-                ):  # pragma: no cover
-                    continue
+    job_stdouterr_lines = {}
+    if args.output or args.error:
 
-            # Get job arguments
-            try:
-                job_args = cache["args"][job_dir]
-            except KeyError:
-                job_args = jobs_from_dir[job_dir]["job"]["args"]
-                cache["args"][job_dir] = job_args
-                cache["sorted_args"][job_dir] = sorted(job_args.items())
+        # Get which job standard output/error files to read
+        job_stdouterr_filepaths = []
+        for flag, outerr in ((args.output, "out"), (args.error, "err")):
+            if flag:
+                job_stdouterr_filepaths.extend(
+                    [
+                        job_dir / f"job_std{outerr}{outerr_suffix}"
+                        for job_dir in job_dirs
+                        for outerr_suffix in ("_pre", "", "_post")
+                    ]
+                )
 
-            # Filter jobs by arguments
-            if args.filter_expr:
+        # Read job standard output/error files
+        job_stdouterr_files = asyncio.run(
+            read_job_files(
+                "job stdout/err",
+                job_stdouterr_filepaths,
+                last_n_lines=args.last_n_lines,
+                filetext_if_not_exist=None,
+                filetext_if_error="ERROR/could not read {filepath}",
+                concurrent=args.concurrent,
+                timeout=args.timeout,
+            )
+        )
 
-                # Set any unrecognised names to None
-                for name in filter_code.co_names:
-                    if name not in job_args:
-                        job_args[name] = None
-
-                # Execute filter
-                if not eval(filter_code, {"__builtins__": {}}, job_args):
-                    continue
-
-            # Get job standard output/error
-            job_stdouterr_nlines = 0
+        # Process job standard output/error files
+        job_stdouterr_nlines = defaultdict(int)
+        for job_dir in job_dirs:
             for flag, outerr in ((args.output, "out"), (args.error, "err")):
                 if flag:
 
@@ -363,10 +432,9 @@ async def manage_jobs(args, workflow_dir):
                     lines = []
                     for outerr_suffix in ("_pre", "", "_post"):
                         job_stdouterr_file = job_dir / f"job_std{outerr}{outerr_suffix}"
-                        if job_stdouterr_file in job_files:
-                            job_stdouterr, _ = job_files[job_stdouterr_file]
-                            if job_stdouterr is not None:
-                                lines.extend(job_stdouterr.split("\n"))
+                        job_stdouterr, _ = job_stdouterr_files[job_stdouterr_file]
+                        if job_stdouterr is not None:
+                            lines.extend(job_stdouterr.split("\n"))
 
                     # Discard standard output/error lines not matching regex
                     for rx in args.grep_regex:
@@ -379,152 +447,182 @@ async def manage_jobs(args, workflow_dir):
 
                     # Save standard output/error lines
                     job_stdouterr_lines[(job_dir, outerr)] = lines
-                    job_stdouterr_nlines += len(lines)
+                    job_stdouterr_nlines[job_dir] += len(lines)
 
-            # Filter jobs by standard output/error
-            if (
-                (args.output or args.error)
-                and args.grep_regex
-                and job_stdouterr_nlines == 0
-            ):
-                continue
+        # Filter jobs by standard output/error
+        if args.grep_regex:
+            job_dirs = [
+                job_dir for job_dir in job_dirs if job_stdouterr_nlines[job_dir] > 0
+            ]
 
-            # Add to filtered jobs
-            filtered_jobs.append(job_dir)
-
-        # Update resources of filtered jobs
-        workflows_to_write = set()
-        for job_dir in filtered_jobs:
-
-            # Iterate over resources, update job status with changes
-            job_state = job_state_cache[job_dir]
-            job_state_counts[job_state] -= 1
-            for res_name, res_unit in (
-                ("time", "min"),
-                ("mem", "MB"),
-                ("disk", "MB"),
-            ):
-                for prefix in ("set", "add"):
-                    res = f"{res_name}_{res_unit}"
-                    res_val = getattr(args, f"{prefix}_{res}", 0)
-                    if res_val != 0:
-                        job = jobs_from_dir[job_dir]["job"]
-                        if prefix == "add":
-                            job[res] += res_val
-                            job_state += f"/{res_name}+={res_val}{res_unit}"
-                        else:
-                            job[res] = res_val
-                            job_state += f"/{res_name}={res_val}{res_unit}"
-                        workflows_to_write.add(jobs_from_dir[job_dir]["workflow_file"])
-
-            # Write updated job status to cache, file
-            job_state_counts[job_state] += 1
-            if job_state_cache[job_dir] != job_state:
-                job_state_cache[job_dir] = job_state
-
-                # Only write to file if job status has been updated,
-                # to avoid interference with other processes
-                job_state_file = job_dir / "job_state"
-                write_atomic(job_state, job_state_file)
-
-        # Write workflows with updated resources
-        for workflow_file in workflows_to_write:
-            json.dump(
-                workflows[workflow_file],
-                workflow_file.open("w"),
-                default=str,
-                sort_keys=True,
+    # Read job usage statistics
+    job_usage_files = {}
+    if args.usage:
+        job_usage_filepaths = [job_dir / "job_usage" for job_dir in job_dirs]
+        job_usage_files = asyncio.run(
+            read_job_files(
+                "job usage stats",
+                job_usage_filepaths,
+                last_n_lines=0,
+                filetext_if_not_exist="",
+                filetext_if_error="",
+                concurrent=args.concurrent,
+                timeout=args.timeout,
             )
-
-        # Order filtered jobs by their arguments
-        ordered_jobs = sorted(
-            [(cache["sorted_args"][job_dir], job_dir) for job_dir in filtered_jobs]
         )
 
-        # Show filtered jobs
-        len_n = len(str(len(ordered_jobs)))
-        for n, (job_args, job_dir) in enumerate(ordered_jobs, start=1):
-            print("")
+    # Update job resources
+    workflows_to_write = set()
+    for job_dir in tqdm(
+        job_dirs, desc="Updating job resources ", disable=None, leave=False
+    ):
 
-            # Create prefix for all printed output
-            prefix = f"{n:0{len_n}d}" + " {:<5}"
+        # Iterate over resources, update job status with changes
+        job_state = job_state_cache[job_dir]
+        job_state_counts[job_state] -= 1
+        for res_name, res_unit in (
+            ("time", "min"),
+            ("mem", "MB"),
+            ("disk", "MB"),
+        ):
+            for prefix in ("set", "add"):
+                res = f"{res_name}_{res_unit}"
+                res_val = getattr(args, f"{prefix}_{res}", 0)
+                if res_val != 0:
+                    job = jobs_from_dir[job_dir]["job"]
+                    if prefix == "add":
+                        job[res] += res_val
+                        job_state += f"/{res_name}+={res_val}{res_unit}"
+                    else:
+                        job[res] = res_val
+                        job_state += f"/{res_name}={res_val}{res_unit}"
+                    workflows_to_write.add(jobs_from_dir[job_dir]["workflow_file"])
 
-            # Show job arguments
-            # - Formatted so that it can be used as a filter to --filter
-            job_args_str_unquoted = " and ".join(
-                ["{}=={}".format(k, repr(v)) for k, v in job_args]
-            )
-            if '"' not in job_args_str_unquoted:
-                job_args_str_unquoted = job_args_str_unquoted.replace("'", '"')
-            job_args_str = shlex.quote(job_args_str_unquoted)
-            print(prefix.format("ARGS"), job_args_str)
+        # Write updated job status to cache, file
+        job_state_counts[job_state] += 1
+        if job_state_cache[job_dir] != job_state:
+            job_state_cache[job_dir] = job_state
 
-            # Show job state, date it was last modified, and batch system ID
-            job_state = job_state_cache[job_dir]
-            job_state_str = job_state
-            if job_dir in job_state_last_modified_cache:
-                job_state_str += job_state_last_modified_cache[job_dir].strftime(
-                    " %Y-%m-%d %H:%M:%S"
-                )
-            if job_state == "RUNNING":
-                job_state_str += " BATCHID " + cache["batchID"].get(job_dir, "UNKNOWN")
-            print(prefix.format("STATE"), job_state_str)
+            # Only write to file if job status has been updated,
+            # to avoid interference with other processes
+            job_state_file = job_dir / "job_state"
+            write_atomic(job_state, job_state_file)
 
-            # Show workflows/ directory
-            if args.workflows_dir:
-                print(prefix.format("WFLOW"), job_workflow_dirs[job_dir])
+    # Write workflows with updated resources
+    for workflow_file in workflows_to_write:
+        json.dump(
+            workflows[workflow_file],
+            workflow_file.open("w"),
+            default=str,
+            sort_keys=True,
+        )
 
-            # Show job directory
-            if args.job_dir:
-                print(prefix.format("JOB"), job_dir)
+    # Order jobs by their arguments
+    ordered_job_dirs = sorted(
+        [(cache["sorted_args"][job_dir], job_dir) for job_dir in job_dirs]
+    )
 
-            # Show job resources
-            if args.resources:
-                job = jobs_from_dir[job_dir]["job"]
-                for res_name, res_unit, res_fmt in (
-                    ("time", "min", format_time_quantity),
-                    ("mem", "MB", format_quantity),
-                    ("disk", "MB", format_quantity),
-                ):
-                    job_res_val = Quantity(job[f"{res_name}_{res_unit}"], res_unit)
-                    print(prefix.format("RES"), res_name.upper(), res_fmt(job_res_val))
-
-            # Show files in job directory
-            if args.files:
-                for f in sorted(
-                    job_dir.iterdir(), key=lambda j: (not j.name.startswith("job_"), j)
-                ):
-                    f_size = Quantity(f.stat().st_size, "byte")
-                    print(prefix.format("FILE"), f, "SIZE", format_quantity(f_size))
-
-            # Show standard output/error
-            for outerr in ("out", "err"):
-                if (job_dir, outerr) in job_stdouterr_lines:
-                    for line in job_stdouterr_lines[(job_dir, outerr)]:
-                        print(prefix.format(outerr.upper()), line)
-
-            # Show job usage statistics
-            if args.usage:
-                usage_regex = "|".join(args.usage)
-                job_usage_file = job_dir / "job_usage"
-                job_usage, _ = job_files[job_usage_file]
-                for line in job_usage.split("\n"):
-                    line = line.strip()
-                    if re.search(usage_regex, line, re.IGNORECASE) is not None:
-                        print(prefix.format("USAGE"), line)
-
+    # Show jobs
+    len_n = len(str(len(ordered_job_dirs)))
+    for n, (job_args, job_dir) in enumerate(ordered_job_dirs, start=1):
         print("")
 
-        # Create prefix for coda
-        prefix = ("-" * len_n) + " {:<5}"
+        # Create prefix for all output
+        prefix = f"{n:0{len_n}d}" + " {:<5}"
 
-        # Print counts of job states
-        for job_state, job_state_count in sorted(job_state_counts.items()):
-            if job_state_count > 0:
-                print(prefix.format("STATE"), f"{job_state_count:{len_n}d}", job_state)
+        # Show job arguments
+        # - Formatted so that it can be used as a filter to --filter
+        job_args_str_unquoted = " and ".join(
+            ["{}=={}".format(k, repr(v)) for k, v in job_args]
+        )
+        if '"' not in job_args_str_unquoted:
+            job_args_str_unquoted = job_args_str_unquoted.replace("'", '"')
+        job_args_str = shlex.quote(job_args_str_unquoted)
+        print(prefix.format("ARGS"), job_args_str)
 
-        # Print date
-        print(prefix.format("DATE"), datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        # Show job state, date it was last modified, and batch system ID
+        job_state = job_state_cache[job_dir]
+        job_state_str = job_state
+        if job_dir in job_state_last_modified_cache:
+            job_state_str += job_state_last_modified_cache[job_dir].strftime(
+                " %Y-%m-%d %H:%M:%S"
+            )
+        if job_state != "PENDING":
+            job_state_str += " BATCHID " + job_batchID_cache[job_dir]
+        print(prefix.format("STATE"), job_state_str)
+
+        # Show workflows/ directory
+        if args.workflows_dir:
+            print(prefix.format("WFLOW"), job_workflow_dirs[job_dir])
+
+        # Show job directory
+        if args.job_dir:
+            print(prefix.format("JOB"), job_dir)
+
+        # Show job resources
+        if args.resources:
+            job = jobs_from_dir[job_dir]["job"]
+            for res_name, res_unit, res_fmt in (
+                ("time", "min", format_time_quantity),
+                ("mem", "MB", format_quantity),
+                ("disk", "MB", format_quantity),
+            ):
+                job_res_val = Quantity(job[f"{res_name}_{res_unit}"], res_unit)
+                print(
+                    prefix.format("RES"),
+                    res_name.upper(),
+                    res_fmt(job_res_val),
+                )
+
+        # Show files in job directory
+        if args.files:
+            for f in sorted(
+                job_dir.iterdir(),
+                key=lambda j: (not j.name.startswith("job_"), j),
+            ):
+                f_size = Quantity(f.stat().st_size, "byte")
+                print(
+                    prefix.format("FILE"),
+                    f,
+                    "SIZE",
+                    format_quantity(f_size),
+                )
+
+        # Show standard output/error
+        for outerr in ("out", "err"):
+            if (job_dir, outerr) in job_stdouterr_lines:
+                for line in job_stdouterr_lines[(job_dir, outerr)]:
+                    print(prefix.format(outerr.upper()), line)
+
+        # Show job usage statistics
+        if args.usage:
+            usage_regex = "|".join(args.usage)
+            job_usage_file = job_dir / "job_usage"
+            job_usage, _ = job_usage_files[job_usage_file]
+            for line in job_usage.split("\n"):
+                line = line.strip()
+                if re.search(usage_regex, line, re.IGNORECASE) is not None:
+                    print(prefix.format("USAGE"), line)
+
+    print("")
+
+    # Create prefix for coda
+    prefix = ("-" * len_n) + " {:<5}"
+
+    # Show counts of job states
+    for job_state, job_state_count in sorted(job_state_counts.items()):
+        if job_state_count > 0:
+            print(
+                prefix.format("STATE"),
+                f"{job_state_count:{len_n}d}",
+                job_state,
+            )
+
+    # Show date
+    print(
+        prefix.format("DATE"),
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    )
 
 
 def cli(*argv: str, workflow_dir: Path = Path.cwd()):
@@ -716,21 +814,32 @@ def cli(*argv: str, workflow_dir: Path = Path.cwd()):
         )
         sys.exit(1)
 
-    # Run command, pipe output through a pager
-    # - Ignore errors if pipe is broken
+    # Pipe output through a pager
     try:
         with subprocess.Popen(
-            os.getenv("PAGER", "less -FRSX"),
+            os.getenv("PAGER", "less -FKRSX"),
             shell=True,
             stdin=subprocess.PIPE,
             text=True,
         ) as proc:
+            assert proc.stdin is not None
             with redirect_stdout(proc.stdin):
-                asyncio.run(manage_jobs(args, workflow_dir))
+
+                # Load cache
+                with DictCache(workflow_dir / ".manage-cache", __file__) as cache:
+
+                    # Run command
+                    manage_jobs(args, workflow_dir, cache)
+
                 sys.stdout.flush()
+
+            proc.stdin.close()
+
     except (KeyboardInterrupt, BrokenPipeError):  # pragma: no cover
         proc.terminate()
 
+    return 0
+
 
 if __name__ == "__main__":
-    cli()
+    sys.exit(cli())
