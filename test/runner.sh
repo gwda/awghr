@@ -14,6 +14,12 @@ log() {
 
 log "set up batch system"
 case "${batch_system}" in
+    local)
+        pkill -9 all_script.sh || true
+        ;;
+    htcondor)
+        condor_rm -all -forcex || true
+        ;;
     pbs)
         ( qdel `qselect` >/dev/null 2>&1 ) || true
         rm -rf /tmp/pbs-*
