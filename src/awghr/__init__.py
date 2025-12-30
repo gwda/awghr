@@ -958,7 +958,7 @@ class Workflow:
             """
             f += queue
             f += f"""
-            queue {all_workflow_IDs_str}
+            ( queue {all_workflow_IDs_str} 2>&1 ) | ${{PAGER:-less -FKRSX}}
             """
 
         # Write top-level control script: cancel all jobs
