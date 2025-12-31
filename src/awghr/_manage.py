@@ -283,7 +283,7 @@ def manage_jobs(args, workflow_dir, cache):
             cache["state"][job_dir] = job_state
 
     # Filter jobs by state
-    if args.state != "ALL":
+    if args.state != "all":
         job_dirs = [
             job_dir for job_dir in job_dirs if job_state_cache[job_dir] == args.state
         ]
@@ -612,7 +612,15 @@ def manage_jobs(args, workflow_dir, cache):
     prefix = ("-" * len_n) + " {:<5}"
 
     # Show counts of job states
-    for job_state, job_state_count in sorted(job_state_counts.items()):
+    show_job_states = list(job_state_counts.keys())
+    if args.state not in ("all", "summary"):
+        show_job_states = [
+            job_state
+            for job_state in show_job_states
+            if job_state.startswith(args.state)
+        ]
+    for job_state in show_job_states:
+        job_state_count = job_state_counts[job_state]
         if job_state_count > 0:
             print(
                 prefix.format("STATE"),
@@ -639,7 +647,7 @@ def cli(*argv: str, workflow_dir: Path = Path.cwd()):
         "--all",
         dest="state",
         action="store_const",
-        const="ALL",
+        const="all",
         help="show all jobs",
     )
     parser.add_argument(
