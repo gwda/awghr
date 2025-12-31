@@ -133,8 +133,10 @@ class SlurmWorkflowWriter(BatchQWorkflowWriter):
         # Command to cancel all jobs with names in $@
         cancel = """
         batchq_cancel() {
-            local jobnames=`echo $@ | tr ' ' ','`
-            scancel --name="${jobnames}"
+            local jobname=
+            for jobname in $@; do
+                scancel --name="${jobname}"
+            done
         }
         """
 
