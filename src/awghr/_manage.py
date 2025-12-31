@@ -471,51 +471,53 @@ def manage_jobs(args, workflow_dir, cache):
             )
         )
 
-    # Update job resources
-    workflows_to_write = set()
-    for job_dir in tqdm(
-        job_dirs, desc="Updating job resources ", disable=None, leave=False
-    ):
+    if args.any_resource_args:
 
-        # Iterate over resources, update job status with changes
-        job_state = job_state_cache[job_dir]
-        job_state_counts[job_state] -= 1
-        for res_name, res_unit in (
-            ("time", "min"),
-            ("mem", "MB"),
-            ("disk", "MB"),
+        # Update job resources
+        workflows_to_write = set()
+        for job_dir in tqdm(
+            job_dirs, desc="Updating job resources ", disable=None, leave=False
         ):
-            for prefix in ("set", "add"):
-                res = f"{res_name}_{res_unit}"
-                res_val = getattr(args, f"{prefix}_{res}", 0)
-                if res_val != 0:
-                    job = jobs_from_dir[job_dir]["job"]
-                    if prefix == "add":
-                        job[res] += res_val
-                        job_state += f"/{res_name}+={res_val}{res_unit}"
-                    else:
-                        job[res] = res_val
-                        job_state += f"/{res_name}={res_val}{res_unit}"
-                    workflows_to_write.add(jobs_from_dir[job_dir]["workflow_file"])
 
-        # Write updated job status to cache, file
-        job_state_counts[job_state] += 1
-        if job_state_cache[job_dir] != job_state:
-            job_state_cache[job_dir] = job_state
+            # Iterate over resources, update job status with changes
+            job_state = job_state_cache[job_dir]
+            job_state_counts[job_state] -= 1
+            for res_name, res_unit in (
+                ("time", "min"),
+                ("mem", "MB"),
+                ("disk", "MB"),
+            ):
+                for prefix in ("set", "add"):
+                    res = f"{res_name}_{res_unit}"
+                    res_val = getattr(args, f"{prefix}_{res}", 0)
+                    if res_val != 0:
+                        job = jobs_from_dir[job_dir]["job"]
+                        if prefix == "add":
+                            job[res] += res_val
+                            job_state += f"/{res_name}+={res_val}{res_unit}"
+                        else:
+                            job[res] = res_val
+                            job_state += f"/{res_name}={res_val}{res_unit}"
+                        workflows_to_write.add(jobs_from_dir[job_dir]["workflow_file"])
 
-            # Only write to file if job status has been updated,
-            # to avoid interference with other processes
-            job_state_file = job_dir / "job_state"
-            write_atomic(job_state, job_state_file)
+            # Write updated job status to cache, file
+            job_state_counts[job_state] += 1
+            if job_state_cache[job_dir] != job_state:
+                job_state_cache[job_dir] = job_state
 
-    # Write workflows with updated resources
-    for workflow_file in workflows_to_write:
-        json.dump(
-            workflows[workflow_file],
-            workflow_file.open("w"),
-            default=str,
-            sort_keys=True,
-        )
+                # Only write to file if job status has been updated,
+                # to avoid interference with other processes
+                job_state_file = job_dir / "job_state"
+                write_atomic(job_state, job_state_file)
+
+        # Write workflows with updated resources
+        for workflow_file in workflows_to_write:
+            json.dump(
+                workflows[workflow_file],
+                workflow_file.open("w"),
+                default=str,
+                sort_keys=True,
+            )
 
     # Order jobs by their arguments
     ordered_job_dirs = sorted(
@@ -807,7 +809,8 @@ def cli(*argv: str, workflow_dir: Path = Path.cwd()):
     resource_args_used = [
         long_arg for long_arg, arg_name in resource_args if getattr(args, arg_name) != 0
     ]
-    if resource_args_used and args.state != "FAILED":
+    args.any_resource_args = len(resource_args_used) > 0
+    if args.any_resource_args and args.state != "FAILED":
         LOGGER.critical(
             "argument(s) %s can only be used to update resources of FAILED jobs",
             ", ".join(resource_args_used),
