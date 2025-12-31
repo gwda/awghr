@@ -75,12 +75,12 @@ class LocalWorkflowWriter(WorkflowWriter):
                     if test "X${{jobstate%%/*}}" != XSUCCESS; then
                         workstate=FAILED
                         if test "X${{jobstate}}" = XRUNNING; then
-                            echo FAILED > '{jobstate_file}'
+                            write_atomic FAILED '{jobstate_file}'
                         fi
                     fi
                     """
             f += f"""
-                echo "${{workstate}}" > '{workstatefile}'
+                write_atomic "${{workstate}}" '{workstatefile}'
                 rm -f '{submittedfile}'
                 rm -f '{all_jobs_pid_file}'
                 exit ${{status}}
@@ -112,13 +112,13 @@ class LocalWorkflowWriter(WorkflowWriter):
                     function trap_job_state() {{
                         local status=$1
                         if test ${{status}} -eq 0; then
-                            echo SUCCESS > '{jobstate_file}'
+                            write_atomic SUCCESS '{jobstate_file}'
                             exit 0
                         elif test ${{status}} -eq {skip_exit_code}; then
-                            echo SUCCESS/SKIPPED > '{jobstate_file}'
+                            write_atomic SUCCESS/SKIPPED '{jobstate_file}'
                             exit 0
                         else
-                            echo FAILED > '{jobstate_file}'
+                            write_atomic FAILED '{jobstate_file}'
                             echo '{job["dir"]}' >> '{failedjobfile}'
                             exit ${{status}}
                         fi
@@ -133,7 +133,7 @@ class LocalWorkflowWriter(WorkflowWriter):
                     if test "X${{jobstate%%/*}}" = XSUCCESS; then
                         exit 0
                     fi
-                    echo RUNNING > '{jobstate_file}'
+                    write_atomic RUNNING '{jobstate_file}'
                     """
 
                     # Change to job scratch directory

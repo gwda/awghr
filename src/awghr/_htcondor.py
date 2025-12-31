@@ -126,7 +126,7 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                         f += f"""
                         jobstate=`cat '{needs_jobstate_file}' 2>/dev/null || true`
                         if test "X${{jobstate}}" = XSUCCESS/SKIPPED; then
-                            echo SUCCESS/SKIPPED > '{jobstate_file}'
+                            write_atomic SUCCESS/SKIPPED '{jobstate_file}'
                             exit {skip_exit_code}
                         fi
                         """
@@ -140,7 +140,7 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                     f += f"""echo {job_batchID_cmd} > '{jobbatchID_file}'"""
 
                     # Write job state file
-                    f += f"echo RUNNING > '{jobstate_file}'"
+                    f += f"write_atomic RUNNING '{jobstate_file}'"
 
                     # Remove standard output and error from any previous job
                     job_stdout_file = job["dir"] / "job_stdout"
@@ -203,13 +203,13 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                     function trap_state() {{
                         local status=$1
                         if test ${{status}} -eq 0; then
-                            echo SUCCESS > '{jobstate_file}'
+                            write_atomic SUCCESS '{jobstate_file}'
                             exit 0
                         elif test ${{status}} -eq {skip_exit_code}; then
-                            echo SUCCESS/SKIPPED > '{jobstate_file}'
+                            write_atomic SUCCESS/SKIPPED '{jobstate_file}'
                             exit 0
                         else
-                            echo FAILED > '{jobstate_file}'
+                            write_atomic FAILED '{jobstate_file}'
                             exit ${{status}}
                         fi
                     }}
@@ -383,13 +383,13 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                         echo '{job['dir']}' >> '{failedjobfile}'
                         workstate=FAILED
                         if test "X${{jobstate}}" = XRUNNING; then
-                            echo FAILED > '{jobstate_file}'
+                            write_atomic FAILED '{jobstate_file}'
                         fi
                     fi
                     """
 
                 # Write workflow state
-                f += f"""echo "${{workstate}}" > '{workstatefile}'"""
+                f += f"""write_atomic "${{workstate}}" '{workstatefile}'"""
 
                 # Remove file indicating workflow has been submitted
                 f += f"rm -f '{submittedfile}'"

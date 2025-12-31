@@ -65,6 +65,7 @@ from ._util import (
     ProgressLogger,
     WorkflowException,
     job_dir_from_ID,
+    write_atomic,
 )
 
 __author__ = "Karl Wette"
@@ -932,7 +933,7 @@ class Workflow:
                     fi
                 fi
                 sub_file="{baseworkflowdir}/${{ID}}/submitted"
-                echo SUBMITTED > ${{sub_file}}
+                write_atomic SUBMITTED ${{sub_file}}
                 if test "X${{msg}}" != X; then
                     msg="s${{msg}}"
                 fi
@@ -1112,8 +1113,7 @@ def _write_workflow(workflow_file, workflow_writer=None):
     )
 
     # Write timestamp
-    timestampfile = batchdir / ".timestamp"
-    timestampfile.write_text(str(datetime.now()))
+    write_atomic(str(datetime.now()), batchdir / ".timestamp")
 
     # Log completion
     LOGGER.info("workflow has been written")

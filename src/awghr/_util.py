@@ -52,6 +52,22 @@ function fail() {
     exit 1
 }
 """
+# - Shell function write_atomic() to write status files atomically
+SCRIPT_HEADER += """\
+function write_atomic() {
+    local status="$1"
+    local status_file="$2"
+    echo "${status}" > "${status_file}.tmp"
+    mv -f "${status_file}.tmp" "${status_file}"
+}
+"""
+
+
+def write_atomic(status: str, status_file: Path):
+    """Python function to write status files atomically."""
+    status_file_tmp = status_file.with_suffix(".tmp")
+    status_file_tmp.write_text(status + "\n")
+    status_file_tmp.replace(status_file)
 
 
 class WorkflowWriter(ABC):

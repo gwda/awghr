@@ -286,19 +286,19 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
                             function trap_state() {{
                                 local status=$1
                                 if test ${{status}} -eq 0; then
-                                    echo SUCCESS > '{jobstate_file}'
+                                    write_atomic SUCCESS '{jobstate_file}'
                                     exit 0
                                 elif test ${{status}} -eq {skip_exit_code}; then
-                                    echo SUCCESS/SKIPPED > '{jobstate_file}'
+                                    write_atomic SUCCESS/SKIPPED '{jobstate_file}'
                                     exit 0
                                 else
-                                    echo FAILED > '{jobstate_file}'
+                                    write_atomic FAILED '{jobstate_file}'
                                     exit ${{status}}
                                 fi
                             }}
                             trap 'trap_state $?' EXIT
                             trap 'trap_state 143' TERM
-                            echo RUNNING > '{jobstate_file}'
+                            write_atomic RUNNING '{jobstate_file}'
                             """
 
                             # Check that all prerequisite jobs were successfully run
@@ -410,13 +410,13 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
                         echo '{job['dir']}' >> '{failedjobfile}'
                         workstate=FAILED
                         if test "X${{jobstate}}" = XRUNNING; then
-                            echo FAILED > '{jobstate_file}'
+                            write_atomic FAILED '{jobstate_file}'
                         fi
                     fi
                     """
 
             # Write workflow state
-            f += f"""echo "${{workstate}}" > '{workstatefile}'"""
+            f += f"""write_atomic "${{workstate}}" '{workstatefile}'"""
 
             # Remove file indicating workflow has been submitted
             f += f"rm -f '{submittedfile}'"
@@ -459,7 +459,7 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
             function trap_state() {{
                 local status=$1
                 if test ${{status}} -ne 0; then
-                    echo FAILED > '{workstatefile}'
+                    write_atomic FAILED '{workstatefile}'
                     rm -f '{submittedfile}'
                 fi
                 exit ${{status}}

@@ -22,7 +22,7 @@ from textwrap import dedent
 from pint import Quantity
 from tqdm import tqdm
 
-from ._util import LOGGER, DictCache
+from ._util import LOGGER, DictCache, write_atomic
 
 
 def positive_int(value):
@@ -393,9 +393,13 @@ def manage_jobs(args, workflow_dir):
 
             # Write updated job status to cache, file
             job_state_counts[job_state] += 1
-            job_state_cache[job_dir] = job_state
-            job_state_file = job_dir / "job_state"
-            job_state_file.write_text(job_state)
+            if job_state_cache[job_dir] != job_state:
+                job_state_cache[job_dir] = job_state
+
+                # Only write to file if job status has been updated,
+                # to avoid interference with other processes
+                job_state_file = job_dir / "job_state"
+                write_atomic(job_state, job_state_file)
 
         # Write workflows with updated resources
         for workflow_file in workflows_to_write:
