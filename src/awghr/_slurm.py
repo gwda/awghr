@@ -129,7 +129,7 @@ class SlurmWorkflowWriter(BatchQWorkflowWriter):
             if test "X${jobcounts}" != X; then
                 echo ${jobcounts}
             fi
-            squeue --name="${jobnames}" --format='%20i  %2t  %.12L  %.10m  %.12d  %.4C  %.8p  %12P  %R' --sort='L,-p'
+            squeue --name="${jobnames}" --format='%20i  %2t  %.12L  %.10m  %.12d  %.4C  %.8p  %12P  %R' --sort='-t,L,-p'
         }
         """
 
