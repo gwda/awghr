@@ -11,7 +11,13 @@ import math
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Tuple
 
-from ._util import FileLineWriter, ProgressLogger, WorkflowWriter, job_dir_from_ID
+from ._util import (
+    SCRIPT_HEADER,
+    FileLineWriter,
+    ProgressLogger,
+    WorkflowWriter,
+    job_dir_from_ID,
+)
 
 
 class BatchQWorkflowWriter(WorkflowWriter, ABC):
@@ -226,16 +232,8 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
 
             with FileLineWriter(jobarray_script_file) as f:
 
-                # Exit on any script errors
-                f += "set -e"
-
-                # Write shell function fail() for reporting errors
-                f += """
-                function fail() {
-                    echo 'FAIL:' "$@" >&2
-                    exit 1
-                }
-                """
+                # Write common script header
+                f += SCRIPT_HEADER
 
                 # Parse job array indexes to find which job to run based on batch index
                 jobarray_index_file = jobarraydir / "job_array_indexes"
@@ -390,8 +388,8 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
 
         with FileLineWriter(workstate_script_file) as f:
 
-            # Exit on any script errors
-            f += "set -e"
+            # Write common script header
+            f += SCRIPT_HEADER
 
             # Ensure list of directories of failed jobs does not exist
             f += f"rm -f '{failedjobfile}'"
@@ -452,8 +450,8 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
 
         with FileLineWriter(all_jobs_script_file) as f:
 
-            # Exit on any script errors
-            f += "set -e"
+            # Write common script header
+            f += SCRIPT_HEADER
 
             # Set trap to write the workflow state if errors are encountered
             # - for signals, exit with 128+<signal number>
@@ -468,14 +466,6 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
             }}
             trap 'trap_state $?' EXIT
             trap 'trap_state 143' TERM
-            """
-
-            # Write shell function fail() for reporting errors
-            f += """
-            function fail() {
-                echo 'FAIL:' "$@" >&2
-                exit 1
-            }
             """
 
             # Write shell function job_array_indexes() which

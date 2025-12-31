@@ -40,6 +40,20 @@ class BatchSystemException(Exception):
     """Raise for batch system errors."""
 
 
+# Common script header:
+# - Exit on any script errors
+SCRIPT_HEADER = """\
+set -e
+"""
+# - Shell function fail() for reporting errors
+SCRIPT_HEADER += """\
+function fail() {
+    echo 'FAIL:' "$@" >&2
+    exit 1
+}
+"""
+
+
 class WorkflowWriter(ABC):
     """Workflow writer base class."""
 

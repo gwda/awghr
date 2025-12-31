@@ -59,6 +59,7 @@ from pint import Quantity
 from ._config import batch_system_names, cluster_names, read_config
 from ._util import (
     LOGGER,
+    SCRIPT_HEADER,
     FileLineWriter,
     JobFileList,
     ProgressLogger,
@@ -880,9 +881,11 @@ class Workflow:
 
         # Write top-level control script: submit all jobs
         with FileLineWriter(self.workdir / "submit", executable=True) as f:
-            f += f"""
+            f += """
             #!/bin/bash
-            set -e
+            """
+            f += SCRIPT_HEADER
+            f += f"""
             if test "X$1" != X; then
                 echo "usage: ${{0##*/}}" >&2
                 exit 1
@@ -944,9 +947,11 @@ class Workflow:
         with FileLineWriter(self.workdir / "queue", executable=True) as f:
             f += """
             #!/bin/bash
-            set -e
+            """
+            f += SCRIPT_HEADER
+            f += """
             if test "X$1" != X; then
-                echo "usage: ${{0##*/}}" >&2
+                echo "usage: ${0##*/}" >&2
                 exit 1
             fi
             """
@@ -959,9 +964,11 @@ class Workflow:
         with FileLineWriter(self.workdir / "cancel", executable=True) as f:
             f += """
             #!/bin/bash
-            set -e
+            """
+            f += SCRIPT_HEADER
+            f += """
             if test "X$1" != X; then
-                echo "usage: ${{0##*/}}" >&2
+                echo "usage: ${0##*/}" >&2
                 exit 1
             fi
             """
@@ -978,9 +985,11 @@ class Workflow:
                     for f in [baseworkflowdir / ID / "state" for ID in all_workflow_IDs]
                 ]
             )
-            f += f"""
+            f += """
             #!/bin/bash
-            set -e
+            """
+            f += SCRIPT_HEADER
+            f += f"""
             sleepfor=5.0
             case "$1" in
                 -h|--help)
@@ -1012,8 +1021,11 @@ class Workflow:
 
         # Write top-level control script: manage jobs
         with FileLineWriter(self.workdir / "manage", executable=True) as f:
-            f += f"""
+            f += """
             #!/bin/bash
+            """
+            f += SCRIPT_HEADER
+            f += f"""
             cd '{self.workdir}'
             exec {sys.executable} -m awghr._manage "$@"
             """

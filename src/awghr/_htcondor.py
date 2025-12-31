@@ -8,6 +8,7 @@ import shlex
 from typing import Any, Dict, Optional, Tuple
 
 from ._util import (
+    SCRIPT_HEADER,
     FileLineWriter,
     ProgressLogger,
     WorkflowException,
@@ -107,21 +108,13 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                 job_pre_file = jobscriptdir / "job_condor_pre.sh"
                 with FileLineWriter(job_pre_file) as f:
 
-                    # Exit on any script errors
-                    f += "set -e"
+                    # Write common script header
+                    f += SCRIPT_HEADER
 
                     # Capture standard output and error
                     job_pre_stdout_file = job["dir"] / "job_stdout_pre"
                     job_pre_stderr_file = job["dir"] / "job_stderr_pre"
                     f += f"exec >{job_pre_stdout_file} 2>{job_pre_stderr_file}"
-
-                    # Write shell function fail() for reporting errors
-                    f += """
-                    function fail() {
-                        echo 'FAIL:' "$@" >&2
-                        exit 1
-                    }
-                    """
 
                     # Check that all prerequisite jobs were not skipped
                     for needs_job_ID in job["needs"]:
@@ -159,8 +152,8 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                 job_missing_file = jobscriptdir / "job_condor_missing"
                 with FileLineWriter(job_wrapper_file) as f:
 
-                    # Exit on any script errors
-                    f += "set -e"
+                    # Write common script header
+                    f += SCRIPT_HEADER
 
                     # Set trap to ensure that all output file exist on exit, as
                     # required by HTCondor's output file transfer mechanism, and
@@ -196,21 +189,13 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                 job_post_file = jobscriptdir / "job_condor_post.sh"
                 with FileLineWriter(job_post_file) as f:
 
-                    # Exit on any script errors
-                    f += "set -e"
+                    # Write common script header
+                    f += SCRIPT_HEADER
 
                     # Capture standard output and error
                     job_post_stdout_file = job["dir"] / "job_stdout_post"
                     job_post_stderr_file = job["dir"] / "job_stderr_post"
                     f += f"exec >{job_post_stdout_file} 2>{job_post_stderr_file}"
-
-                    # Write shell function fail() for reporting errors
-                    f += """
-                    function fail() {
-                        echo 'FAIL:' "$@" >&2
-                        exit 1
-                    }
-                    """
 
                     # Set trap to write job state file
                     # - for signals, exit with 128+<signal number>
@@ -365,8 +350,8 @@ class HTCondorWorkflowWriter(WorkflowWriter):
             workstate_script_file = batchdir / "workstate.sh"
             with FileLineWriter(workstate_script_file) as f:
 
-                # Exit on any script errors
-                f += "set -e"
+                # Write common script header
+                f += SCRIPT_HEADER
 
                 # Ensure list of directories of failed jobs does not exist
                 f += f"rm -f '{failedjobfile}'"

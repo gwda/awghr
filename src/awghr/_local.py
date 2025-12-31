@@ -9,7 +9,7 @@ Runs jobs on local machine for debugging purposes.
 
 from typing import Any, Dict, Tuple
 
-from ._util import FileLineWriter, WorkflowWriter, job_dir_from_ID
+from ._util import SCRIPT_HEADER, FileLineWriter, WorkflowWriter, job_dir_from_ID
 
 
 class LocalWorkflowWriter(WorkflowWriter):
@@ -45,8 +45,8 @@ class LocalWorkflowWriter(WorkflowWriter):
         with FileLineWriter(all_jobs_script_file) as f:
             f += "#!/bin/bash"
 
-            # Exit on any script errors
-            f += "set -e"
+            # Write common script header
+            f += SCRIPT_HEADER
 
             # Redirect standard output and error from script
             f += f"exec >'{all_jobs_stdout_file}' 2>'{all_jobs_stderr_file}'"
@@ -54,14 +54,6 @@ class LocalWorkflowWriter(WorkflowWriter):
             # Save process ID
             # - dash (`-`) is needed to send kill signal to process group
             f += f"echo -$$ > '{all_jobs_pid_file}'"
-
-            # Write shell function fail() for reporting errors
-            f += """
-            function fail() {
-                echo 'FAIL:' "$@" >&2
-                exit 1
-            }
-            """
 
             # Set trap to write workflow state
             # - if a job is still RUNNING, it clearly didn't
