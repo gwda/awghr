@@ -58,12 +58,12 @@ from pint import Quantity
 
 from ._config import batch_system_names, cluster_names, read_config
 from ._util import (
+    LOGGER,
     FileLineWriter,
     JobFileList,
     ProgressLogger,
     WorkflowException,
     job_dir_from_ID,
-    logger,
 )
 
 __author__ = "Karl Wette"
@@ -160,7 +160,7 @@ class Workflow:
     ):
 
         # Read configuration
-        logger.info("reading configuration")
+        LOGGER.info("reading configuration")
         cfg = read_config(tags=tags)
 
         # Check name
@@ -224,10 +224,10 @@ class Workflow:
                     self._env[var] = val
 
         # Log details
-        logger.info("workflow name: %s", self.name)
-        logger.info("workflow account: %s", self.account)
-        logger.info("workflow directory: %s", self.workdir)
-        logger.info("batch system: %s", self.batch_system)
+        LOGGER.info("workflow name: %s", self.name)
+        LOGGER.info("workflow account: %s", self.account)
+        LOGGER.info("workflow directory: %s", self.workdir)
+        LOGGER.info("batch system: %s", self.batch_system)
 
     def _select_on_cluster_batch_system(self, label, arg, *, always, required, multi):
         """Select argument based on cluster name and/or batch system."""
@@ -739,7 +739,7 @@ class Workflow:
 
                 # Remove duplicate workflow
                 shutil.rmtree(existing_workflow_workflowdir)
-                logger.info("removed duplicate workflow %s", existing_workflow_ID)
+                LOGGER.info("removed duplicate workflow %s", existing_workflow_ID)
 
             elif num_duplicate_jobs > 0 or num_duplicate_outputs > 0:
 
@@ -1019,7 +1019,7 @@ class Workflow:
             """
 
         # Log completion
-        logger.info("all workflow files and directories have been written")
+        LOGGER.info("all workflow files and directories have been written")
 
 
 def _write_workflow(workflow_file, workflow_writer=None):
@@ -1033,12 +1033,12 @@ def _write_workflow(workflow_file, workflow_writer=None):
         job["dir"] = Path(job["dir"])
         for k in ("infiles", "joboutfiles", "outfiles"):
             job[k] = [Path(v) for v in job[k]]
-    logger.info("read workflow from %s", workflow_file)
+    LOGGER.info("read workflow from %s", workflow_file)
 
     if workflow_writer is None:
 
         # Read configuration
-        logger.info("reading configuration")
+        LOGGER.info("reading configuration")
         cfg = read_config(tags=workflow["tags"])
 
         # Get workflow writer
@@ -1104,7 +1104,7 @@ def _write_workflow(workflow_file, workflow_writer=None):
     timestampfile.write_text(str(datetime.now()))
 
     # Log completion
-    logger.info("workflow has been written")
+    LOGGER.info("workflow has been written")
 
 
 def _cli(*argv: str):

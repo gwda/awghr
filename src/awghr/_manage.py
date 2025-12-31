@@ -21,7 +21,7 @@ from pathlib import Path
 from pint import Quantity
 from tqdm import tqdm
 
-from ._util import DictCache, logger
+from ._util import LOGGER, DictCache
 
 
 def positive_int(value):
@@ -633,7 +633,7 @@ def cli(*argv: str, workflow_dir: Path = Path.cwd()):
         long_arg for long_arg, arg_name in resource_args if getattr(args, arg_name) != 0
     ]
     if resource_args_used and args.state != "FAILED":
-        logger.critical(
+        LOGGER.critical(
             "argument(s) %s can only be used to update resources of FAILED jobs",
             ", ".join(resource_args_used),
         )

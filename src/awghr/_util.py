@@ -25,7 +25,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(levelname)s %(asctime)s %(name)s : %(message)s",
 )
-logger = logging.getLogger("awghr")
+LOGGER = logging.getLogger("awghr")
 
 
 class WorkflowException(Exception):
@@ -126,7 +126,7 @@ class ProgressLogger:
         dt = time.time() - self._t0
         if dt > self._dt_print_prog:  # pragma: no cover
             r = (self._count / Quantity(dt, "second")).to_compact()
-            logger.info(self._msg + " (%s)", str(self._count), format(r, "0.1f~"))
+            LOGGER.info(self._msg + " (%s)", str(self._count), format(r, "0.1f~"))
             self._ddt_print_prog += 5
             self._dt_print_prog += self._ddt_print_prog
 
@@ -134,7 +134,7 @@ class ProgressLogger:
         """Finish log progress."""
         dt = time.time() - self._t0
         r = (self._count / Quantity(dt, "second")).to_compact()
-        logger.info(
+        LOGGER.info(
             self._msg + " (%s)",
             "a total of " + str(self._count),
             format(r, "0.1f~"),
