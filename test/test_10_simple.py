@@ -189,6 +189,8 @@ manage_cli("-f", "index < 5 and nonexistent is None", "-Awjloz", workflow_dir=w.
 print("-----", flush=True)
 manage_cli("-g", "this string was not printed", "-Awjloz", workflow_dir=w.workdir)
 print("-----", flush=True)
+manage_cli("-Ai", "dummy_batch_ID_for_testing", workflow_dir=w.workdir)
+print("-----", flush=True)
 try:
     manage_cli("-n", "0", workflow_dir=w.workdir)
     msg = "should have exited"

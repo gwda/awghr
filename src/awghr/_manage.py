@@ -387,11 +387,11 @@ def manage_jobs(args, workflow_dir, cache):
             job_batchID_cache[job_dir] = "UNKNOWN/waiting to retrieve job batch ID"
 
     # Filter jobs by batch system ID
-    if args.batch_ID is not None:  # pragma: no cover
+    if args.batch_ID is not None:
         job_dirs = [
             job_dir
             for job_dir in job_dirs
-            if job_batchID_cache[job_dir] == args.batchID
+            if job_batchID_cache[job_dir] == args.batch_ID
         ]
 
     job_stdouterr_lines = {}
