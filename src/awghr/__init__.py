@@ -869,7 +869,7 @@ class Workflow:
         _write_workflow(workflow_file, self._workflow_writer)
 
         # Write top-level control scripts
-        _write_ctrl_scripts(self.name, self.workdir, self._workflow_writer)
+        _write_ctrl_scripts(self.name, self.workdir)
 
         # Log completion
         LOGGER.info("all workflow files and directories have been written")
@@ -958,8 +958,10 @@ def _write_workflow(workflow_file, workflow_writer=None):
     # Log completion
     LOGGER.info("workflow has been written")
 
+    return 0
 
-def _write_ctrl_scripts(name, workdir, workflow_writer):
+
+def _write_ctrl_scripts(name, workdir):
     """Write top-level control scripts."""
 
     # Directory containing workflows
@@ -969,6 +971,37 @@ def _write_ctrl_scripts(name, workdir, workflow_writer):
     # generated from workflow directories
     all_workflow_IDs = sorted([d.name for d in baseworkflowdir.iterdir() if d.is_dir()])
     all_workflow_IDs_str = " ".join(all_workflow_IDs)
+
+    # Check for any scripts older than this source file and any workflows
+    reference_mtime = Path(__file__).stat().st_mtime
+    for ID in all_workflow_IDs:
+        workflow_timestamp_file = baseworkflowdir / ID / "batch_scripts" / ".timestamp"
+        if workflow_timestamp_file.is_file():
+            workflow_mtime = workflow_timestamp_file.stat().st_mtime
+            if workflow_mtime > reference_mtime:
+                reference_mtime = workflow_mtime
+    update_scripts = any(
+        (not (workdir / script).is_file())
+        or (workdir / script).stat().st_mtime < reference_mtime
+        for script in ("submit", "queue", "cancel", "await", "manage")
+    )
+    if not update_scripts:
+        return 1
+
+    # Read configuration
+    LOGGER.info("reading configuration")
+    cfg = read_config()
+
+    # Get workflow writer
+    workflow_writer = cfg["workflow_writer"](batchsyscfg=cfg["batch_system_cfg"])
+
+    # Common header to update scripts
+    update_script_header = f"""
+    if {sys.executable} -m awghr.__init__ write-ctrl-scripts '{name}' '{workdir}'; then
+        exec "$0" "$@"
+        exit 1
+    fi
+    """
 
     # Get top-level control script commands
     submit, queue, cancel = workflow_writer.get_ctrl_commands(
@@ -981,6 +1014,7 @@ def _write_ctrl_scripts(name, workdir, workflow_writer):
         #!/bin/bash
         """
         f += SCRIPT_HEADER
+        f += update_script_header
         f += f"""
         if test "X$1" != X; then
             echo "usage: ${{0##*/}}" >&2
@@ -1045,6 +1079,7 @@ def _write_ctrl_scripts(name, workdir, workflow_writer):
         #!/bin/bash
         """
         f += SCRIPT_HEADER
+        f += update_script_header
         f += """
         if test "X$1" != X; then
             echo "usage: ${0##*/}" >&2
@@ -1062,6 +1097,7 @@ def _write_ctrl_scripts(name, workdir, workflow_writer):
         #!/bin/bash
         """
         f += SCRIPT_HEADER
+        f += update_script_header
         f += """
         if test "X$1" != X; then
             echo "usage: ${0##*/}" >&2
@@ -1085,6 +1121,7 @@ def _write_ctrl_scripts(name, workdir, workflow_writer):
         #!/bin/bash
         """
         f += SCRIPT_HEADER
+        f += update_script_header
         f += f"""
         sleepfor=5.0
         case "$1" in
@@ -1121,10 +1158,16 @@ def _write_ctrl_scripts(name, workdir, workflow_writer):
         #!/bin/bash
         """
         f += SCRIPT_HEADER
+        f += update_script_header
         f += f"""
         cd '{workdir}'
         exec {sys.executable} -m awghr._manage "$@"
         """
+
+    # Log completion
+    LOGGER.info("wrote top-level control scripts")
+
+    return 0
 
 
 def _cli(*argv: str):
@@ -1133,19 +1176,27 @@ def _cli(*argv: str):
     # Build command-line parser
     parser = argparse.ArgumentParser(prog="workflows", description="manage workflows")
     subparsers = parser.add_subparsers(required=True, help="sub-commands")
-    parser_write = subparsers.add_parser("write-workflow", help="write workflow")
-    parser_write.add_argument("workflow_file", type=Path, help="workflow file")
-    parser_write.set_defaults(
+    parser_write_workflow = subparsers.add_parser(
+        "write-workflow", help="write workflow"
+    )
+    parser_write_workflow.add_argument("workflow_file", type=Path, help="workflow file")
+    parser_write_workflow.set_defaults(
         subcommand=lambda args: _write_workflow(args.workflow_file)
+    )
+    parser_write_ctrl_scripts = subparsers.add_parser(
+        "write-ctrl-scripts", help="write top-level control scripts"
+    )
+    parser_write_ctrl_scripts.add_argument("name", type=str)
+    parser_write_ctrl_scripts.add_argument("workdir", type=Path)
+    parser_write_ctrl_scripts.set_defaults(
+        subcommand=lambda args: _write_ctrl_scripts(args.name, args.workdir)
     )
 
     # Parse command line
     args = parser.parse_args(argv if len(argv) > 0 else sys.argv[1:])
 
     # Execute sub-command
-    args.subcommand(args)
-
-    return 0
+    return args.subcommand(args)
 
 
 if __name__ == "__main__":
