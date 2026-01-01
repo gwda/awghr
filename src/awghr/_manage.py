@@ -690,7 +690,6 @@ def cli(*argv: str, workflow_dir: Path = Path.cwd()):
         const="FAILED",
         help="show only failed jobs (default)",
     )
-    parser.set_defaults(state="FAILED")
     parser.add_argument(
         "-Y",
         "--summary",
@@ -699,6 +698,7 @@ def cli(*argv: str, workflow_dir: Path = Path.cwd()):
         const="summary",
         help="show only summary",
     )
+    parser.set_defaults(state="summary")
     parser.add_argument(
         "-i",
         "--batch-ID",
