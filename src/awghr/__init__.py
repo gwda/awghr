@@ -1134,6 +1134,15 @@ def _write_ctrl_scripts(name, workdir):
                 sleepfor="$1"
                 shift
         esac
+        for ID in {all_workflow_IDs_str}; do
+            state_file="{baseworkflowdir}/${{ID}}/state"
+            if test -f "${{state_file}}"; then
+                workstate=`cat ${{state_file}}`
+            else
+                workstate=PENDING
+            fi
+            echo "workflow state: ${{workstate}} (${{ID}})"
+        done
         export PAGER=cat
         until {all_workstatefiles_exist}; do
             echo "${{0##*/}}: `date`"
