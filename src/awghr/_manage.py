@@ -433,7 +433,7 @@ def manage_jobs(args, workflow_dir, cache):
                     for outerr_suffix in ("_pre", "", "_post"):
                         job_stdouterr_file = job_dir / f"job_std{outerr}{outerr_suffix}"
                         job_stdouterr, _ = job_stdouterr_files[job_stdouterr_file]
-                        if job_stdouterr is not None:
+                        if job_stdouterr is not None and len(job_stdouterr) > 0:
                             lines.extend(job_stdouterr.split("\n"))
 
                     # Discard standard output/error lines not matching regex
