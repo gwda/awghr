@@ -366,7 +366,7 @@ def manage_jobs(args, workflow_dir, cache):
                         timeout=args.timeout,
                     )
                     job_batchID = res.stdout.strip()
-                    if len(job_batchID) == 0:
+                    if len(job_batchID) == 0:  # pragma: no cover
                         # Job may not exist yet, try again later
                         job_batchID = None
                 except subprocess.CalledProcessError:  # pragma: no cover
@@ -383,7 +383,7 @@ def manage_jobs(args, workflow_dir, cache):
             job_batchID_cache[job_dir] = job_batchID
             if not job_batchID.startswith("UNKNOWN"):
                 cache["batchID"][job_dir] = job_batchID
-        else:
+        else:  # pragma: no cover
             job_batchID_cache[job_dir] = "UNKNOWN/waiting to retrieve job batch ID"
 
     # Filter jobs by batch system ID
