@@ -868,168 +868,8 @@ class Workflow:
         # Write workflow from description
         _write_workflow(workflow_file, self._workflow_writer)
 
-        # List of all workflow IDs that have been written,
-        # generated from workflow directories
-        all_workflow_IDs = sorted(
-            [d.name for d in baseworkflowdir.iterdir() if d.is_dir()]
-        )
-        all_workflow_IDs_str = " ".join(all_workflow_IDs)
-
-        # Get top-level control script commands
-        submit, queue, cancel = self._workflow_writer.get_ctrl_commands(
-            workflowname=self.name, baseworkflowdir=baseworkflowdir
-        )
-
-        # Write top-level control script: submit all jobs
-        with FileLineWriter(self.workdir / "submit", executable=True) as f:
-            f += """
-            #!/bin/bash
-            """
-            f += SCRIPT_HEADER
-            f += f"""
-            if test "X$1" != X; then
-                echo "usage: ${{0##*/}}" >&2
-                exit 1
-            fi
-            workflow_IDs=
-            for ID in {all_workflow_IDs_str}; do
-                state_file="{baseworkflowdir}/${{ID}}/state"
-                failed_file="{baseworkflowdir}${{ID}}/failed_jobs"
-                sub_file="{baseworkflowdir}/${{ID}}/submitted"
-                if test -f "${{state_file}}"; then
-                    workstate=`cat ${{state_file}}`
-                    if test "X${{workstate}}" = XSUCCESS; then
-                        echo "info: workflow ${{ID}} has already been successfully run"
-                        continue
-                    fi
-                elif test -f "${{sub_file}}"; then
-                    echo "info: workflow ${{ID}} has already been submitted"
-                    continue
-                fi
-                workflow_file="{baseworkflowdir}/${{ID}}/workflow.json"
-                timestamp_file="{baseworkflowdir}/${{ID}}/batch_scripts/.timestamp"
-                if test "${{workflow_file}}" -nt "${{timestamp_file}}"; then
-                    {sys.executable} -m awghr.__init__ write-workflow "${{workflow_file}}"
-                fi
-                workflow_IDs="${{workflow_IDs}} ${{ID}}"
-                rm -f "${{state_file}}" "${{failed_file}}" "${{sub_file}}"
-            done
-            if test "X${{workflow_IDs}}" = X; then
-                echo "info: no workflows to submit"
-                exit 1
-            fi
-            """
-            f += submit
-            f += f"""
-            submit ${{workflow_IDs}}
-            msg=
-            for ID in ${{workflow_IDs}}; do
-                state_file="{baseworkflowdir}/${{ID}}/state"
-                if test -f "${{state_file}}"; then
-                    workstate=`cat ${{state_file}}`
-                    if test "X${{workstate}}" = XSUCCESS; then
-                        echo "info: workflow ${{ID}} has already been successfully run"
-                        continue
-                    fi
-                fi
-                sub_file="{baseworkflowdir}/${{ID}}/submitted"
-                write_atomic SUBMITTED ${{sub_file}}
-                if test "X${{msg}}" != X; then
-                    msg="s${{msg}}"
-                fi
-                msg="${{msg}} ${{ID}}"
-            done
-            if test "X${{msg}}" != X; then
-                echo "info: submitted all jobs in workflow${{msg}}"
-            fi
-            """
-
-        # Write top-level control script: display all queued jobs
-        with FileLineWriter(self.workdir / "queue", executable=True) as f:
-            f += """
-            #!/bin/bash
-            """
-            f += SCRIPT_HEADER
-            f += """
-            if test "X$1" != X; then
-                echo "usage: ${0##*/}" >&2
-                exit 1
-            fi
-            """
-            f += queue
-            f += f"""
-            ( queue {all_workflow_IDs_str} 2>&1 ) | ${{PAGER:-less -FKRSX}}
-            """
-
-        # Write top-level control script: cancel all jobs
-        with FileLineWriter(self.workdir / "cancel", executable=True) as f:
-            f += """
-            #!/bin/bash
-            """
-            f += SCRIPT_HEADER
-            f += """
-            if test "X$1" != X; then
-                echo "usage: ${0##*/}" >&2
-                exit 1
-            fi
-            """
-            f += cancel
-            f += f"""
-            cancel {all_workflow_IDs_str}
-            """
-
-        # Write top-level control script: wait for all workflows to complete
-        with FileLineWriter(self.workdir / "await", executable=True) as f:
-            all_workstatefiles_exist = " && ".join(
-                [
-                    f"test -f '{f}'"
-                    for f in [baseworkflowdir / ID / "state" for ID in all_workflow_IDs]
-                ]
-            )
-            f += """
-            #!/bin/bash
-            """
-            f += SCRIPT_HEADER
-            f += f"""
-            sleepfor=5.0
-            case "$1" in
-                -h|--help)
-                    echo "usage: ${{0##*/}} [-n sleepfor] [command args...]" >&2
-                    exit 1
-                    ;;
-                -n)
-                    shift
-                    sleepfor="$1"
-                    shift
-            esac
-            export PAGER=cat
-            until {all_workstatefiles_exist}; do
-                echo "${{0##*/}}: `date`"
-                "$@" </dev/null 2>&1
-                sleep ${{sleepfor}}
-            done
-            allworkstate=SUCCESS
-            for ID in {all_workflow_IDs_str}; do
-                state_file="{baseworkflowdir}/${{ID}}/state"
-                workstate=`cat ${{state_file}}`
-                echo "workflow state: ${{workstate}} (${{ID}})"
-                if test "X${{workstate}}" != XSUCCESS; then
-                    allworkstate=FAILED
-                fi
-            done
-            echo "workflow state: ${{allworkstate}}"
-            """
-
-        # Write top-level control script: manage jobs
-        with FileLineWriter(self.workdir / "manage", executable=True) as f:
-            f += """
-            #!/bin/bash
-            """
-            f += SCRIPT_HEADER
-            f += f"""
-            cd '{self.workdir}'
-            exec {sys.executable} -m awghr._manage "$@"
-            """
+        # Write top-level control scripts
+        _write_ctrl_scripts(self.name, self.workdir, self._workflow_writer)
 
         # Log completion
         LOGGER.info("all workflow files and directories have been written")
@@ -1117,6 +957,174 @@ def _write_workflow(workflow_file, workflow_writer=None):
 
     # Log completion
     LOGGER.info("workflow has been written")
+
+
+def _write_ctrl_scripts(name, workdir, workflow_writer):
+    """Write top-level control scripts."""
+
+    # Directory containing workflows
+    baseworkflowdir = workdir / "workflows"
+
+    # List of all workflow IDs that have been written,
+    # generated from workflow directories
+    all_workflow_IDs = sorted([d.name for d in baseworkflowdir.iterdir() if d.is_dir()])
+    all_workflow_IDs_str = " ".join(all_workflow_IDs)
+
+    # Get top-level control script commands
+    submit, queue, cancel = workflow_writer.get_ctrl_commands(
+        workflowname=name, baseworkflowdir=baseworkflowdir
+    )
+
+    # Write top-level control script: submit all jobs
+    with FileLineWriter(workdir / "submit", executable=True) as f:
+        f += """
+        #!/bin/bash
+        """
+        f += SCRIPT_HEADER
+        f += f"""
+        if test "X$1" != X; then
+            echo "usage: ${{0##*/}}" >&2
+            exit 1
+        fi
+        workflow_IDs=
+        for ID in {all_workflow_IDs_str}; do
+            state_file="{baseworkflowdir}/${{ID}}/state"
+            failed_file="{baseworkflowdir}${{ID}}/failed_jobs"
+            sub_file="{baseworkflowdir}/${{ID}}/submitted"
+            if test -f "${{state_file}}"; then
+                workstate=`cat ${{state_file}}`
+                if test "X${{workstate}}" = XSUCCESS; then
+                    echo "info: workflow ${{ID}} has already been successfully run"
+                    continue
+                fi
+            elif test -f "${{sub_file}}"; then
+                echo "info: workflow ${{ID}} has already been submitted"
+                continue
+            fi
+            workflow_file="{baseworkflowdir}/${{ID}}/workflow.json"
+            timestamp_file="{baseworkflowdir}/${{ID}}/batch_scripts/.timestamp"
+            if test "${{workflow_file}}" -nt "${{timestamp_file}}"; then
+                {sys.executable} -m awghr.__init__ write-workflow "${{workflow_file}}"
+            fi
+            workflow_IDs="${{workflow_IDs}} ${{ID}}"
+            rm -f "${{state_file}}" "${{failed_file}}" "${{sub_file}}"
+        done
+        if test "X${{workflow_IDs}}" = X; then
+            echo "info: no workflows to submit"
+            exit 1
+        fi
+        """
+        f += submit
+        f += f"""
+        submit ${{workflow_IDs}}
+        msg=
+        for ID in ${{workflow_IDs}}; do
+            state_file="{baseworkflowdir}/${{ID}}/state"
+            if test -f "${{state_file}}"; then
+                workstate=`cat ${{state_file}}`
+                if test "X${{workstate}}" = XSUCCESS; then
+                    echo "info: workflow ${{ID}} has already been successfully run"
+                    continue
+                fi
+            fi
+            sub_file="{baseworkflowdir}/${{ID}}/submitted"
+            write_atomic SUBMITTED ${{sub_file}}
+            if test "X${{msg}}" != X; then
+                msg="s${{msg}}"
+            fi
+            msg="${{msg}} ${{ID}}"
+        done
+        if test "X${{msg}}" != X; then
+            echo "info: submitted all jobs in workflow${{msg}}"
+        fi
+        """
+
+    # Write top-level control script: display all queued jobs
+    with FileLineWriter(workdir / "queue", executable=True) as f:
+        f += """
+        #!/bin/bash
+        """
+        f += SCRIPT_HEADER
+        f += """
+        if test "X$1" != X; then
+            echo "usage: ${0##*/}" >&2
+            exit 1
+        fi
+        """
+        f += queue
+        f += f"""
+        ( queue {all_workflow_IDs_str} 2>&1 ) | ${{PAGER:-less -FKRSX}}
+        """
+
+    # Write top-level control script: cancel all jobs
+    with FileLineWriter(workdir / "cancel", executable=True) as f:
+        f += """
+        #!/bin/bash
+        """
+        f += SCRIPT_HEADER
+        f += """
+        if test "X$1" != X; then
+            echo "usage: ${0##*/}" >&2
+            exit 1
+        fi
+        """
+        f += cancel
+        f += f"""
+        cancel {all_workflow_IDs_str}
+        """
+
+    # Write top-level control script: wait for all workflows to complete
+    with FileLineWriter(workdir / "await", executable=True) as f:
+        all_workstatefiles_exist = " && ".join(
+            [
+                f"test -f '{f}'"
+                for f in [baseworkflowdir / ID / "state" for ID in all_workflow_IDs]
+            ]
+        )
+        f += """
+        #!/bin/bash
+        """
+        f += SCRIPT_HEADER
+        f += f"""
+        sleepfor=5.0
+        case "$1" in
+            -h|--help)
+                echo "usage: ${{0##*/}} [-n sleepfor] [command args...]" >&2
+                exit 1
+                ;;
+            -n)
+                shift
+                sleepfor="$1"
+                shift
+        esac
+        export PAGER=cat
+        until {all_workstatefiles_exist}; do
+            echo "${{0##*/}}: `date`"
+            "$@" </dev/null 2>&1
+            sleep ${{sleepfor}}
+        done
+        allworkstate=SUCCESS
+        for ID in {all_workflow_IDs_str}; do
+            state_file="{baseworkflowdir}/${{ID}}/state"
+            workstate=`cat ${{state_file}}`
+            echo "workflow state: ${{workstate}} (${{ID}})"
+            if test "X${{workstate}}" != XSUCCESS; then
+                allworkstate=FAILED
+            fi
+        done
+        echo "workflow state: ${{allworkstate}}"
+        """
+
+    # Write top-level control script: manage jobs
+    with FileLineWriter(workdir / "manage", executable=True) as f:
+        f += """
+        #!/bin/bash
+        """
+        f += SCRIPT_HEADER
+        f += f"""
+        cd '{workdir}'
+        exec {sys.executable} -m awghr._manage "$@"
+        """
 
 
 def _cli(*argv: str):
