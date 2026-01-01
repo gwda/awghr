@@ -619,7 +619,7 @@ def manage_jobs(args, workflow_dir, cache):
             for job_state in show_job_states
             if job_state.startswith(args.state)
         ]
-    for job_state in show_job_states:
+    for job_state in sorted(show_job_states):
         job_state_count = job_state_counts[job_state]
         if job_state_count > 0:
             print(
