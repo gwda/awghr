@@ -55,8 +55,7 @@ class PBSWorkflowWriter(BatchQWorkflowWriter):
 
     BATCHQ_SUBMIT_ARG_ARRAY = "-J "
 
-    BATCHQ_SUBMIT_ARRAY_UNIQ_HEADER = "^array_index^"
-    BATCHQ_SUBMIT_ARRAY_UNIQ_SCRIPT = "{batch_index}"
+    BATCHQ_SUBMIT_ARRAY_INDEX_REPL = "^array_index^"
 
     # - PBS provides no method to kill jobs with an unsatisfied dependency
     #   (because a prerequisite job failed), so must use `afterok` for

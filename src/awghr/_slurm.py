@@ -54,8 +54,7 @@ class SlurmWorkflowWriter(BatchQWorkflowWriter):
 
     BATCHQ_SUBMIT_ARG_ARRAY = "--array="
 
-    BATCHQ_SUBMIT_ARRAY_UNIQ_HEADER = "%A_%a"
-    BATCHQ_SUBMIT_ARRAY_UNIQ_SCRIPT = "${{SLURM_ARRAY_JOB_ID}}_{batch_index}"
+    BATCHQ_SUBMIT_ARRAY_INDEX_REPL = "%a"
 
     # - Slurm's `--kill-on-invalid-dep=yes` option will kill jobs with
     #   an unsatisfied dependency (because a prerequisite job failed),
