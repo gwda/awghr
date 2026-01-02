@@ -983,7 +983,7 @@ def _write_ctrl_scripts(name, workdir):
     update_scripts = any(
         (not (workdir / script).is_file())
         or (workdir / script).stat().st_mtime < reference_mtime
-        for script in ("submit", "queue", "cancel", "await", "manage")
+        for script in ("submit", "queue", "cancel", "status", "wait", "manage")
     )
     if not update_scripts:
         return 1
@@ -1015,11 +1015,30 @@ def _write_ctrl_scripts(name, workdir):
         """
         f += SCRIPT_HEADER
         f += update_script_header
+        f += """
+        help="\\
+        usage: submit [-h]
+
+        submit all jobs
+
+        options:
+          -h, --help            show this help message and exit
+        "
+        while test "X$1" != X; do
+            case $1 in
+                -h|--help)
+                    echo "${help}"
+                    exit 0
+                    ;;
+                *)
+                    echo "ERROR: unrecognised argument: $1" >&2
+                    exit 2
+                    ;;
+            esac
+            shift
+        done
+        """
         f += f"""
-        if test "X$1" != X; then
-            echo "usage: ${{0##*/}}" >&2
-            exit 1
-        fi
         workflow_IDs=
         for ID in {all_workflow_IDs_str}; do
             state_file="{baseworkflowdir}/${{ID}}/state"
@@ -1081,10 +1100,27 @@ def _write_ctrl_scripts(name, workdir):
         f += SCRIPT_HEADER
         f += update_script_header
         f += """
-        if test "X$1" != X; then
-            echo "usage: ${0##*/}" >&2
-            exit 1
-        fi
+        help="\\
+        usage: queue [-h]
+
+        display all queued jobs
+
+        options:
+          -h, --help            show this help message and exit
+        "
+        while test "X$1" != X; do
+            case $1 in
+                -h|--help)
+                    echo "${help}"
+                    exit 0
+                    ;;
+                *)
+                    echo "ERROR: unrecognised argument: $1" >&2
+                    exit 2
+                    ;;
+            esac
+            shift
+        done
         """
         f += queue
         f += f"""
@@ -1099,18 +1135,93 @@ def _write_ctrl_scripts(name, workdir):
         f += SCRIPT_HEADER
         f += update_script_header
         f += """
-        if test "X$1" != X; then
-            echo "usage: ${0##*/}" >&2
-            exit 1
-        fi
+        help="\\
+        usage: cancel [-h]
+
+        cancel all jobs
+
+        options:
+          -h, --help            show this help message and exit
+        "
+        while test "X$1" != X; do
+            case $1 in
+                -h|--help)
+                    echo "${help}"
+                    exit 0
+                    ;;
+                *)
+                    echo "ERROR: unrecognised argument: $1" >&2
+                    exit 2
+                    ;;
+            esac
+            shift
+        done
         """
         f += cancel
         f += f"""
         cancel {all_workflow_IDs_str}
         """
 
+    # Write top-level control script: display workflow status
+    with FileLineWriter(workdir / "status", executable=True) as f:
+        f += """
+        #!/bin/bash
+        """
+        f += SCRIPT_HEADER
+        f += update_script_header
+        f += """
+        help="\\
+        usage: status [-h]
+
+        display workflow status
+
+        options:
+          -h, --help            show this help message and exit
+        "
+        while test "X$1" != X; do
+            case $1 in
+                -h|--help)
+                    echo "${help}"
+                    exit 0
+                    ;;
+                *)
+                    echo "ERROR: unrecognised argument: $1" >&2
+                    exit 2
+                    ;;
+            esac
+            shift
+        done
+        """
+        f += f"""
+        pending=false
+        failed=false
+        for ID in {all_workflow_IDs_str}; do
+            state_file="{baseworkflowdir}/${{ID}}/state"
+            if test -f "${{state_file}}"; then
+                workstate=`cat ${{state_file}}`
+                if test "X${{workstate}}" = XFAILED; then
+                    failed=true
+                fi
+            else
+                workstate=PENDING
+                pending=true
+            fi
+            echo "workflow state: ${{workstate}} (${{ID}})"
+        done
+        if test ${{pending}} = true; then
+            echo "workflow state: PENDING"
+            exit 3
+        elif test ${{failed}} = true; then
+            echo "workflow state: FAILED"
+            exit 1
+        else
+            echo "workflow state: SUCCESS"
+            exit 0
+        fi
+        """
+
     # Write top-level control script: wait for all workflows to complete
-    with FileLineWriter(workdir / "await", executable=True) as f:
+    with FileLineWriter(workdir / "wait", executable=True) as f:
         all_workstatefiles_exist = " && ".join(
             [
                 f"test -f '{f}'"
@@ -1122,30 +1233,42 @@ def _write_ctrl_scripts(name, workdir):
         """
         f += SCRIPT_HEADER
         f += update_script_header
-        f += f"""
+        f += """
+        help="\\
+        usage: status [-h] [-n SEC] [command arguments...]
+
+        wait for all workflows to complete
+
+        positional arguments:
+          command               command to run periodically while waiting for workflows to complete
+          arguments             arguments to pass to command
+
+        options:
+          -h, --help            show this help message and exit
+          -n N, --sleep N       sleep N seconds between checking workflows and running command (default: 5)
+        "
         sleepfor=5.0
-        case "$1" in
-            -h|--help)
-                echo "usage: ${{0##*/}} [-n sleepfor] [command args...]" >&2
-                exit 1
-                ;;
-            -n)
-                shift
-                sleepfor="$1"
-                shift
-        esac
-        for ID in {all_workflow_IDs_str}; do
-            state_file="{baseworkflowdir}/${{ID}}/state"
-            if test -f "${{state_file}}"; then
-                workstate=`cat ${{state_file}}`
-            else
-                workstate=PENDING
-            fi
-            echo "workflow state: ${{workstate}} (${{ID}})"
+        while test "X$1" != X; do
+            case $1 in
+                -h|--help)
+                    echo "${help}"
+                    exit 0
+                    ;;
+                -n|--sleep)
+                    shift
+                    sleepfor=$1
+                    ;;
+                *)
+                    break
+                    ;;
+            esac
+            shift
         done
+        """
+        f += f"""
         export PAGER=cat
         until {all_workstatefiles_exist}; do
-            echo "${{0##*/}}: `date`"
+            echo "waiting for workflows: `date` ..."
             "$@" </dev/null 2>&1
             sleep ${{sleepfor}}
         done
@@ -1158,7 +1281,7 @@ def _write_ctrl_scripts(name, workdir):
                 allworkstate=FAILED
             fi
         done
-        echo "workflow state: ${{allworkstate}}"
+        {workdir}/status || true
         """
 
     # Write top-level control script: manage jobs

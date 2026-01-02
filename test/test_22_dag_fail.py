@@ -135,7 +135,7 @@ while True:
         len(fail_files),
     )
     subprocess.run([w.workdir / "submit"], check=True)
-    subprocess.run([w.workdir / "await", w.workdir / "queue"], check=True)
+    subprocess.run([w.workdir / "wait", w.workdir / "queue"], check=True)
 
     logger.info("check for workflow files (%i fail files exist)", len(fail_files))
     joblistfile = w.workdir / "workflows" / w.ID / "all_jobs"

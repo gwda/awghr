@@ -45,7 +45,7 @@ w.write()
 
 logger.info("submit workflow and wait for its submission to fail")
 subprocess.run([w.workdir / "submit"], check=True)
-subprocess.run([w.workdir / "await", "-n", "5"], check=True)
+subprocess.run([w.workdir / "wait", "-n", "5"], check=True)
 
 queue_no_output_when_no_jobs = {"slurm": ["squeue", "--noheader"], "pbs": ["qstat"]}
 while True:

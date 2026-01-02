@@ -823,7 +823,7 @@ def cli(*argv: str, workflow_dir: Path = Path.cwd()):
             "argument(s) %s can only be used to update resources of FAILED jobs",
             ", ".join(resource_args_used),
         )
-        sys.exit(1)
+        sys.exit(2)
 
     # Pipe output through a pager
     try:

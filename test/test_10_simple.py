@@ -91,7 +91,7 @@ with in_directory(w.workdir):
     subprocess.run(["./submit"], check=True)
     subprocess.run(
         [
-            "./await",
+            "./wait",
             "-n",
             "1",
             "coverage",
@@ -119,7 +119,7 @@ assert state == "SUCCESS"
 logger.info("check that state is re-created")
 statefile.unlink()
 subprocess.run([w.workdir / "submit"], check=True)
-subprocess.run([w.workdir / "await"], check=True)
+subprocess.run([w.workdir / "wait"], check=True)
 state = statefile.read_text().strip()
 assert state == "SUCCESS"
 assert not submittedfile.is_file()

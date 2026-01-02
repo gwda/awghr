@@ -45,7 +45,7 @@ print("-----", flush=True)
 
 logger.info("submit workflow and wait for it to finish")
 subprocess.run([w.workdir / "submit"], check=True)
-subprocess.run([w.workdir / "await", "-n", "1", w.workdir / "queue"], check=True)
+subprocess.run([w.workdir / "wait", "-n", "1", w.workdir / "queue"], check=True)
 
 logger.info("check for workflow files")
 for w in ws:
@@ -65,7 +65,7 @@ for w in ws:
     statefile = w.workdir / "workflows" / w.ID / "state"
     statefile.unlink()
     subprocess.run([w.workdir / "submit"], check=True)
-    subprocess.run([w.workdir / "await"], check=True)
+    subprocess.run([w.workdir / "wait"], check=True)
     state = statefile.read_text().strip()
     assert state == "SUCCESS"
 
@@ -197,7 +197,7 @@ for i, w in enumerate(ws):
 
     logger.info("submit workflow and wait for it to finish")
     subprocess.run([w.workdir / "submit"], check=True)
-    subprocess.run([w.workdir / "await", "-n", "1", w.workdir / "queue"], check=True)
+    subprocess.run([w.workdir / "wait", "-n", "1", w.workdir / "queue"], check=True)
 
     logger.info("check for workflow files")
     statefile = w.workdir / "workflows" / w.ID / "state"

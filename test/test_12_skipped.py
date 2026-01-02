@@ -49,7 +49,7 @@ for skip_exit_code in (77, 99):
 
     logger.info("submit workflow and wait for it to finish")
     subprocess.run([w.workdir / "submit"], check=True)
-    subprocess.run([w.workdir / "await", "-n", "1", w.workdir / "queue"], check=True)
+    subprocess.run([w.workdir / "wait", "-n", "1", w.workdir / "queue"], check=True)
 
     logger.info("check workflow state is SUCCESS")
     statefile = w.workdir / "workflows" / w.ID / "state"
@@ -111,7 +111,7 @@ for skip_exit_code in (77, 99):
 
     logger.info("submit workflow and wait for it to finish")
     subprocess.run([w.workdir / "submit"], check=True)
-    subprocess.run([w.workdir / "await", "-n", "1", w.workdir / "queue"], check=True)
+    subprocess.run([w.workdir / "wait", "-n", "1", w.workdir / "queue"], check=True)
 
     logger.info("check workflow state is SUCCESS")
     statefile = w.workdir / "workflows" / w.ID / "state"
