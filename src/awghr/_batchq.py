@@ -209,9 +209,9 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
                     disk_MB=job["disk_MB"],
                     ncpus=job["ncpus"],
                     stdout=jobarraydir
-                    / f"job_stdout_{self.BATCHQ_SUBMIT_ARRAY_INDEX_REPL}",
+                    / f"job_stdout_{job_array_ID}_{self.BATCHQ_SUBMIT_ARRAY_INDEX_REPL}",
                     stderr=jobarraydir
-                    / f"job_stderr_{self.BATCHQ_SUBMIT_ARRAY_INDEX_REPL}",
+                    / f"job_stderr_{job_array_ID}_{self.BATCHQ_SUBMIT_ARRAY_INDEX_REPL}",
                 )
                 if job["ngpus"] > 0:
                     f += self.BATCHQ_HEADER_NGPUS.format(n=job["ngpus"])
@@ -317,8 +317,9 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
 
                             # Hard-link standard output/error files from job array back to job directory
                             for stdouterr in ("job_stdout", "job_stderr"):
-                                jobarray_stdouterr_file = jobarraydir / (
-                                    stdouterr + "_" + batch_index
+                                jobarray_stdouterr_file = (
+                                    jobarraydir
+                                    / f"{stdouterr}_{job_array_ID}_{batch_index}"
                                 )
                                 job_stdouterr_file = job["dir"] / stdouterr
                                 f += f'ln -f "{jobarray_stdouterr_file}" "{job_stdouterr_file}"'
