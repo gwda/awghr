@@ -833,7 +833,9 @@ def cli(*argv: str, workflow_dir: Path = Path.cwd()):
         long_arg for long_arg, arg_name in resource_args if getattr(args, arg_name) != 0
     ]
     args.any_resource_args = len(resource_args_used) > 0
-    if args.any_resource_args and args.state != "FAILED":
+    if args.any_resource_args and (
+        args.state is not None and not args.state.startswith("FAILED")
+    ):
         LOGGER.critical(
             "argument(s) %s can only be used to update resources of FAILED jobs",
             ", ".join(resource_args_used),
