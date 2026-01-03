@@ -1058,7 +1058,7 @@ def _write_ctrl_scripts(name, workdir):
         f += submit
         f += f"""
         submit ${{workflow_IDs}}
-        msg=
+        submitted_workflow_IDs=
         for ID in ${{workflow_IDs}}; do
             state_file="{baseworkflowdir}/${{ID}}/state"
             if test -f "${{state_file}}"; then
@@ -1070,13 +1070,10 @@ def _write_ctrl_scripts(name, workdir):
             fi
             sub_file="{baseworkflowdir}/${{ID}}/submitted"
             write_atomic SUBMITTED ${{sub_file}}
-            if test "X${{msg}}" != X; then
-                msg="s${{msg}}"
-            fi
-            msg="${{msg}} ${{ID}}"
+            submitted_workflow_IDs="${{submitted_workflow_IDs}} ${{ID}}"
         done
-        if test "X${{msg}}" != X; then
-            echo "info: submitted all jobs in workflow${{msg}}"
+        if test "X${{submitted_workflow_IDs}}" != X; then
+            echo "info: submitted all jobs in workflow(s)${{submitted_workflow_IDs}}"
         fi
         """
 
