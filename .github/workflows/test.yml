@@ -94,7 +94,8 @@ jobs:
           mkdir -p /testing/dist
           cp dist/*.whl /testing/dist
           testfiles=`echo test/test_*.py`
-          echo "TESTFILES='${testfiles}'" > test/.runnerrc
+          echo "COLUMNS='${COLUMNS:-96}'" > test/.runnerrc
+          echo "TESTFILES='${testfiles}'" >> test/.runnerrc
           echo "----- test/.runnerrc"
           cat test/.runnerrc
           echo "-----"

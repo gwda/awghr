@@ -6,6 +6,7 @@
 
 import argparse
 import inspect
+import shutil
 import subprocess
 from pathlib import Path
 from subprocess import DEVNULL
@@ -141,10 +142,15 @@ def debug(docker_file):
 def test(docker_files, test_scripts):
     """Run tests inside Docker containers."""
 
-    runnerrc = Path("test") / ".runnerrc"
-    runnerrc.write_text(
-        "TESTFILES='{}'\n".format(" ".join(str(p) for p in test_scripts))
-    )
+    term_size = shutil.get_terminal_size()
+
+    runnerrc = {
+        "COLUMNS": term_size.columns,
+        "TESTFILES": " ".join(str(p) for p in test_scripts),
+    }
+
+    runnerrc_file = Path("test") / ".runnerrc"
+    runnerrc_file.write_text("".join(f"{k}='{v}'\n" for k, v in runnerrc.items()))
 
     for docker_file in docker_files:
         name = docker_file.stem

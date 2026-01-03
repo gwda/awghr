@@ -5,6 +5,7 @@
 set -e
 
 source /testing/test/.runnerrc
+export COLUMNS
 
 batch_system="$1"
 
