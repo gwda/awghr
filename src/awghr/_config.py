@@ -18,7 +18,7 @@ from ._htcondor import HTCondorWorkflowWriter
 from ._local import LocalWorkflowWriter
 from ._pbs import PBSWorkflowWriter
 from ._slurm import SlurmWorkflowWriter
-from ._util import ConfigException, WorkflowWriter
+from ._util import LOGGER, ConfigException, WorkflowWriter
 
 # Known batch systems:
 # - name of batch system
@@ -99,8 +99,10 @@ def read_config(
             src_file = Path(os.environ["AWGHR_CFGFILE"])
         else:
             src_file = Path(os.environ["HOME"]) / ".awghr.cfg"
+        LOGGER.info(f"reading configuration from '{src_file}'")
         parser.read(src_file, encoding="utf-8")
     else:
+        LOGGER.info("reading configuration from string")
         parser.read_string(src)
 
     # Parse sections

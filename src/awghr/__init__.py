@@ -162,7 +162,6 @@ class Workflow:
     ):
 
         # Read configuration
-        LOGGER.info("reading configuration")
         cfg = read_config(tags=tags)
 
         # Check name
@@ -886,7 +885,6 @@ def _write_workflow(workflow_file):
     LOGGER.info("read workflow from %s", workflow_file)
 
     # Read configuration and get workflow writer
-    LOGGER.info("reading configuration")
     cfg = read_config(tags=workflow["tags"])
     workflow_writer = cfg["workflow_writer"](batchsyscfg=cfg["batch_system_cfg"])
 
@@ -982,7 +980,6 @@ def _write_ctrl_scripts(name, workdir):
         return 1
 
     # Read configuration and get workflow writer
-    LOGGER.info("reading configuration")
     cfg = read_config()
     workflow_writer = cfg["workflow_writer"](batchsyscfg=cfg["batch_system_cfg"])
 
