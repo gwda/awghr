@@ -241,6 +241,9 @@ def manage_jobs(args, workflow_dir, cache):
             job_dirs.update(job_dirs_from_list)
             job_workflow_dirs.update(dict.fromkeys(job_dirs_from_list, str(wflowdir)))
 
+    # Do not show jobs unless a filter is applied
+    show_jobs = False
+
     # Get which job states to read
     if "state" not in cache:
         cache["state"] = {}
@@ -284,6 +287,7 @@ def manage_jobs(args, workflow_dir, cache):
 
     # Filter jobs by state
     if args.state is not None and args.state != "all":
+        show_jobs = True
         job_dirs = [
             job_dir for job_dir in job_dirs if job_state_cache[job_dir] == args.state
         ]
@@ -299,6 +303,7 @@ def manage_jobs(args, workflow_dir, cache):
             cache["sorted_args"][job_dir] = sorted(job_args.items())
 
     if args.filter_expr:
+        show_jobs = True
 
         # Compile filter
         filter_code = compile(args.filter_expr, "--filter", "eval")
@@ -388,6 +393,7 @@ def manage_jobs(args, workflow_dir, cache):
 
     # Filter jobs by batch system ID
     if args.batch_ID is not None:
+        show_jobs = True
         job_dirs = [
             job_dir
             for job_dir in job_dirs
@@ -451,6 +457,7 @@ def manage_jobs(args, workflow_dir, cache):
 
         # Filter jobs by standard output/error
         if args.grep_regex:
+            show_jobs = True
             job_dirs = [
                 job_dir for job_dir in job_dirs if job_stdouterr_nlines[job_dir] > 0
             ]
@@ -525,7 +532,7 @@ def manage_jobs(args, workflow_dir, cache):
     )
     len_n = len(str(len(ordered_job_dirs)))
 
-    if (args.state is not None) and (not args.summary):
+    if show_jobs and not args.summary:
 
         # Show jobs
         for n, (job_args, job_dir) in enumerate(ordered_job_dirs, start=1):
