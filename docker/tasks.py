@@ -85,7 +85,8 @@ def init(docker_files):
         run(
             "docker",
             "create",
-            "-it",
+            "--interactive",
+            "--tty",
             "--hostname",
             f"{name}-ubuntu-host",
             "--name",
@@ -115,7 +116,8 @@ def debug(docker_file):
         run(
             "docker",
             "run",
-            "-it",
+            "--interactive",
+            "--tty",
             "--hostname",
             f"{name}-ubuntu-host",
             "--entrypoint",
@@ -165,7 +167,7 @@ def test(docker_files, test_scripts):
                 stdout=DEVNULL,
             )
 
-        run("docker", "start", "-ai", f"awghr-testing-{name}")
+        run("docker", "start", "--interactive", "--attach", f"awghr-testing-{name}")
 
         run(
             "docker",
