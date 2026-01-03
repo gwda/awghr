@@ -804,6 +804,11 @@ def cli(*argv: str, workflow_dir: Path = Path.cwd()):
             )
             resource_args.append((long_arg, arg_name))
     parser.add_argument(
+        "--clear",
+        action="store_true",
+        help="clear and rebuild cache of job states, etc.",
+    )
+    parser.add_argument(
         "--concurrent", type=int, default=8, help="limit on concurrent I/O subprocesses"
     )
     parser.add_argument(
@@ -828,29 +833,27 @@ def cli(*argv: str, workflow_dir: Path = Path.cwd()):
         )
         sys.exit(2)
 
-    # Pipe output through a pager
-    try:
-        with subprocess.Popen(
-            os.getenv("PAGER", "less -FKRSX"),
-            shell=True,
-            stdin=subprocess.PIPE,
-            text=True,
-        ) as proc:
-            assert proc.stdin is not None
-            with redirect_stdout(proc.stdin):
+    # Load/clear cache
+    cache_file = workflow_dir / ".manage-cache"
+    if args.clear:
+        cache_file.unlink(missing_ok=True)
+    with DictCache(cache_file, __file__) as cache:
 
-                # Load cache
-                with DictCache(workflow_dir / ".manage-cache", __file__) as cache:
-
-                    # Run command
+        # Run command, pipe output through a pager
+        try:
+            with subprocess.Popen(
+                os.getenv("PAGER", "less -FKRSX"),
+                shell=True,
+                stdin=subprocess.PIPE,
+                text=True,
+            ) as proc:
+                assert proc.stdin is not None
+                with redirect_stdout(proc.stdin):
                     manage_jobs(args, workflow_dir, cache)
-
-                sys.stdout.flush()
-
-            proc.stdin.close()
-
-    except (KeyboardInterrupt, BrokenPipeError):  # pragma: no cover
-        proc.terminate()
+                    sys.stdout.flush()
+                proc.stdin.close()
+        except (KeyboardInterrupt, BrokenPipeError):  # pragma: no cover
+            proc.terminate()
 
     return 0
 

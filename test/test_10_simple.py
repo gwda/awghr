@@ -173,7 +173,7 @@ for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
 
 logger.info("test command line interface")
 print("-----", flush=True)
-manage_cli("-Y", workflow_dir=w.workdir)
+manage_cli("--clear", "-Y", workflow_dir=w.workdir)
 print("-----", flush=True)
 manage_cli(
     "-Ae",
