@@ -283,7 +283,7 @@ def manage_jobs(args, workflow_dir, cache):
             cache["state"][job_dir] = job_state
 
     # Filter jobs by state
-    if args.state != "all":
+    if args.state is not None and args.state != "all":
         job_dirs = [
             job_dir for job_dir in job_dirs if job_state_cache[job_dir] == args.state
         ]
@@ -523,97 +523,99 @@ def manage_jobs(args, workflow_dir, cache):
     ordered_job_dirs = sorted(
         [(cache["sorted_args"][job_dir], job_dir) for job_dir in job_dirs]
     )
-
-    # Show jobs
     len_n = len(str(len(ordered_job_dirs)))
-    for n, (job_args, job_dir) in enumerate(ordered_job_dirs, start=1):
-        print("")
 
-        # Create prefix for all output
-        prefix = f"{n:0{len_n}d}" + " {:<5}"
+    if (args.state is not None) and (not args.summary):
 
-        # Show job arguments
-        # - Formatted so that it can be used as a filter to --filter
-        job_args_str_unquoted = " and ".join(
-            ["{}=={}".format(k, repr(v)) for k, v in job_args]
-        )
-        if '"' not in job_args_str_unquoted:
-            job_args_str_unquoted = job_args_str_unquoted.replace("'", '"')
-        job_args_str = shlex.quote(job_args_str_unquoted)
-        print(prefix.format("ARGS"), job_args_str)
+        # Show jobs
+        for n, (job_args, job_dir) in enumerate(ordered_job_dirs, start=1):
+            print("")
 
-        # Show job state, date it was last modified, and batch system ID
-        job_state = job_state_cache[job_dir]
-        job_state_str = job_state
-        if job_dir in job_state_last_modified_cache:
-            job_state_str += job_state_last_modified_cache[job_dir].strftime(
-                " %Y-%m-%d %H:%M:%S"
+            # Create prefix for all output
+            prefix = f"{n:0{len_n}d}" + " {:<5}"
+
+            # Show job arguments
+            # - Formatted so that it can be used as a filter to --filter
+            job_args_str_unquoted = " and ".join(
+                ["{}=={}".format(k, repr(v)) for k, v in job_args]
             )
-        if job_state != "PENDING":
-            job_state_str += " BATCHID " + job_batchID_cache[job_dir]
-        print(prefix.format("STATE"), job_state_str)
+            if '"' not in job_args_str_unquoted:
+                job_args_str_unquoted = job_args_str_unquoted.replace("'", '"')
+            job_args_str = shlex.quote(job_args_str_unquoted)
+            print(prefix.format("ARGS"), job_args_str)
 
-        # Show workflows/ directory
-        if args.workflows_dir:
-            print(prefix.format("WFLOW"), job_workflow_dirs[job_dir])
-
-        # Show job directory
-        if args.job_dir:
-            print(prefix.format("JOB"), job_dir)
-
-        # Show job resources
-        if args.resources:
-            job = jobs_from_dir[job_dir]["job"]
-            for res_name, res_unit, res_fmt in (
-                ("time", "min", format_time_quantity),
-                ("mem", "MB", format_quantity),
-                ("disk", "MB", format_quantity),
-            ):
-                job_res_val = Quantity(job[f"{res_name}_{res_unit}"], res_unit)
-                print(
-                    prefix.format("RES"),
-                    res_name.upper(),
-                    res_fmt(job_res_val),
+            # Show job state, date it was last modified, and batch system ID
+            job_state = job_state_cache[job_dir]
+            job_state_str = job_state
+            if job_dir in job_state_last_modified_cache:
+                job_state_str += job_state_last_modified_cache[job_dir].strftime(
+                    " %Y-%m-%d %H:%M:%S"
                 )
+            if job_state != "PENDING":
+                job_state_str += " BATCHID " + job_batchID_cache[job_dir]
+            print(prefix.format("STATE"), job_state_str)
 
-        # Show files in job directory
-        if args.files:
-            for f in sorted(
-                job_dir.iterdir(),
-                key=lambda j: (not j.name.startswith("job_"), j),
-            ):
-                f_size = Quantity(f.stat().st_size, "byte")
-                print(
-                    prefix.format("FILE"),
-                    f,
-                    "SIZE",
-                    format_quantity(f_size),
-                )
+            # Show workflows/ directory
+            if args.workflows_dir:
+                print(prefix.format("WFLOW"), job_workflow_dirs[job_dir])
 
-        # Show standard output/error
-        for outerr in ("out", "err"):
-            if (job_dir, outerr) in job_stdouterr_lines:
-                for line in job_stdouterr_lines[(job_dir, outerr)]:
-                    print(prefix.format(outerr.upper()), line)
+            # Show job directory
+            if args.job_dir:
+                print(prefix.format("JOB"), job_dir)
 
-        # Show job usage statistics
-        if args.usage:
-            usage_regex = "|".join(args.usage)
-            job_usage_file = job_dir / "job_usage"
-            job_usage, _ = job_usage_files[job_usage_file]
-            for line in job_usage.split("\n"):
-                line = line.strip()
-                if re.search(usage_regex, line, re.IGNORECASE) is not None:
-                    print(prefix.format("USAGE"), line)
+            # Show job resources
+            if args.resources:
+                job = jobs_from_dir[job_dir]["job"]
+                for res_name, res_unit, res_fmt in (
+                    ("time", "min", format_time_quantity),
+                    ("mem", "MB", format_quantity),
+                    ("disk", "MB", format_quantity),
+                ):
+                    job_res_val = Quantity(job[f"{res_name}_{res_unit}"], res_unit)
+                    print(
+                        prefix.format("RES"),
+                        res_name.upper(),
+                        res_fmt(job_res_val),
+                    )
+
+            # Show files in job directory
+            if args.files:
+                for f in sorted(
+                    job_dir.iterdir(),
+                    key=lambda j: (not j.name.startswith("job_"), j),
+                ):
+                    f_size = Quantity(f.stat().st_size, "byte")
+                    print(
+                        prefix.format("FILE"),
+                        f,
+                        "SIZE",
+                        format_quantity(f_size),
+                    )
+
+            # Show standard output/error
+            for outerr in ("out", "err"):
+                if (job_dir, outerr) in job_stdouterr_lines:
+                    for line in job_stdouterr_lines[(job_dir, outerr)]:
+                        print(prefix.format(outerr.upper()), line)
+
+            # Show job usage statistics
+            if args.usage:
+                usage_regex = "|".join(args.usage)
+                job_usage_file = job_dir / "job_usage"
+                job_usage, _ = job_usage_files[job_usage_file]
+                for line in job_usage.split("\n"):
+                    line = line.strip()
+                    if re.search(usage_regex, line, re.IGNORECASE) is not None:
+                        print(prefix.format("USAGE"), line)
 
     print("")
 
-    # Create prefix for coda
+    # Create prefix for summary
     prefix = ("-" * len_n) + " {:<5}"
 
     # Show counts of job states
     show_job_states = list(job_state_counts.keys())
-    if args.state not in ("all", "summary"):
+    if args.state is not None and args.state != "all":
         show_job_states = [
             job_state
             for job_state in show_job_states
@@ -688,17 +690,18 @@ def cli(*argv: str, workflow_dir: Path = Path.cwd()):
         dest="state",
         action="store_const",
         const="FAILED",
-        help="show only failed jobs (default)",
+        help="show only failed jobs",
     )
+    parser.add_argument(
+        "-s", "--state", dest="state", type=str, help="show only jobs matching state"
+    )
+    parser.set_defaults(state=None)
     parser.add_argument(
         "-Y",
         "--summary",
-        dest="state",
-        action="store_const",
-        const="summary",
+        action="store_true",
         help="show only summary",
     )
-    parser.set_defaults(state="summary")
     parser.add_argument(
         "-i",
         "--batch-ID",
