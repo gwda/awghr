@@ -205,9 +205,6 @@ class Workflow:
         # Set internal variables
         self._tags = tags
         self._skip_exit_code = skip_exit_code
-        self._workflow_writer = cfg["workflow_writer"](
-            batchsyscfg=cfg["batch_system_cfg"]
-        )
         self._workflow_hash = blake2b(digest_size=8, usedforsecurity=False)
         self._jobs: Dict[str, Dict[str, Any]] = {}
         self._log_add_jobs = ProgressLogger(msg="added %s jobs")
@@ -866,7 +863,7 @@ class Workflow:
         json.dump(workflow, workflow_file.open("w"), default=str, sort_keys=True)
 
         # Write workflow from description
-        _write_workflow(workflow_file, self._workflow_writer)
+        _write_workflow(workflow_file)
 
         # Write top-level control scripts
         _write_ctrl_scripts(self.name, self.workdir)
@@ -875,7 +872,7 @@ class Workflow:
         LOGGER.info("all workflow files and directories have been written")
 
 
-def _write_workflow(workflow_file, workflow_writer=None):
+def _write_workflow(workflow_file):
     """Write workflow."""
 
     # Load workflow from description
@@ -888,14 +885,10 @@ def _write_workflow(workflow_file, workflow_writer=None):
             job[k] = [Path(v) for v in job[k]]
     LOGGER.info("read workflow from %s", workflow_file)
 
-    if workflow_writer is None:
-
-        # Read configuration
-        LOGGER.info("reading configuration")
-        cfg = read_config(tags=workflow["tags"])
-
-        # Get workflow writer
-        workflow_writer = cfg["workflow_writer"](batchsyscfg=cfg["batch_system_cfg"])
+    # Read configuration and get workflow writer
+    LOGGER.info("reading configuration")
+    cfg = read_config(tags=workflow["tags"])
+    workflow_writer = cfg["workflow_writer"](batchsyscfg=cfg["batch_system_cfg"])
 
     # Directory containing workflows
     workflowdir = workflow_file.parent
@@ -988,11 +981,9 @@ def _write_ctrl_scripts(name, workdir):
     if not update_scripts:
         return 1
 
-    # Read configuration
+    # Read configuration and get workflow writer
     LOGGER.info("reading configuration")
     cfg = read_config()
-
-    # Get workflow writer
     workflow_writer = cfg["workflow_writer"](batchsyscfg=cfg["batch_system_cfg"])
 
     # Common header to update scripts
