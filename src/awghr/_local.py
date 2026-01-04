@@ -185,59 +185,57 @@ class LocalWorkflowWriter(WorkflowWriter):
 
                 f += ")"
 
-    def get_ctrl_commands(
-        self, *, workflowname, baseworkflowdir
-    ) -> Tuple[str, str, str]:
+    def get_ctrl_commands(self, *, workflowname) -> Tuple[str, str, str]:
         """Get top-level control script commands."""
 
         # Shell function to submit workflows in `baseworkflowdir` with IDs in $@
-        submit = f"""
-        submit() {{
+        submit = """
+        submit() {
             local cmd=
             local ID=
             for ID in $@; do
-                if test "X${{cmd}}" != X; then
-                    cmd="${{cmd}}; "
+                if test "X${cmd}" != X; then
+                    cmd="${cmd}; "
                 fi
-                cmd="${{cmd}}bash '{baseworkflowdir}/${{ID}}/batch_scripts/all_script.sh'"
+                cmd="${cmd}bash './workflows/${ID}/batch_scripts/all_script.sh'"
             done
-            setsid bash -c "${{cmd}}" &
-        }}
+            setsid bash -c "${cmd}" &
+        }
         """
 
         # Shell function to display all queued jobs from workflows in `baseworkflowdir` with IDs in $@
-        queue = f"""
-        queue() {{
+        queue = """
+        queue() {
             local stdoutfiles=
             local ID=
             for ID in $@; do
-                local stdoutfile="{baseworkflowdir}/${{ID}}/batch_scripts/all_stdout"
-                if test -f "${{stdoutfile}}"; then
-                    stdoutfiles="${{stdoutfiles}} ${{stdoutfile}}"
+                local stdoutfile="./workflows/${ID}/batch_scripts/all_stdout"
+                if test -f "${stdoutfile}"; then
+                    stdoutfiles="${stdoutfiles} ${stdoutfile}"
                 fi
             done
-            if test "X${{stdoutfiles}}" != X; then
-                tail ${{stdoutfiles}}
+            if test "X${stdoutfiles}" != X; then
+                tail ${stdoutfiles}
             fi
-        }}
+        }
         """
 
         # Shell function to cancel all jobs from from workflows in `baseworkflowdir` with IDs in $@
-        cancel = f"""
-        cancel() {{
+        cancel = """
+        cancel() {
             local pids=
             local ID=
             for ID in $@; do
-                local pidfile="{baseworkflowdir}/${{ID}}/batch_scripts/all_pid"
-                if test -f "${{pidfile}}"; then
-                    pid=`cat "${{pidfile}}"`
-                    pids="${{pids}} ${{pid}}"
+                local pidfile="./workflows/${ID}/batch_scripts/all_pid"
+                if test -f "${pidfile}"; then
+                    pid=`cat "${pidfile}"`
+                    pids="${pids} ${pid}"
                 fi
             done
-            if test "X${{pids}}" != X; then
-                kill -TERM ${{pids}}
+            if test "X${pids}" != X; then
+                kill -TERM ${pids}
             fi
-        }}
+        }
         """
 
         return submit, queue, cancel

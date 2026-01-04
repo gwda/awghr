@@ -602,24 +602,22 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
             echo "info: submitted state job, batch ID ${{batchq_ID}}"
             """
 
-    def get_ctrl_commands(
-        self, *, workflowname, baseworkflowdir
-    ) -> Tuple[str, str, str]:
+    def get_ctrl_commands(self, *, workflowname) -> Tuple[str, str, str]:
         """Get top-level control script commands."""
 
         # Get batch system commands
         submit, queue, cancel = self.batchq_ctrl_commands()
 
         # Shell function to submit workflows in `baseworkflowdir` with IDs in $@
-        submit += f"""
-        submit() {{
+        submit += """
+        submit() {
             local scripts=
             local ID=
             for ID in $@; do
-                scripts="${{scripts}} {baseworkflowdir}/${{ID}}/batch_scripts/all_submit.sh"
+                scripts="${scripts} ./workflows/${ID}/batch_scripts/all_submit.sh"
             done
-            batchq_submit ${{scripts}}
-        }}
+            batchq_submit ${scripts}
+        }
         """
 
         # Shell function to display all queued jobs from workflows in `baseworkflowdir` with IDs in $@
@@ -628,8 +626,9 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
             local jobnames=
             local ID=
             for ID in $@; do
-                if test -s "{baseworkflowdir}/${{ID}}/batch_scripts/all_stderr"; then
-                    sed "s/^/ERROR: ${{ID}}: /" "{baseworkflowdir}/${{ID}}/batch_scripts/all_stderr"
+                all_stderr="./workflows/${{ID}}/batch_scripts/all_stderr"
+                if test -s "${{all_stderr}}"; then
+                    sed "s/^/ERROR: ${{ID}}: /" "${{all_stderr}}"
                 fi
                 jobnames="${{jobnames}} {workflowname}_${{ID}}"
             done

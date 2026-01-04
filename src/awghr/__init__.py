@@ -65,6 +65,7 @@ from ._util import (
     ProgressLogger,
     WorkflowException,
     job_dir_from_ID,
+    resolved_path,
     write_atomic,
 )
 
@@ -176,7 +177,7 @@ class Workflow:
         if basedir is None:
             basedir = cfg["basedir"]
         try:
-            basedir = basedir.resolve(strict=True)
+            basedir = resolved_path(basedir)
         except (FileNotFoundError, RuntimeError):
             msg = f"base directory '{basedir}' is not a directory"
             raise WorkflowException(msg)
@@ -865,7 +866,7 @@ class Workflow:
         _write_workflow(workflow_file)
 
         # Write top-level control scripts
-        _write_ctrl_scripts(self.name, self.workdir)
+        _write_ctrl_scripts(self.workdir)
 
         # Log completion
         LOGGER.info("all workflow files and directories have been written")
@@ -952,8 +953,11 @@ def _write_workflow(workflow_file):
     return 0
 
 
-def _write_ctrl_scripts(name, workdir):
+def _write_ctrl_scripts(workdir):
     """Write top-level control scripts."""
+
+    # Name of workflow
+    name = workdir.name
 
     # Directory containing workflows
     baseworkflowdir = workdir / "workflows"
@@ -985,18 +989,19 @@ def _write_ctrl_scripts(name, workdir):
     cfg = read_config()
     workflow_writer = cfg["workflow_writer"](batchsyscfg=cfg["batch_system_cfg"])
 
-    # Common header to update scripts
-    update_script_header = f"""
-    if {sys.executable} -m awghr.__init__ write-ctrl-scripts '{name}' '{workdir}'; then
+    # Common top-level control script header:
+    # - Change to workflow directory
+    # - Update top-level control scripts
+    top_level_script_header = f"""
+    cd '{workdir}'
+    if {sys.executable} -m awghr.__init__ write-ctrl-scripts; then
         exec "$0" "$@"
         exit 1
     fi
     """
 
     # Get top-level control script commands
-    submit, queue, cancel = workflow_writer.get_ctrl_commands(
-        workflowname=name, baseworkflowdir=baseworkflowdir
-    )
+    submit, queue, cancel = workflow_writer.get_ctrl_commands(workflowname=name)
 
     # Write top-level control script: submit all jobs
     with FileLineWriter(workdir / "submit", executable=True) as f:
@@ -1004,7 +1009,7 @@ def _write_ctrl_scripts(name, workdir):
         #!/bin/bash
         """
         f += SCRIPT_HEADER
-        f += update_script_header
+        f += top_level_script_header
         f += """
         help="\\
         usage: submit [-h]
@@ -1031,9 +1036,9 @@ def _write_ctrl_scripts(name, workdir):
         f += f"""
         workflow_IDs=
         for ID in {all_workflow_IDs_str}; do
-            state_file="{baseworkflowdir}/${{ID}}/state"
-            failed_file="{baseworkflowdir}${{ID}}/failed_jobs"
-            sub_file="{baseworkflowdir}/${{ID}}/submitted"
+            state_file="./workflows/${{ID}}/state"
+            failed_file="./workflows/${{ID}}/failed_jobs"
+            sub_file="./workflows/${{ID}}/submitted"
             if test -f "${{state_file}}"; then
                 workstate=`cat ${{state_file}}`
                 if test "X${{workstate}}" = XSUCCESS; then
@@ -1044,8 +1049,8 @@ def _write_ctrl_scripts(name, workdir):
                 echo "info: workflow ${{ID}} has already been submitted"
                 continue
             fi
-            workflow_file="{baseworkflowdir}/${{ID}}/workflow.json"
-            timestamp_file="{baseworkflowdir}/${{ID}}/batch_scripts/.timestamp"
+            workflow_file="./workflows/${{ID}}/workflow.json"
+            timestamp_file="./workflows/${{ID}}/batch_scripts/.timestamp"
             if test "${{workflow_file}}" -nt "${{timestamp_file}}"; then
                 {sys.executable} -m awghr.__init__ write-workflow "${{workflow_file}}"
             fi
@@ -1058,24 +1063,24 @@ def _write_ctrl_scripts(name, workdir):
         fi
         """
         f += submit
-        f += f"""
-        submit ${{workflow_IDs}}
+        f += """
+        submit ${workflow_IDs}
         submitted_workflow_IDs=
-        for ID in ${{workflow_IDs}}; do
-            state_file="{baseworkflowdir}/${{ID}}/state"
-            if test -f "${{state_file}}"; then
-                workstate=`cat ${{state_file}}`
-                if test "X${{workstate}}" = XSUCCESS; then
-                    echo "info: workflow ${{ID}} has already been successfully run"
+        for ID in ${workflow_IDs}; do
+            state_file="./workflows/${ID}/state"
+            if test -f "${state_file}"; then
+                workstate=`cat ${state_file}`
+                if test "X${workstate}" = XSUCCESS; then
+                    echo "info: workflow ${ID} has already been successfully run"
                     continue
                 fi
             fi
-            sub_file="{baseworkflowdir}/${{ID}}/submitted"
-            write_atomic SUBMITTED ${{sub_file}}
-            submitted_workflow_IDs="${{submitted_workflow_IDs}} ${{ID}}"
+            sub_file="./workflows/${ID}/submitted"
+            write_atomic SUBMITTED ${sub_file}
+            submitted_workflow_IDs="${submitted_workflow_IDs} ${ID}"
         done
-        if test "X${{submitted_workflow_IDs}}" != X; then
-            echo "info: submitted all jobs in workflow(s)${{submitted_workflow_IDs}}"
+        if test "X${submitted_workflow_IDs}" != X; then
+            echo "info: submitted all jobs in workflow(s)${submitted_workflow_IDs}"
         fi
         """
 
@@ -1085,7 +1090,7 @@ def _write_ctrl_scripts(name, workdir):
         #!/bin/bash
         """
         f += SCRIPT_HEADER
-        f += update_script_header
+        f += top_level_script_header
         f += """
         help="\\
         usage: queue [-h]
@@ -1120,7 +1125,7 @@ def _write_ctrl_scripts(name, workdir):
         #!/bin/bash
         """
         f += SCRIPT_HEADER
-        f += update_script_header
+        f += top_level_script_header
         f += """
         help="\\
         usage: cancel [-h]
@@ -1155,7 +1160,7 @@ def _write_ctrl_scripts(name, workdir):
         #!/bin/bash
         """
         f += SCRIPT_HEADER
-        f += update_script_header
+        f += top_level_script_header
         f += """
         help="\\
         usage: status [-h]
@@ -1183,7 +1188,7 @@ def _write_ctrl_scripts(name, workdir):
         pending=false
         failed=false
         for ID in {all_workflow_IDs_str}; do
-            state_file="{baseworkflowdir}/${{ID}}/state"
+            state_file="./workflows/${{ID}}/state"
             if test -f "${{state_file}}"; then
                 workstate=`cat ${{state_file}}`
                 if test "X${{workstate}}" = XFAILED; then
@@ -1219,7 +1224,7 @@ def _write_ctrl_scripts(name, workdir):
         #!/bin/bash
         """
         f += SCRIPT_HEADER
-        f += update_script_header
+        f += top_level_script_header
         f += """
         help="\\
         usage: status [-h] [-n SEC] [command arguments...]
@@ -1259,16 +1264,7 @@ def _write_ctrl_scripts(name, workdir):
             "$@" </dev/null 2>&1
             sleep ${{sleepfor}}
         done
-        allworkstate=SUCCESS
-        for ID in {all_workflow_IDs_str}; do
-            state_file="{baseworkflowdir}/${{ID}}/state"
-            workstate=`cat ${{state_file}}`
-            echo "workflow state: ${{workstate}} (${{ID}})"
-            if test "X${{workstate}}" != XSUCCESS; then
-                allworkstate=FAILED
-            fi
-        done
-        {workdir}/status || true
+        ./status || true
         """
 
     # Write top-level control script: manage jobs
@@ -1277,9 +1273,8 @@ def _write_ctrl_scripts(name, workdir):
         #!/bin/bash
         """
         f += SCRIPT_HEADER
-        f += update_script_header
+        f += top_level_script_header
         f += f"""
-        cd '{workdir}'
         exec {sys.executable} -m awghr._manage "$@"
         """
 
@@ -1294,21 +1289,15 @@ def _cli(*argv: str):
 
     # Build command-line parser
     parser = argparse.ArgumentParser(prog="workflows", description="manage workflows")
-    subparsers = parser.add_subparsers(required=True, help="sub-commands")
-    parser_write_workflow = subparsers.add_parser(
-        "write-workflow", help="write workflow"
-    )
-    parser_write_workflow.add_argument("workflow_file", type=Path, help="workflow file")
+    subparsers = parser.add_subparsers(required=True)
+    parser_write_workflow = subparsers.add_parser("write-workflow")
+    parser_write_workflow.add_argument("workflow_file", type=resolved_path)
     parser_write_workflow.set_defaults(
         subcommand=lambda args: _write_workflow(args.workflow_file)
     )
-    parser_write_ctrl_scripts = subparsers.add_parser(
-        "write-ctrl-scripts", help="write top-level control scripts"
-    )
-    parser_write_ctrl_scripts.add_argument("name", type=str)
-    parser_write_ctrl_scripts.add_argument("workdir", type=Path)
+    parser_write_ctrl_scripts = subparsers.add_parser("write-ctrl-scripts")
     parser_write_ctrl_scripts.set_defaults(
-        subcommand=lambda args: _write_ctrl_scripts(args.name, args.workdir)
+        subcommand=lambda args: _write_ctrl_scripts(Path.cwd())
     )
 
     # Parse command line

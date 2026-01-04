@@ -16,6 +16,7 @@ from collections import UserDict
 from contextlib import contextmanager
 from pathlib import Path
 from textwrap import dedent
+from typing import Tuple
 
 from pint import Quantity
 
@@ -42,18 +43,14 @@ class BatchSystemException(Exception):
 
 # Common script header:
 # - Exit on any script errors
-SCRIPT_HEADER = """\
-set -e
-"""
 # - Shell function fail() for reporting errors
-SCRIPT_HEADER += """\
+# - Shell function write_atomic() to write status files atomically
+SCRIPT_HEADER = """
+set -e
 function fail() {
     echo 'FAIL:' "$@" >&2
     exit 1
 }
-"""
-# - Shell function write_atomic() to write status files atomically
-SCRIPT_HEADER += """\
 function write_atomic() {
     local status="$1"
     local status_file="$2"
@@ -61,6 +58,11 @@ function write_atomic() {
     mv -f "${status_file}.tmp" "${status_file}"
 }
 """
+
+
+def resolved_path(value):
+    """Resolve a path."""
+    return Path(value).resolve(strict=True)
 
 
 def write_atomic(status: str, status_file: Path):
@@ -92,6 +94,10 @@ class WorkflowWriter(ABC):
         skip_exit_code,
     ) -> None:
         """Write workflow."""
+
+    @abstractmethod
+    def get_ctrl_commands(self, *, workflowname) -> Tuple[str, str, str]:
+        """Get top-level control script commands."""
 
 
 def job_dir_from_ID(basedir: Path, job_ID: str):

@@ -429,9 +429,7 @@ class HTCondorWorkflowWriter(WorkflowWriter):
             # Write job to HTCondor DAG input file
             F += f"FINAL final {final_sub_file}"
 
-    def get_ctrl_commands(
-        self, *, workflowname, baseworkflowdir
-    ) -> Tuple[str, str, str]:
+    def get_ctrl_commands(self, *, workflowname) -> Tuple[str, str, str]:
         """Get top-level control script commands."""
 
         # Shell function to submit workflows in `baseworkflowdir` with IDs in $@
@@ -440,13 +438,14 @@ class HTCondorWorkflowWriter(WorkflowWriter):
         submit() {{
             local ID=
             for ID in $@; do
-                cd "{baseworkflowdir}/${{ID}}"
-                local dagman_out="./batch_scripts/condor.dag.dagman.out"
-                local rescue_dags=`shopt -s nullglob; echo ./batch_scripts/condor.dag.rescue*`
+                local dagman_out="./workflows/${{ID}}/batch_scripts/condor.dag.dagman.out"
+                local rescue_dags=`shopt -s nullglob; echo ./workflows/${{ID}}/batch_scripts/condor.dag.rescue*`
+                local workstate_script="./workflows/${{ID}}/batch_scripts/workstate.sh"
+                local condor_dag="./workflows/${{ID}}/batch_scripts/condor.dag"
                 if test -f "${{dagman_out}}" && test "X${{rescue_dags}}" = X; then
-                    /bin/bash ./batch_scripts/workstate.sh
+                    /bin/bash "${{workstate_script}}"
                 else
-                    condor_submit_dag -AlwaysRunPost -batch-name "{workflowname}_${{ID}}" ./batch_scripts/condor.dag >/dev/null
+                    condor_submit_dag -AlwaysRunPost -batch-name "{workflowname}_${{ID}}" "${{condor_dag}}" >/dev/null
                 fi
             done
         }}
@@ -463,7 +462,7 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                     constraint="${{constraint}} || "
                 fi
                 constraint="${{constraint}}JobBatchName == \\\"{workflowname}_${{ID}}\\\""
-                local dagman_out="{baseworkflowdir}/${{ID}}/batch_scripts/condor.dag.dagman.out"
+                local dagman_out="./workflows/${{ID}}/batch_scripts/condor.dag.dagman.out"
                 if test -f "${{dagman_out}}"; then
                     dagman_outs="${{dagman_outs}} ${{dagman_out}}"
                 fi
@@ -487,7 +486,7 @@ class HTCondorWorkflowWriter(WorkflowWriter):
             local constraint=
             local ID=
             for ID in $@; do
-                local dagman_out="{baseworkflowdir}/${{ID}}/batch_scripts/condor.dag.dagman.out"
+                local dagman_out="./workflows/${{ID}}/batch_scripts/condor.dag.dagman.out"
                 if grep -q -v "Event: ULOG_SUBMIT" "${{dagman_out}}"; then
                     echo "info: monitoring '${{dagman_out}}' for job submit events..."
                     ( tail -f -n 10 "${{dagman_out}}" & ) | grep -q "Event: ULOG_SUBMIT"
