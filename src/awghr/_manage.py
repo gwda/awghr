@@ -438,6 +438,7 @@ def manage_jobs(args, workdir, cache):
         for job_dir in job_dirs:
             for flag, outerr in ((args.output, "out"), (args.error, "err")):
                 if flag:
+                    show_jobs = True
 
                     # Collect standard output/error lines
                     lines = []
@@ -462,7 +463,6 @@ def manage_jobs(args, workdir, cache):
 
         # Filter jobs by standard output/error
         if args.grep_regex:
-            show_jobs = True
             job_dirs = [
                 job_dir for job_dir in job_dirs if job_stdouterr_nlines[job_dir] > 0
             ]
