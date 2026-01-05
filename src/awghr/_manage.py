@@ -288,11 +288,14 @@ def manage_jobs(args, workflow_dir, cache):
             cache["state"][job_dir] = job_state
 
     # Filter jobs by state
-    if args.state is not None and args.state != "all":
+    if args.state is not None:
         show_jobs = True
-        job_dirs = [
-            job_dir for job_dir in job_dirs if job_state_cache[job_dir] == args.state
-        ]
+        if args.state != "all":
+            job_dirs = [
+                job_dir
+                for job_dir in job_dirs
+                if job_state_cache[job_dir] == args.state
+            ]
 
     # Cache job arguments
     if "args" not in cache or "sorted_args" not in cache:
