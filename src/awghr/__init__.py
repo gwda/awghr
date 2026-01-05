@@ -1313,11 +1313,11 @@ def _cli(*argv: str):
     )
 
     # Parse command line
-    args = parser.parse_args(argv if len(argv) > 0 else sys.argv[1:])
+    args = parser.parse_args(argv)
 
     # Execute sub-command
     return args.subcommand(args)
 
 
 if __name__ == "__main__":
-    sys.exit(_cli())
+    sys.exit(_cli(*sys.argv[1:]))

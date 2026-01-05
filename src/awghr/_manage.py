@@ -833,7 +833,7 @@ def cli(*argv: str, workdir: Path = Path.cwd()):
     )
 
     # Parse command line
-    args = parser.parse_args(argv if len(argv) > 0 else sys.argv[1:])
+    args = parser.parse_args(argv)
 
     # Check arguments
     resource_args_used = [
@@ -876,4 +876,4 @@ def cli(*argv: str, workdir: Path = Path.cwd()):
 
 
 if __name__ == "__main__":
-    sys.exit(cli())
+    sys.exit(cli(*sys.argv[1:]))
