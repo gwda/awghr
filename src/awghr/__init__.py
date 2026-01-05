@@ -674,9 +674,9 @@ class Workflow:
         existing_workflow_IDs = []
         if baseworkflowdir.is_dir():
             existing_workflow_IDs = [
-                d.name
-                for d in baseworkflowdir.iterdir()
-                if d.is_dir() and d.name != self.ID
+                wflowdir.name
+                for wflowdir in baseworkflowdir.iterdir()
+                if wflowdir.is_dir() and wflowdir.name != self.ID
             ]
         for existing_workflow_ID in existing_workflow_IDs:
             existing_workflow_workflowdir = baseworkflowdir / existing_workflow_ID
@@ -960,7 +960,9 @@ def _write_ctrl_scripts(name, workdir):
 
     # List of all workflow IDs that have been written,
     # generated from workflow directories
-    all_workflow_IDs = sorted([d.name for d in baseworkflowdir.iterdir() if d.is_dir()])
+    all_workflow_IDs = sorted(
+        [wflowdir.name for wflowdir in baseworkflowdir.iterdir() if wflowdir.is_dir()]
+    )
     all_workflow_IDs_str = " ".join(all_workflow_IDs)
 
     # Check for any scripts older than this source file and any workflows

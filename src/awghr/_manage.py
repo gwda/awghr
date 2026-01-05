@@ -189,7 +189,9 @@ def manage_jobs(args, workflow_dir, cache):
     # Check for workflows
     baseworkflowdir = workflow_dir / "workflows"
     if baseworkflowdir.is_dir():
-        workflowdirs = [d for d in baseworkflowdir.iterdir() if d.is_dir()]
+        workflowdirs = [
+            wflowdir for wflowdir in baseworkflowdir.iterdir() if wflowdir.is_dir()
+        ]
     else:
         workflowdirs = []
     if not workflowdirs:
@@ -199,8 +201,8 @@ def manage_jobs(args, workflow_dir, cache):
     # Load workflow descriptions, map job directories to job and workflow
     jobs_from_dir = {}
     workflows = {}
-    for d in workflowdirs:
-        workflow_file = d / "workflow.json"
+    for wflowdir in workflowdirs:
+        workflow_file = wflowdir / "workflow.json"
         workflows[workflow_file] = json.load(workflow_file.open("r"))
         for job in workflows[workflow_file]["jobs"].values():
             jobs_from_dir[Path(job["dir"])] = dict(job=job, workflow_file=workflow_file)
@@ -220,7 +222,7 @@ def manage_jobs(args, workflow_dir, cache):
         if workstate == "SUCCESS":
 
             # Just count number of successful jobs
-            use_job_list_file = d / "all_jobs"
+            use_job_list_file = wflowdir / "all_jobs"
             successful_jobs = use_job_list_file.read_text().split()
             job_state_counts["SUCCESS"] += len(successful_jobs)
 
