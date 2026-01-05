@@ -47,7 +47,10 @@ import os
 import re
 import shlex
 import shutil
+import subprocess
 import sys
+import tarfile
+from collections import defaultdict
 from datetime import datetime
 from hashlib import blake2b
 from pathlib import Path
@@ -55,6 +58,7 @@ from textwrap import dedent
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from pint import Quantity
+from tqdm import tqdm
 
 from ._config import batch_system_names, cluster_names, read_config
 from ._util import (
@@ -965,7 +969,7 @@ def _write_workflow(workflow_file):
     return 0
 
 
-def _write_ctrl_scripts(workdir):
+def _write_ctrl_scripts(workdir, *, force_update_scripts=False):
     """Write top-level control scripts."""
 
     # Name of workflow
@@ -982,20 +986,31 @@ def _write_ctrl_scripts(workdir):
     all_workflow_IDs_str = " ".join(all_workflow_IDs)
 
     # Check for any scripts older than this source file and any workflows
-    reference_mtime = Path(__file__).stat().st_mtime
-    for ID in all_workflow_IDs:
-        workflow_timestamp_file = baseworkflowdir / ID / "batch_scripts" / ".timestamp"
-        if workflow_timestamp_file.is_file():
-            workflow_mtime = workflow_timestamp_file.stat().st_mtime
-            if workflow_mtime > reference_mtime:
-                reference_mtime = workflow_mtime
-    update_scripts = any(
-        (not (workdir / script).is_file())
-        or (workdir / script).stat().st_mtime < reference_mtime
-        for script in ("submit", "queue", "cancel", "status", "wait", "manage")
-    )
-    if not update_scripts:
-        return 1
+    if not force_update_scripts:
+        reference_mtime = Path(__file__).stat().st_mtime
+        for ID in all_workflow_IDs:
+            workflow_timestamp_file = (
+                baseworkflowdir / ID / "batch_scripts" / ".timestamp"
+            )
+            if workflow_timestamp_file.is_file():
+                workflow_mtime = workflow_timestamp_file.stat().st_mtime
+                if workflow_mtime > reference_mtime:
+                    reference_mtime = workflow_mtime
+        update_scripts = any(
+            (not (workdir / script).is_file())
+            or (workdir / script).stat().st_mtime < reference_mtime
+            for script in (
+                "submit",
+                "queue",
+                "cancel",
+                "status",
+                "wait",
+                "manage",
+                "archive",
+            )
+        )
+        if not update_scripts:
+            return 1
 
     # Read configuration and get workflow writer
     cfg = read_config()
@@ -1128,6 +1143,10 @@ def _write_ctrl_scripts(workdir):
         """
         f += queue
         f += f"""
+        if test "X{all_workflow_IDs_str}" = X; then
+            echo "info: no workflows to display"
+            exit 1
+        fi
         ( queue {all_workflow_IDs_str} 2>&1 ) | ${{PAGER:-less -FKRSX}}
         """
 
@@ -1163,6 +1182,10 @@ def _write_ctrl_scripts(workdir):
         """
         f += cancel
         f += f"""
+        if test "X{all_workflow_IDs_str}" = X; then
+            echo "info: no workflows to cancel"
+            exit 1
+        fi
         cancel {all_workflow_IDs_str}
         """
 
@@ -1226,12 +1249,12 @@ def _write_ctrl_scripts(workdir):
 
     # Write top-level control script: wait for all workflows to complete
     with FileLineWriter(workdir / "wait", executable=True) as f:
-        all_workstatefiles_exist = " && ".join(
-            [
-                f"test -f '{f}'"
-                for f in [baseworkflowdir / ID / "state" for ID in all_workflow_IDs]
-            ]
-        )
+        all_workstatefiles_exist = (
+            " && ".join(
+                "test -f '{}'".format(baseworkflowdir / ID / "state")
+                for ID in all_workflow_IDs
+            )
+        ) or "true"
         f += """
         #!/bin/bash
         """
@@ -1290,13 +1313,163 @@ def _write_ctrl_scripts(workdir):
         exec {sys.executable} -m awghr._manage "$@"
         """
 
+    # Write top-level control script: archive workflows
+    with FileLineWriter(workdir / "archive", executable=True) as f:
+        f += """
+        #!/bin/bash
+        """
+        f += SCRIPT_HEADER
+        f += top_level_script_header
+        f += """
+        help="\\
+        usage: archive [-h]
+
+        archive workflows
+
+        options:
+          -h, --help            show this help message and exit
+        "
+        while test "X$1" != X; do
+            case $1 in
+                -h|--help)
+                    echo "${help}"
+                    exit 0
+                    ;;
+                *)
+                    echo "ERROR: unrecognised argument: $1" >&2
+                    exit 2
+                    ;;
+            esac
+            shift
+        done
+        """
+        f += f"""
+        exec {sys.executable} -m awghr.__init__ archive-workflows
+        """
+
     # Log completion
     LOGGER.info("wrote top-level control scripts")
 
     return 0
 
 
-def _cli(*argv: str):
+def _archive_workflows(workdir):
+    """Archive workflows."""
+
+    # Directory containing workflows
+    baseworkflowdir = workdir / "workflows"
+
+    # Process workflows
+    archive_workflow_IDs = []
+    job_dir_used = defaultdict(int)
+    for wflow in sorted(baseworkflowdir.iterdir()):
+        ID = wflow.name.split(".", maxsplit=1)[0]
+
+        # Get workflow states
+        if wflow.is_dir():
+            workstatefile = baseworkflowdir / wflow / "state"
+            if workstatefile.is_file():
+                workstate = workstatefile.read_text().strip()
+            else:
+                workstate = "PENDING"
+        else:
+            workstate = "ARCHIVED"
+        LOGGER.info("workflow state: %s (%s)", workstate, ID)
+
+        # Archive successful workflows
+        if workstate == "SUCCESS":
+            archive_workflow_IDs.append(ID)
+
+        # Count how many times jobs are used by each workflow
+        if wflow.is_dir():
+            joblistfile = baseworkflowdir / wflow / "all_jobs"
+            joblistfile_text = joblistfile.read_text()
+        else:
+            joblistfile = str(Path("workflows") / ID / "all_jobs")
+            with tarfile.open(wflow, "r:bz2") as tf:
+                joblistfile_text = tf.extractfile(joblistfile).read().decode()
+        job_dirs = [Path(line) for line in joblistfile_text.split()]
+        for job_dir in job_dirs:
+            job_dir_used[job_dir] += 1
+
+    if not archive_workflow_IDs:
+        return 0
+
+    # Archive successful workflows
+    for ID in archive_workflow_IDs:
+        LOGGER.info("archiving workflow %s", ID)
+        wflowdir = baseworkflowdir / ID
+
+        # Get list of jobs to archive
+        # - Do not use archive jobs that are used by other workflows
+        joblistfile = wflowdir / "all_jobs"
+        job_dirs = [Path(line) for line in joblistfile.read_text().split()]
+        job_dirs = [job_dir for job_dir in job_dirs if job_dir_used[job_dir] == 1]
+        if not job_dirs:
+            LOGGER.info(
+                "workflow %s has no jobs (not used by other workflows) to archive", ID
+            )
+        else:
+
+            # Create archive tarfile
+            archive_tarfile = baseworkflowdir / f"{ID}.tar.bz2"
+            LOGGER.info("creating archive tarball '%s'", archive_tarfile)
+            with tarfile.open(archive_tarfile, "x:bz2") as tf:
+
+                # Add list of jobs in workflow to archive tarball
+                tf.add(joblistfile, arcname=joblistfile.relative_to(workdir))
+
+                # Add jobs to archive tarball
+                for job_dir in tqdm(
+                    job_dirs,
+                    desc="Processing job directories ",
+                    disable=None,
+                    leave=False,
+                ):
+                    tf.add(job_dir, arcname=job_dir.relative_to(workdir))
+
+            # Check that archive tarfile can be extracted
+            LOGGER.info("checking that '%s' can be extracted", archive_tarfile)
+            subprocess.run(
+                ["tar", "--extract", "--to-stdout", "--file", archive_tarfile],
+                check=True,
+                stdout=subprocess.DEVNULL,
+            )
+
+            # Remove job directories
+            LOGGER.info(
+                "removing directories of jobs archived in '%s'", archive_tarfile
+            )
+            for job_dir in tqdm(
+                job_dirs, "Removing job directories ", disable=None, leave=False
+            ):
+                shutil.rmtree(job_dir)
+
+        # Remove workflow directory
+        LOGGER.info("removing archived workflow directory '%s'", wflowdir)
+        shutil.rmtree(wflowdir)
+
+    # Remove empty job subdirectories
+    job_root_dir = workdir / "jobs"
+    if job_root_dir.is_dir():
+        LOGGER.info("removing empty subdirectories under '%s'", job_root_dir)
+        for dirpath, _, _ in os.walk(job_root_dir, topdown=False):
+            if not any(os.scandir(dirpath)):
+                try:
+                    os.rmdir(dirpath)
+                except OSError:  # pragma: no cover
+                    pass
+
+    # Update top-level control scripts
+    _write_ctrl_scripts(workdir, force_update_scripts=True)
+
+    # Log completion
+    LOGGER.info("archiving complete")
+
+    return 0
+
+
+def _cli(*argv: str, workdir: Path = Path.cwd()):
     """Command-line interface: manage workflows."""
 
     # Build command-line parser
@@ -1309,7 +1482,11 @@ def _cli(*argv: str):
     )
     parser_write_ctrl_scripts = subparsers.add_parser("write-ctrl-scripts")
     parser_write_ctrl_scripts.set_defaults(
-        subcommand=lambda args: _write_ctrl_scripts(Path.cwd())
+        subcommand=lambda args: _write_ctrl_scripts(workdir)
+    )
+    parser_archive_workflows = subparsers.add_parser("archive-workflows")
+    parser_archive_workflows.set_defaults(
+        subcommand=lambda args: _archive_workflows(workdir)
     )
 
     # Parse command line

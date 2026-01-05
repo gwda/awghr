@@ -13,6 +13,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from awghr import Workflow, WorkflowException
+from awghr import _cli as workflow_cli
 from awghr._manage import cli as manage_cli
 
 
@@ -85,6 +86,11 @@ logger.info("test command line interface")
 print("-----", flush=True)
 assert manage_cli("-P", workdir=w.workdir) == 0
 print("-----", flush=True)
+
+logger.info("check that workflow is not archived")
+assert workflow_cli("archive-workflows", workdir=w.workdir) == 0
+archive_tarfile = w.workdir / "workflows" / f"{w.ID}.tar.bz2"
+assert not archive_tarfile.is_file()
 
 logger.info("submit workflow and wait for it to finish")
 with in_directory(w.workdir):
@@ -196,8 +202,12 @@ jobfile_regex = "|".join(
         r"out_[0-9]\.txt",
     ]
 )
+archive_files = set()
+archive_files.add(joblistfile)
 for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
+    archive_files.add(jobdir)
     for jobfile in jobdir.iterdir():
+        archive_files.add(jobfile)
         assert jobfile.is_file()
         assert re.fullmatch(jobfile_regex, jobfile.name) is not None
 
@@ -208,3 +218,15 @@ try:
     raise AssertionError(msg)
 except WorkflowException:
     pass
+
+for j in range(2):
+    logger.info("test archiving workflow (#%i)", j + 1)
+    assert workflow_cli("archive-workflows", workdir=w.workdir) == 0
+    archive_tarfile = w.workdir / "workflows" / f"{w.ID}.tar.bz2"
+    assert archive_tarfile.is_file()
+    tar_output = subprocess.check_output(["tar", "-tf", archive_tarfile], text=True)
+    archive_files_from_tar = set(
+        [w.workdir / Path(line) for line in tar_output.split()]
+    )
+    assert archive_files == archive_files_from_tar
+    assert not (w.workdir / "jobs").is_dir()
