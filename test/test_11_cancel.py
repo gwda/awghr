@@ -69,7 +69,7 @@ assert state == "FAILED"
 
 logger.info("test command line interface")
 print("-----", flush=True)
-manage_cli(workflow_dir=w.workdir)
+manage_cli(workdir=w.workdir)
 print("-----", flush=True)
 
 logger.info("check that re-writing workflow removes unsuccessful states")

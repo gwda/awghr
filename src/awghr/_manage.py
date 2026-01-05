@@ -184,10 +184,10 @@ async def read_job_files(
     return dict(zip(filepaths, job_file_results))
 
 
-def manage_jobs(args, workflow_dir, cache):
+def manage_jobs(args, workdir, cache):
 
     # Check for workflows
-    baseworkflowdir = workflow_dir / "workflows"
+    baseworkflowdir = workdir / "workflows"
     if baseworkflowdir.is_dir():
         workflowdirs = [
             wflowdir for wflowdir in baseworkflowdir.iterdir() if wflowdir.is_dir()
@@ -195,8 +195,8 @@ def manage_jobs(args, workflow_dir, cache):
     else:
         workflowdirs = []
     if not workflowdirs:
-        msg = f"'{workflow_dir}' is not a workflow directory"
-        raise FileNotFoundError(msg)
+        LOGGER.warning("found no workflows in '%s'", workdir)
+        return 1
 
     # Load workflow descriptions, map job directories to job and workflow
     jobs_from_dir = {}
@@ -648,8 +648,10 @@ def manage_jobs(args, workflow_dir, cache):
         datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     )
 
+    return 0
 
-def cli(*argv: str, workflow_dir: Path = Path.cwd()):
+
+def cli(*argv: str, workdir: Path = Path.cwd()):
     """Command-line interface: manage jobs."""
 
     # Build command-line argument parser
@@ -848,12 +850,13 @@ def cli(*argv: str, workflow_dir: Path = Path.cwd()):
         sys.exit(2)
 
     # Load/clear cache
-    cache_file = workflow_dir / ".manage-cache"
+    cache_file = workdir / ".manage-cache"
     if args.clear:
         cache_file.unlink(missing_ok=True)
     with DictCache(cache_file, __file__) as cache:
 
         # Run command, pipe output through a pager
+        exit_code = 0
         try:
             with subprocess.Popen(
                 os.getenv("PAGER", "less -FKRSX"),
@@ -863,13 +866,13 @@ def cli(*argv: str, workflow_dir: Path = Path.cwd()):
             ) as proc:
                 assert proc.stdin is not None
                 with redirect_stdout(proc.stdin):
-                    manage_jobs(args, workflow_dir, cache)
+                    exit_code = manage_jobs(args, workdir, cache)
                     sys.stdout.flush()
                 proc.stdin.close()
         except (KeyboardInterrupt, BrokenPipeError):  # pragma: no cover
             proc.terminate()
 
-    return 0
+    return exit_code
 
 
 if __name__ == "__main__":

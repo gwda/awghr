@@ -83,7 +83,7 @@ for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
 
 logger.info("test command line interface")
 print("-----", flush=True)
-manage_cli("-P", workflow_dir=w.workdir)
+manage_cli("-P", workdir=w.workdir)
 print("-----", flush=True)
 
 logger.info("submit workflow and wait for it to finish")
@@ -173,7 +173,7 @@ for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
 
 logger.info("test command line interface")
 print("-----", flush=True)
-manage_cli("--clear", "-Y", workflow_dir=w.workdir)
+manage_cli("--clear", "-Y", workdir=w.workdir)
 print("-----", flush=True)
 manage_cli(
     "-Ae",
@@ -182,24 +182,20 @@ manage_cli(
     "-u",
     "wall clock",
     "maximum",
-    workflow_dir=w.workdir,
+    workdir=w.workdir,
 )
 print("-----", flush=True)
-manage_cli("-f", "index < 5 and nonexistent is None", "-Awjloz", workflow_dir=w.workdir)
+manage_cli("-f", "index < 5 and nonexistent is None", "-Awjloz", workdir=w.workdir)
 print("-----", flush=True)
-manage_cli("-g", "this string was not printed", "-Awjloz", workflow_dir=w.workdir)
+manage_cli("-g", "this string was not printed", "-Awjloz", workdir=w.workdir)
 print("-----", flush=True)
-manage_cli("-Ai", "dummy_batch_ID_for_testing", workflow_dir=w.workdir)
+manage_cli("-Ai", "dummy_batch_ID_for_testing", workdir=w.workdir)
 print("-----", flush=True)
 try:
-    manage_cli("-n", "0", workflow_dir=w.workdir)
+    manage_cli("-n", "0", workdir=w.workdir)
     msg = "should have exited"
     raise AssertionError(msg)
 except SystemExit:
     pass
-try:
-    manage_cli()
-    msg = "should have raised a FileNotFoundError"
-    raise AssertionError(msg)
-except FileNotFoundError:
-    pass
+print("-----", flush=True)
+assert manage_cli(workdir=Path("/tmp")) == 1

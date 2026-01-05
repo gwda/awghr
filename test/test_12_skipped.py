@@ -77,7 +77,7 @@ for skip_exit_code in (77, 99):
 
     logger.info("test command line interface")
     print("-----", flush=True)
-    manage_cli("-A", workflow_dir=w.workdir)
+    manage_cli("-A", workdir=w.workdir)
     print("-----", flush=True)
 
     # -- Test that dependent jobs cannot be skipped
@@ -133,5 +133,5 @@ for skip_exit_code in (77, 99):
 
     logger.info("test command line interface")
     print("-----", flush=True)
-    manage_cli("-A", workflow_dir=w.workdir)
+    manage_cli("-A", workdir=w.workdir)
     print("-----", flush=True)
