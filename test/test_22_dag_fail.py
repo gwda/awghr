@@ -171,10 +171,10 @@ while True:
 
     logger.info("test command line interface")
     print("-----", flush=True)
-    manage_cli("-e", workdir=w.workdir)
+    assert manage_cli("-e", workdir=w.workdir) == 0
     print("-----", flush=True)
     tmpstatefile = statefile.replace(statefile.with_suffix(".tmp"))
-    manage_cli("-e", workdir=w.workdir)
+    assert manage_cli("-e", workdir=w.workdir) == 0
     tmpstatefile.replace(statefile)
     print("-----", flush=True)
 
@@ -197,7 +197,7 @@ for i in range(3):
 
 logger.info("test command line interface")
 print("-----", flush=True)
-manage_cli("-e", workdir=w.workdir)
+assert manage_cli("-e", workdir=w.workdir) == 0
 print("-----", flush=True)
-manage_cli("-Af", "stage=='build' and digit==0", workdir=w.workdir)
+assert manage_cli("-Af", "stage=='build' and digit==0", workdir=w.workdir) == 0
 print("-----", flush=True)

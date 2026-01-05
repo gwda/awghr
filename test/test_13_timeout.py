@@ -74,7 +74,7 @@ for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
     assert jobstate == "FAILED"
 
 logger.info("show job resources before any changes")
-manage_cli("-F", "-r", workdir=w.workdir)
+assert manage_cli("-F", "-r", workdir=w.workdir) == 0
 
 logger.info("increase job time limit")
 print("-----", flush=True)
@@ -92,7 +92,7 @@ try:
 except SystemExit:
     pass
 print("-----", flush=True)
-manage_cli("-F", "-r", "+T", "9min", "-M", "15MB", workdir=w.workdir)
+assert manage_cli("-F", "-r", "+T", "9min", "-M", "15MB", workdir=w.workdir) == 0
 
 logger.info("submit workflow and wait for it to finish")
 subprocess.run([w.workdir / "submit"], check=True)

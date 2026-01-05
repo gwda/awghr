@@ -83,7 +83,7 @@ for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
 
 logger.info("test command line interface")
 print("-----", flush=True)
-manage_cli("-P", workdir=w.workdir)
+assert manage_cli("-P", workdir=w.workdir) == 0
 print("-----", flush=True)
 
 logger.info("submit workflow and wait for it to finish")
@@ -121,7 +121,7 @@ statefile.unlink()
 
 logger.info("test command line interface")
 print("-----", flush=True)
-manage_cli("--clear", "-Y", workdir=w.workdir)
+assert manage_cli("--clear", "-Y", workdir=w.workdir) == 0
 print("-----", flush=True)
 manage_cli(
     "-Ae",
@@ -133,11 +133,16 @@ manage_cli(
     workdir=w.workdir,
 )
 print("-----", flush=True)
-manage_cli("-f", "index < 5 and nonexistent is None", "-Awjloz", workdir=w.workdir)
+assert (
+    manage_cli("-f", "index < 5 and nonexistent is None", "-Awjloz", workdir=w.workdir)
+    == 0
+)
 print("-----", flush=True)
-manage_cli("-g", "this string was not printed", "-Awjloz", workdir=w.workdir)
+assert (
+    manage_cli("-g", "this string was not printed", "-Awjloz", workdir=w.workdir) == 0
+)
 print("-----", flush=True)
-manage_cli("-Ai", "dummy_batch_ID_for_testing", workdir=w.workdir)
+assert manage_cli("-Ai", "dummy_batch_ID_for_testing", workdir=w.workdir) == 0
 print("-----", flush=True)
 try:
     manage_cli("-n", "0", workdir=w.workdir)
