@@ -75,13 +75,13 @@ for i in range(10):
     assert outfile.is_file()
     outfile.read_text() == str(i)
 
-logger.info("check that re-writing workflow does not remove successful states")
-for w in ws:
+logger.info("check that successful workflow cannot be rewritten")
+try:
     w.write()
-joblistfile = w.workdir / "workflows" / w.ID / "all_jobs"
-assert joblistfile.is_file()
-for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
-    assert (jobdir / "job_state").is_file()
+    msg = "should have raised a WorkflowException"
+    raise AssertionError(msg)
+except WorkflowException:
+    pass
 
 # -- Test multiple workflows duplicating the same jobs
 

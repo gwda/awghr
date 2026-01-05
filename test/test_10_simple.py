@@ -12,7 +12,7 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 
-from awghr import Workflow
+from awghr import Workflow, WorkflowException
 from awghr._manage import cli as manage_cli
 
 
@@ -116,8 +116,40 @@ logger.info("check workflow state is SUCCESS")
 state = statefile.read_text().strip()
 assert state == "SUCCESS"
 
-logger.info("check that state is re-created")
+# remove statefile to get full output from successful workflow
 statefile.unlink()
+
+logger.info("test command line interface")
+print("-----", flush=True)
+manage_cli("--clear", "-Y", workdir=w.workdir)
+print("-----", flush=True)
+manage_cli(
+    "-Ae",
+    "-n",
+    "1",
+    "-u",
+    "wall clock",
+    "maximum",
+    workdir=w.workdir,
+)
+print("-----", flush=True)
+manage_cli("-f", "index < 5 and nonexistent is None", "-Awjloz", workdir=w.workdir)
+print("-----", flush=True)
+manage_cli("-g", "this string was not printed", "-Awjloz", workdir=w.workdir)
+print("-----", flush=True)
+manage_cli("-Ai", "dummy_batch_ID_for_testing", workdir=w.workdir)
+print("-----", flush=True)
+try:
+    manage_cli("-n", "0", workdir=w.workdir)
+    msg = "should have exited"
+    raise AssertionError(msg)
+except SystemExit:
+    pass
+print("-----", flush=True)
+assert manage_cli(workdir=Path("/tmp")) == 1
+print("-----", flush=True)
+
+logger.info("check that state is re-created")
 subprocess.run([w.workdir / "submit"], check=True)
 subprocess.run([w.workdir / "wait"], check=True)
 state = statefile.read_text().strip()
@@ -164,38 +196,10 @@ for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
         assert jobfile.is_file()
         assert re.fullmatch(jobfile_regex, jobfile.name) is not None
 
-logger.info("check that re-writing workflow does not remove successful states")
-w.write()
-joblistfile = w.workdir / "workflows" / w.ID / "all_jobs"
-assert joblistfile.is_file()
-for jobdir in [Path(line) for line in joblistfile.read_text().split()]:
-    assert (jobdir / "job_state").is_file()
-
-logger.info("test command line interface")
-print("-----", flush=True)
-manage_cli("--clear", "-Y", workdir=w.workdir)
-print("-----", flush=True)
-manage_cli(
-    "-Ae",
-    "-n",
-    "1",
-    "-u",
-    "wall clock",
-    "maximum",
-    workdir=w.workdir,
-)
-print("-----", flush=True)
-manage_cli("-f", "index < 5 and nonexistent is None", "-Awjloz", workdir=w.workdir)
-print("-----", flush=True)
-manage_cli("-g", "this string was not printed", "-Awjloz", workdir=w.workdir)
-print("-----", flush=True)
-manage_cli("-Ai", "dummy_batch_ID_for_testing", workdir=w.workdir)
-print("-----", flush=True)
+logger.info("check that successful workflow cannot be rewritten")
 try:
-    manage_cli("-n", "0", workdir=w.workdir)
-    msg = "should have exited"
+    w.write()
+    msg = "should have raised a WorkflowException"
     raise AssertionError(msg)
-except SystemExit:
+except WorkflowException:
     pass
-print("-----", flush=True)
-assert manage_cli(workdir=Path("/tmp")) == 1

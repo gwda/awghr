@@ -642,6 +642,16 @@ class Workflow:
         baseworkflowdir = self.workdir / "workflows"
         workflowdir = baseworkflowdir / self.ID
 
+        # Name of file which workflow will write final state to
+        workstatefile = workflowdir / "state"
+
+        # Check that workflow has not already been run successfully
+        if workstatefile.is_file():
+            workstate = workstatefile.read_text().strip()
+            if workstate == "SUCCESS":
+                msg = f"workflow {self.ID} has already been run successfully"
+                raise WorkflowException(msg)
+
         # Name of file indicating workflow has been submitted
         submittedfile = workflowdir / "submitted"
 
@@ -924,11 +934,13 @@ def _write_workflow(workflow_file):
     workstatefile = workflowdir / "state"
     workstatefile.unlink(missing_ok=True)
 
+    # Name of file indicating workflow has been submitted
+    # - Remove any existing file
+    submittedfile = workflowdir / "submitted"
+    submittedfile.unlink(missing_ok=True)
+
     # Make directory for final output files
     outfinaldir = workflowdir.parent.parent / "outputs"
-
-    # Name of file indicating workflow has been submitted
-    submittedfile = workflowdir / "submitted"
 
     # Write workflow
     workflow_writer.write_workflow(
