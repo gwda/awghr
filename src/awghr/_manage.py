@@ -297,15 +297,23 @@ def manage_jobs(args, workdir, cache):
                 if job_state_cache[job_dir] == args.state
             ]
 
-    # Cache job arguments
-    if "args" not in cache or "sorted_args" not in cache:
+    # Cache job arguments and their string representation
+    # - Formatted so that it can be used as a filter to --filter
+    if "args" not in cache or "args_str" not in cache:
         cache["args"] = {}
-        cache["sorted_args"] = {}
+        cache["args_str"] = {}
     for job_dir in job_dirs:
         if job_dir not in cache["args"]:
             job_args = jobs_from_dir[job_dir]["job"]["args"]
             cache["args"][job_dir] = job_args
-            cache["sorted_args"][job_dir] = sorted(job_args.items())
+            job_args_repr = sorted([(k, repr(v)) for k, v in job_args.items()])
+            job_args_str_unquoted = " and ".join(
+                ["{}=={}".format(k, vs) for k, vs in job_args_repr]
+            )
+            if '"' not in job_args_str_unquoted:
+                job_args_str_unquoted = job_args_str_unquoted.replace("'", '"')
+            job_args_str = shlex.quote(job_args_str_unquoted)
+            cache["args_str"][job_dir] = job_args_str
 
     if args.filter_expr:
         show_jobs = True
@@ -533,27 +541,20 @@ def manage_jobs(args, workdir, cache):
 
     # Order jobs by their arguments
     ordered_job_dirs = sorted(
-        [(cache["sorted_args"][job_dir], job_dir) for job_dir in job_dirs]
+        [(cache["args_str"][job_dir], job_dir) for job_dir in job_dirs]
     )
     len_n = len(str(len(ordered_job_dirs)))
 
     if show_jobs and not args.summary:
 
         # Show jobs
-        for n, (job_args, job_dir) in enumerate(ordered_job_dirs, start=1):
+        for n, (job_args_str, job_dir) in enumerate(ordered_job_dirs, start=1):
             print("")
 
             # Create prefix for all output
             prefix = f"{n:0{len_n}d}" + " {:<5}"
 
             # Show job arguments
-            # - Formatted so that it can be used as a filter to --filter
-            job_args_str_unquoted = " and ".join(
-                ["{}=={}".format(k, repr(v)) for k, v in job_args]
-            )
-            if '"' not in job_args_str_unquoted:
-                job_args_str_unquoted = job_args_str_unquoted.replace("'", '"')
-            job_args_str = shlex.quote(job_args_str_unquoted)
             print(prefix.format("ARGS"), job_args_str)
 
             # Show job state, date it was last modified, and batch system ID
