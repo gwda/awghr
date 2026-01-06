@@ -230,7 +230,11 @@ def manage_jobs(args, workdir, cache):
 
             # If only showing failed jobs, use failed jobs list if possible
             failed_job_list_file = wflowdir / "failed_jobs"
-            if args.state == "FAILED" and failed_job_list_file.is_file():
+            if (
+                args.state is not None
+                and re.match(args.state, "FAILED") is not None
+                and failed_job_list_file.is_file()
+            ):
                 use_job_list_file = failed_job_list_file
             else:
                 # Otherwise use full jobs list
@@ -294,7 +298,7 @@ def manage_jobs(args, workdir, cache):
             job_dirs = [
                 job_dir
                 for job_dir in job_dirs
-                if job_state_cache[job_dir] == args.state
+                if re.match(args.state, job_state_cache[job_dir])
             ]
 
     # Cache job arguments and their string representation
@@ -415,6 +419,7 @@ def manage_jobs(args, workdir, cache):
 
     job_stdouterr_lines = {}
     if args.output or args.error:
+        show_jobs = True
 
         # Get which job standard output/error files to read
         job_stdouterr_filepaths = []
@@ -446,7 +451,6 @@ def manage_jobs(args, workdir, cache):
         for job_dir in job_dirs:
             for flag, outerr in ((args.output, "out"), (args.error, "err")):
                 if flag:
-                    show_jobs = True
 
                     # Collect standard output/error lines
                     lines = []
@@ -632,7 +636,7 @@ def manage_jobs(args, workdir, cache):
         show_job_states = [
             job_state
             for job_state in show_job_states
-            if job_state.startswith(args.state)
+            if re.match(args.state, job_state)
         ]
     for job_state in sorted(show_job_states):
         job_state_count = job_state_counts[job_state]
@@ -672,7 +676,7 @@ def cli(*argv: str, workdir: Path = Path.cwd()):
         "--pending",
         dest="state",
         action="store_const",
-        const="PENDING",
+        const=re.compile("^PENDING$"),
         help="show only pending jobs",
     )
     parser.add_argument(
@@ -680,7 +684,7 @@ def cli(*argv: str, workdir: Path = Path.cwd()):
         "--running",
         dest="state",
         action="store_const",
-        const="RUNNING",
+        const=re.compile("^RUNNING$"),
         help="show only running jobs",
     )
     parser.add_argument(
@@ -688,7 +692,7 @@ def cli(*argv: str, workdir: Path = Path.cwd()):
         "--success",
         dest="state",
         action="store_const",
-        const="SUCCESS",
+        const=re.compile("^SUCCESS$"),
         help="show only successful jobs",
     )
     parser.add_argument(
@@ -696,7 +700,7 @@ def cli(*argv: str, workdir: Path = Path.cwd()):
         "--skipped",
         dest="state",
         action="store_const",
-        const="SUCCESS/SKIPPED",
+        const=re.compile("^SUCCESS/SKIPPED$"),
         help="show only skipped jobs",
     )
     parser.add_argument(
@@ -704,11 +708,16 @@ def cli(*argv: str, workdir: Path = Path.cwd()):
         "--failed",
         dest="state",
         action="store_const",
-        const="FAILED",
+        const=re.compile("^FAILED$"),
         help="show only failed jobs",
     )
     parser.add_argument(
-        "-s", "--state", dest="state", type=str, help="show only jobs matching state"
+        "-s",
+        "--state",
+        metavar="REGEX",
+        dest="state",
+        type=re.compile,
+        help="show only jobs matching state REGEX",
     )
     parser.set_defaults(state=None)
     parser.add_argument(
@@ -842,7 +851,7 @@ def cli(*argv: str, workdir: Path = Path.cwd()):
     ]
     args.any_resource_args = len(resource_args_used) > 0
     if args.any_resource_args and (
-        args.state is not None and not args.state.startswith("FAILED")
+        args.state is not None and re.match(args.state, "FAILED") is None
     ):
         LOGGER.critical(
             "argument(s) %s can only be used to update resources of FAILED jobs",
