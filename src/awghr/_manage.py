@@ -676,7 +676,7 @@ def cli(*argv: str, workdir: Path = Path.cwd()):
         "--pending",
         dest="state",
         action="store_const",
-        const=re.compile("^PENDING$"),
+        const=re.compile(r"^PENDING$"),
         help="show only pending jobs",
     )
     parser.add_argument(
@@ -684,7 +684,7 @@ def cli(*argv: str, workdir: Path = Path.cwd()):
         "--running",
         dest="state",
         action="store_const",
-        const=re.compile("^RUNNING$"),
+        const=re.compile(r"^RUNNING$"),
         help="show only running jobs",
     )
     parser.add_argument(
@@ -692,7 +692,7 @@ def cli(*argv: str, workdir: Path = Path.cwd()):
         "--success",
         dest="state",
         action="store_const",
-        const=re.compile("^SUCCESS$"),
+        const=re.compile(r"^SUCCESS$"),
         help="show only successful jobs",
     )
     parser.add_argument(
@@ -700,7 +700,7 @@ def cli(*argv: str, workdir: Path = Path.cwd()):
         "--skipped",
         dest="state",
         action="store_const",
-        const=re.compile("^SUCCESS/SKIPPED$"),
+        const=re.compile(r"^SUCCESS/SKIPPED$"),
         help="show only skipped jobs",
     )
     parser.add_argument(
@@ -708,7 +708,7 @@ def cli(*argv: str, workdir: Path = Path.cwd()):
         "--failed",
         dest="state",
         action="store_const",
-        const=re.compile("^FAILED$"),
+        const=re.compile(r"^FAILED$"),
         help="show only failed jobs",
     )
     parser.add_argument(
