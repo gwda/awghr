@@ -497,7 +497,7 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                     local cols=`tput cols 2>/dev/null || echo 96`
                     awk_script="BEGIN {{ C = ${{cols}} - 24 }} "'{{ if (length($0) > C) {{ print substr($0, 0, C), "..." }} else {{ print }} }}'
                 fi
-                tail -v -n 5 ${{dagman_outs}} | awk "${{awk_script}}"
+                tail -v -n 10 ${{dagman_outs}} | awk "${{awk_script}}"
             fi
         }}
         """
