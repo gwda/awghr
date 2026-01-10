@@ -67,7 +67,7 @@ for infile in infiles:
 
 # Add job
 job_batchopt: Dict[str, Any] = dict(
-    htcondor={"sub:condor_test_opt": "anotherval"},
+    htcondor={"sub_condor_test_opt": "anotherval"},
     slurm={"comment": "a comment with spaces"},
 )
 job_args: Dict[str, Any] = dict(
@@ -360,8 +360,8 @@ if w.batch_system == "htcondor":
             disk=(10, "MB"),
             outputs=["out_0.txt"],
             batchopt=dict(
-                htcondor={"sub:condor_test_opt": "val1"},
-                htcondor_testing={"sub:condor_test_opt": "val2"},
+                htcondor={"sub_condor_test_opt": "val1"},
+                htcondor_testing={"sub_condor_test_opt": "val2"},
             ),
         )
         msg = "should have raised a WorkflowException"
@@ -378,7 +378,7 @@ if w.batch_system == "htcondor":
             mem=(10, "MB"),
             disk=(10, "MB"),
             outputs=["dummy.txt"],
-            batchopt=dict(htcondor={"sub:executable": "dummy"}),
+            batchopt=dict(htcondor={"sub_executable": "dummy"}),
         )
         w.write()
         msg = "should have raised a WorkflowException"
@@ -390,7 +390,7 @@ if w.batch_system == "htcondor":
 
     # Check that submit file options are written out
     for opt, val in job_batchopt["htcondor"].items():
-        if opt[:4] == "sub:":
+        if opt[:4] == "sub_":
             sub_opt_str = "{} = {}".format(opt[4:], val).lower()
             sub_opt_found = False
             for root, dirs, files in os.walk(w.workdir):
