@@ -5,6 +5,7 @@
 """HTCondor workflows."""
 
 import shlex
+from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 from ._util import (
@@ -26,6 +27,7 @@ class HTCondorWorkflowWriter(WorkflowWriter):
         "submit_cmd_account": "accounting_group",
         "submit_cmd_account_user": "accounting_group_user",
         "submit_opt_list": [],
+        "file_transfer_scheme_list": [],
     }
 
     def __init__(self, *, batchsyscfg):
@@ -44,6 +46,12 @@ class HTCondorWorkflowWriter(WorkflowWriter):
             opt, val = (s.strip() for s in opt_str.split("=", maxsplit=1))
             self.default_submit_opt[opt.upper()] = val
 
+        # Store file tranfer scheme map
+        self.file_transfer_scheme = []
+        for scheme_str in batchsyscfg["file_transfer_scheme_list"]:
+            scheme_root, scheme = (s.strip() for s in scheme_str.split("=", maxsplit=1))
+            self.file_transfer_scheme.append((Path(scheme_root), scheme))
+
     def _write_sub(self, account, sub_file, sub):
         """Write HTCondor submit file."""
         sub = sub.copy()
@@ -60,6 +68,16 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                 if sub_val is not None:
                     f += f"{sub_opt} = {sub_val}"
             f += "queue"
+
+    def _apply_file_transfer_scheme(self, path):
+        """Apply file transfer scheme map."""
+        for scheme_root, scheme in self.file_transfer_scheme:
+            try:
+                scheme_path = path.relative_to(scheme_root)
+            except ValueError:
+                continue
+            return f"{scheme}:///{scheme_path}"
+        return str(path)
 
     def write_workflow(
         self,
@@ -293,14 +311,18 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                 #   - HTCondor automatically identifies and transfers output files
                 sub["SHOULD_TRANSFER_FILES"] = "YES"
                 sub["TRANSFER_INPUT_FILES"] = ",".join(
-                    str(infile) for infile in job_all_infiles
+                    self._apply_file_transfer_scheme(infile)
+                    for infile in job_all_infiles
                 )
                 sub["TRANSFER_OUTPUT_FILES"] = ",".join(
                     outfile.name for outfile in job_all_outfiles
                 )
                 sub["TRANSFER_OUTPUT_REMAPS"] = '"{}"'.format(
                     ";".join(
-                        f"{outfile.name}={outfile}" for outfile in job_all_outfiles
+                        "{}={}".format(
+                            outfile.name, self._apply_file_transfer_scheme(outfile)
+                        )
+                        for outfile in job_all_outfiles
                     )
                 )
                 sub["WHEN_TO_TRANSFER_OUTPUT"] = "ON_EXIT"

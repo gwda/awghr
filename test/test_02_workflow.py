@@ -59,6 +59,12 @@ try:
 except WorkflowException:
     pass
 
+# Create input files
+infiles = [Path("/tmp/abcd/staging/path/to/file.txt")]
+for infile in infiles:
+    infile.parent.mkdir(parents=True, exist_ok=True)
+    infile.write_text("XYZ")
+
 # Add job
 job_batchopt: Dict[str, Any] = dict(
     htcondor={"sub:condor_test_opt": "anotherval"},
@@ -78,7 +84,7 @@ job_args: Dict[str, Any] = dict(
     ncpus=2,
     ngpus=1,
     env=dict(WHY="now"),
-    inputs=[Path("/usr/bin/true")],
+    inputs=[Path("/usr/bin/true")] + infiles,
     outputs=["out_{index}.txt"],
     batchopt=job_batchopt,
 )
@@ -394,3 +400,16 @@ if w.batch_system == "htcondor":
                             if sub_opt_str in line.lower():
                                 sub_opt_found = True
             assert sub_opt_found
+
+    # Check that file transfer schemes have been applied
+    file_transfer_scheme_found = False
+    for root, dirs, files in os.walk(w.workdir):
+        for fname in files:
+            if fname == "job_condor.sub":
+                for line in (Path(root) / fname).open("r"):
+                    if (
+                        line.startswith("TRANSFER_INPUT_FILES =")
+                        and "abcd:///path/to/file.txt" in line
+                    ):
+                        file_transfer_scheme_found = True
+    assert file_transfer_scheme_found
