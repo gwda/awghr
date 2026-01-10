@@ -49,7 +49,7 @@ subprocess.run([w.workdir / "wait", "-n", "5"], check=True)
 
 queue_no_output_when_no_jobs = {"slurm": ["squeue", "--noheader"], "pbs": ["qstat"]}
 while True:
-    logger.info("waiting until no jobs are running...")
+    logger.info("waiting until no jobs are running ...")
     queue_output = subprocess.check_output(
         queue_no_output_when_no_jobs[w.batch_system], text=True
     ).strip()

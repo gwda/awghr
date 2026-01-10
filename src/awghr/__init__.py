@@ -1428,12 +1428,12 @@ def _archive_workflows(workdir):
         # Count how many times jobs are used by each workflow
         if wflow.is_dir():
             joblistfile = baseworkflowdir / wflow / "all_jobs"
-            LOGGER.info("reading jobs list from '%s' ...", joblistfile)
+            LOGGER.info("reading jobs list from '%s'", joblistfile)
             joblistfile_text = joblistfile.read_text()
         else:
             joblistfile = str(Path("workflows") / ID / "all_jobs")
             with tarfile.open(wflow, "r:bz2") as tf:
-                LOGGER.info("reading jobs list from '%s' ...", wflow)
+                LOGGER.info("reading jobs list from '%s'", wflow)
                 joblistfile_text = tf.extractfile(joblistfile).read().decode()
         job_dirs = [Path(line) for line in joblistfile_text.split()]
         for job_dir in job_dirs:
