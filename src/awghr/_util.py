@@ -72,6 +72,21 @@ def write_atomic(status: str, status_file: Path):
     status_file_tmp.replace(status_file)
 
 
+def job_dir_from_ID(basedir: Path, job_ID: str):
+    """Generate job directory from job ID.
+
+    Job directory structure:
+    ```
+    basedir
+    └── subdirs 00/ to ff/ (max 256)
+        └── subdirs 00/ to ff/ (max 256)
+            └── subdirs of remaining job ID/
+                └── job files
+    ```
+    """
+    return basedir / job_ID[0:2] / job_ID[2:4] / job_ID[4:]
+
+
 class WorkflowWriter(ABC):
     """Workflow writer base class."""
 
@@ -98,21 +113,6 @@ class WorkflowWriter(ABC):
     @abstractmethod
     def get_ctrl_commands(self, *, workflowname) -> Tuple[str, str, str]:
         """Get top-level control script commands."""
-
-
-def job_dir_from_ID(basedir: Path, job_ID: str):
-    """Generate job directory from job ID.
-
-    Job directory structure:
-    ```
-    basedir
-    └── subdirs 00/ to ff/ (max 256)
-        └── subdirs 00/ to ff/ (max 256)
-            └── subdirs of remaining job ID/
-                └── job files
-    ```
-    """
-    return basedir / job_ID[0:2] / job_ID[2:4] / job_ID[4:]
 
 
 class JobFileList:
