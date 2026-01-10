@@ -143,7 +143,7 @@ class Workflow:
 
         ID (str):
             A unique string representing the workflow.
-            Only available after :py:meth:`Workflow.write` has been called.
+            Only available after :meth:`Workflow.write` has been called.
 
     """
 
@@ -354,7 +354,7 @@ class Workflow:
 
                 If a dictionary, lists different resource requirements for
                 different clusters and/or batch systems; see the ``account``
-                option to :py:meth:`Workflow`.
+                option to :meth:`Workflow`.
 
             ncpus (Union[int, Dict[str, int]]):
                 Requested number of CPUs of the job.
@@ -362,7 +362,7 @@ class Workflow:
 
                 If a dictionary, lists different resource requirements for
                 different clusters and/or batch systems; see the ``account``
-                option to :py:meth:`Workflow`.
+                option to :meth:`Workflow`.
 
             ngpus (Union[int, Dict[str, int]]):
                 Requested number of GPUs of the job.
@@ -370,7 +370,7 @@ class Workflow:
 
                 If a dictionary, lists different resource requirements for
                 different clusters and/or batch systems; see the ``account``
-                option to :py:meth:`Workflow`.
+                option to :meth:`Workflow`.
 
             env (Optional[Dict[str, Any]]):
                 List of environment variables to save/set in job script.
@@ -407,7 +407,7 @@ class Workflow:
 
                 * The keys of the outer dictionary lists different accounts for
                   different clusters and/or batch systems; see the ``account``
-                  option to :py:meth:`Workflow`.
+                  option to :meth:`Workflow`.
 
                 * The values of the outer dictionary are themselves dictionaries
                   of options for the given cluster/batch system. Only options
@@ -622,9 +622,9 @@ class Workflow:
         Arguments:
             key (Tuple[str, str]):
                 First key is the job ID of the job, as returned by
-                :py:meth:`Workflow.add_job`. Second key is the name of the job
+                :meth:`Workflow.add_job`. Second key is the name of the job
                 argument, as passed in the ``args`` argument to
-                :py:meth:`Workflow.add_job`.
+                :meth:`Workflow.add_job`.
 
         Returns:
             Any: Value of the job argument.
