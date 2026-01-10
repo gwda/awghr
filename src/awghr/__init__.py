@@ -280,9 +280,9 @@ class Workflow:
         *,
         args: Dict[str, Any],
         cmds: List[Union[str, List[Any]]],
-        time: Union[Tuple[float, str], Dict[str, Tuple[float, str]]],
-        mem: Union[Tuple[float, str], Dict[str, Tuple[float, str]]],
-        disk: Union[Tuple[float, str], Dict[str, Tuple[float, str]]],
+        time: Union[Any, Dict[str, Any]],
+        mem: Union[Any, Dict[str, Any]],
+        disk: Union[Any, Dict[str, Any]],
         ncpus: Union[int, Dict[str, int]] = 1,
         ngpus: Union[int, Dict[str, int]] = 0,
         env: Optional[Dict[str, Any]] = None,
@@ -335,22 +335,25 @@ class Workflow:
                 * ``_ncpus``: requested number of CPUs.
                 * ``_ngpus``: requested number of GPUs.
 
-            time (Union[Tuple[float, str], Dict[str, Tuple[float, str]]]):
-                Requested wall time of the job: ``(magnitude, "unit")``
+            time (Union[Any, Dict[str, Any]]):
+                Requested wall time of the job.
+                Accepts a :class:`pint.Quantity` or arguments thereto.
 
                 If a dictionary, lists different resource requirements for
                 different clusters and/or batch systems; see the ``account``
-                option to :py:meth:`Workflow`.
+                option to :meth:`Workflow`.
 
-            mem (Union[Tuple[float, str], Dict[str, Tuple[float, str]]]):
-                Requested memory of the job: ``(magnitude, "unit")``
+            mem (Union[Any, Dict[str, Any]]):
+                Requested memory of the job.
+                Accepts a :class:`pint.Quantity` or arguments thereto.
 
                 If a dictionary, lists different resource requirements for
                 different clusters and/or batch systems; see the ``account``
-                option to :py:meth:`Workflow`.
+                option to :meth:`Workflow`.
 
-            disk (Union[Tuple[float, str], Dict[str, Tuple[float, str]]]):
-                Requested temporary disk space of the job: ``(magnitude, "unit")``
+            disk (Union[Any, Dict[str, Any]]):
+                Requested temporary disk space of the job.
+                Accepts a :class:`pint.Quantity` or arguments thereto.
 
                 If a dictionary, lists different resource requirements for
                 different clusters and/or batch systems; see the ``account``
@@ -463,11 +466,21 @@ class Workflow:
             (mem, "mem", "MB"),
             (disk, "disk", "MB"),
         ):
-            _res_val = self._select_on_cluster_batch_system(
+            res_expr = self._select_on_cluster_batch_system(
                 res_name, res_val, always=False, required=True, multi=False
             )
+            res_quantity = (
+                Quantity(*res_expr)
+                if isinstance(res_expr, (list, tuple))
+                else Quantity(res_expr)
+            )
+            try:
+                res_quantity_in_unit = res_quantity.to(res_unit)
+            except Exception:
+                msg = f"quantity '{res_quantity}' cannot be converted to units '{res_unit}'"
+                raise WorkflowException(msg)
             job[f"{res_name}_{res_unit}"] = int(
-                math.ceil(Quantity(_res_val[0], _res_val[1]).to(res_unit).magnitude)
+                math.ceil(res_quantity_in_unit.magnitude)
             )
         for res_val, res_name in ((ncpus, "ncpus"), (ngpus, "ngpus")):
             job[res_name] = self._select_on_cluster_batch_system(

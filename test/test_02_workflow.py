@@ -10,6 +10,8 @@ import sys
 from pathlib import Path
 from typing import Any, Dict
 
+from pint import Quantity
+
 from awghr import Workflow, WorkflowException
 from awghr._config import batch_system_names
 
@@ -71,8 +73,8 @@ job_args: Dict[str, Any] = dict(
         ["/usr/bin/true", "a", {"b": 1, "c": 2}, Path.cwd() / "file.dat"],
     ],
     time=(10, "min"),
-    mem=(10, "MB"),
-    disk=(10, "MB"),
+    mem="10 MB",
+    disk=Quantity(10, "MB"),
     ncpus=2,
     ngpus=1,
     env=dict(WHY="now"),
@@ -262,6 +264,22 @@ try:
         cmds=["true"],
         time=(10, "min"),
         mem=(10, "MB"),
+        disk=(10, "MB"),
+        outputs=["out_0.txt"],
+        batchopt=dict(dummy=dict(k=1)),
+    )
+    msg = "should have raised a WorkflowException"
+    raise AssertionError(msg)
+except WorkflowException:
+    pass
+
+# Try to add a job with job resources in invalid units
+try:
+    w.add_job(
+        args=dict(index=999),
+        cmds=["true"],
+        time=(10, "min"),
+        mem=(999, "metres"),
         disk=(10, "MB"),
         outputs=["out_0.txt"],
         batchopt=dict(dummy=dict(k=1)),
