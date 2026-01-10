@@ -26,6 +26,7 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
     # Configuration keys for generic workflow
     KEYS: Dict[str, Any] = {
         "jobfs": None,
+        "link_input_files?": None,
         "n_arraymax": 0,
         "n_jobsubpermin": 120,
     }
@@ -126,6 +127,9 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
 
         # Store location of job scratch directory
         self.jobfs = batchsyscfg["jobfs"]
+
+        # Store whether to link or copy input files
+        self.link_input_files = batchsyscfg["link_input_files?"]
 
         # Store maximum size of a job array
         if batchsyscfg["n_arraymax"] > 0:
@@ -338,10 +342,13 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
                                 job_stdouterr_file = job["dir"] / stdouterr
                                 f += f'ln -f "{jobarray_stdouterr_file}" "{job_stdouterr_file}"'
 
-                            # Copy input files into job scratch directory
+                            # Sym-link or copy input files into job scratch directory
                             for infile in job["infiles"]:
                                 f += f"test -f '{infile}' || fail 'Missing input file {infile.name}'"
-                                f += f"cp '{infile}' './{infile.name}'"
+                                if self.link_input_files:
+                                    f += f"ln -s '{infile}' './{infile.name}'"
+                                else:
+                                    f += f"cp '{infile}' './{infile.name}'"
 
                             # Run job script
                             f += "source ./job_script.sh"

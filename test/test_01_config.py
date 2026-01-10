@@ -14,9 +14,11 @@ default_src = """
 [DEFAULT SLURM]
 match batch = slurm
 jobfs = /tmp
+link_input_files? = true
 [DEFAULT PBS]
 match batch = pbs
 jobfs = /tmp
+link_input_files? = false
 """
 
 
