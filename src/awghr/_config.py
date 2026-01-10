@@ -52,6 +52,11 @@ _override_host = None
 cluster_names = set()
 
 
+def host_name():
+    """Get host name."""
+    return getfqdn() if _override_host is None else _override_host
+
+
 def batch_system_names():
     """Names of batch systems."""
     return set(batch_system for batch_system, _, _, _ in _batch_systems)
@@ -119,7 +124,7 @@ def read_config(
                 match = parser[section][key]
 
                 if target == "host":
-                    host = getfqdn() if _override_host is None else _override_host
+                    host = host_name()
 
                     # `match` starting with "." must match end of host name
                     # `match` containing "." (but not at start/end) must match whole host name
@@ -286,7 +291,7 @@ def cli(*argv: str):
     parser = argparse.ArgumentParser(
         description="show configuration",
     )
-    parser.add_argument("--tags", nargs="+", help="assume these tags")
+    parser.add_argument("--tags", type=str, nargs="+", help="assume these tags")
     parser.add_argument(
         "--batch",
         metavar="BATCH_SYSTEM",
@@ -312,14 +317,17 @@ def cli(*argv: str):
     )
 
     # Show general configuration
-    print("General configuration:")
+    host = host_name()
+    tags = ",".join(args.tags) if args.tags is not None else "<none>"
+    print(f"General configuration for host={host}, tags={tags}:")
     print_aligned({k: cfg[k] for k in _general_cfg})
 
     # Show batch system configuration
-    print(f"Batch system configuration for: {cfg['batch_system']}")
+    batch = cfg["batch_system"]
+    print(f"Batch system configuration for batch={batch}:")
     if cfg["batch_system_cfg"]:
         print_aligned(cfg["batch_system_cfg"])
     else:
-        print("    none")
+        print("    <none>")
 
     return 0
