@@ -134,9 +134,10 @@ class JobFileList:
         else:
             regex = arg
             sep = " "
-        filtered_list = [x for x in self._list if re.match(regex, x)]
+        regex = re.compile(regex)
+        filtered_list = [x for x in self._list if re.search(regex, x) is not None]
         if len(filtered_list) == 0:
-            msg = f"'{self._name}[{regex}]' must return at least one file"
+            msg = f"'{self._name}[{regex}:{sep}]' must return at least one file"
             raise WorkflowException(msg)
         return sep.join("./" + x for x in sorted(filtered_list))
 
