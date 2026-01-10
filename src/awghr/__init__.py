@@ -18,7 +18,6 @@ Configuration:
             ...                 #   May contain ``{format}`` strings which will be filled by:
                                 #   * ``_time_min``: requested wall time in minutes.
                                 #   * ``_mem_MB``: requested memory in MB.
-                                #   * ``_disk_MB``: requested temporary disk space in MB.
                                 #   * ``_ncpus``: requested number of CPUs.
                                 #   * ``_ngpus``: requested number of GPUs.
 
@@ -331,7 +330,6 @@ class Workflow:
                   See ``_in[...]``.
                 * ``_time_min``: requested wall time in minutes.
                 * ``_mem_MB``: requested memory in MB.
-                * ``_disk_MB``: requested temporary disk space in MB.
                 * ``_ncpus``: requested number of CPUs.
                 * ``_ngpus``: requested number of GPUs.
 
@@ -354,6 +352,19 @@ class Workflow:
             disk (Union[Any, Dict[str, Any]]):
                 Requested temporary disk space of the job.
                 Accepts a :class:`pint.Quantity` or arguments thereto.
+
+                The value requested for temporary disk space must be
+                sufficient for files whose size are unknown when jobs
+                are written, i.e.:
+
+                * output files created by jobs; and
+                * input files created by prerequisite jobs.
+
+                Files whose sizes are known when jobs are written, i.e. external
+                input files, will be automatically be included in the requested
+                temporary disk space if required. (Some cluster/batch system
+                configurations do not copy input files to temporary disk space;
+                in such cases, no additional temporary disk space is requested.)
 
                 If a dictionary, lists different resource requirements for
                 different clusters and/or batch systems; see the ``account``
@@ -487,7 +498,7 @@ class Workflow:
                 res_name, res_val, always=False, required=True, multi=False
             )
         job["resources"] = {
-            f"_{k}": job[k] for k in {"time_min", "mem_MB", "disk_MB", "ncpus", "ngpus"}
+            f"_{k}": job[k] for k in {"time_min", "mem_MB", "ncpus", "ngpus"}
         }
 
         # Store job environment
@@ -501,6 +512,7 @@ class Workflow:
 
         # Parse input file list
         job["infiles"] = []
+        job["extinfiles"] = []
         need_job_IDs = set()
         if inputs is not None:
             if len(inputs) != len(set(inputs)):
@@ -511,7 +523,7 @@ class Workflow:
                     if not inp.is_file():
                         msg = f"external input file '{inp}' does not exist"
                         raise WorkflowException(msg)
-                    job["infiles"].append(inp)
+                    job["extinfiles"].append(inp)
                 else:
                     inp_job_ID = inp[0]
                     inp_filenames = inp[1:]
@@ -555,13 +567,15 @@ class Workflow:
         job["outfinal"] = final
 
         # Reolve all input and output file paths
-        for key in ("infiles", "outfiles"):
+        for key in ("infiles", "extinfiles", "outfiles"):
             job[key] = [path.resolve() for path in job[key]]
 
         # Parse and store commands
         format_cmd = dict(args)
         format_cmd["_id"] = job_ID
-        format_cmd["_in"] = JobFileList("_in", [p.name for p in job["infiles"]])
+        format_cmd["_in"] = JobFileList(
+            "_in", [p.name for p in job["infiles"] + job["extinfiles"]]
+        )
         format_cmd["_out"] = JobFileList("_out", [p.name for p in job["outfiles"]])
         format_cmd.update(job["resources"])
         job["cmds"] = []
@@ -591,8 +605,8 @@ class Workflow:
 
                         # Stage path in input files, format as local path
                         cmd_arg = cmd_arg.resolve()
-                        if cmd_arg not in job["infiles"]:
-                            job["infiles"].append(cmd_arg)
+                        if cmd_arg not in job["extinfiles"]:
+                            job["extinfiles"].append(cmd_arg)
                         cmd_args.append("./" + cmd_arg.name)
 
                     else:
@@ -809,13 +823,13 @@ class Workflow:
 
             # Write JSON representation of arguments
             job_args_file = job["dir"] / "job_args.json"
-            job["infiles"].append(job_args_file)
+            job["extinfiles"].append(job_args_file)
             with FileLineWriter(job_args_file) as f:
                 f += job["args_json"]
 
             # Write job script
             job_script_file = job["dir"] / "job_script.sh"
-            job["infiles"].append(job_script_file)
+            job["extinfiles"].append(job_script_file)
             job["joboutfiles"] = [job["dir"] / "job_usage"]
             with FileLineWriter(job_script_file) as f:
                 f += "set -e"
@@ -863,6 +877,7 @@ class Workflow:
             "batchopt",
             "dir",
             "disk_MB",
+            "extinfiles",
             "infiles",
             "joboutfiles",
             "mem_MB",
@@ -908,9 +923,26 @@ def _write_workflow(workflow_file):
     for job_ID, job in workflow["jobs"].items():
         job["ID"] = job_ID
         job["dir"] = Path(job["dir"])
-        for k in ("infiles", "joboutfiles", "outfiles"):
+        for k in ("extinfiles", "infiles", "joboutfiles", "outfiles"):
             job[k] = [Path(v) for v in job[k]]
     LOGGER.info("read workflow from %s", workflow_file)
+
+    # Compute sizes of external input files
+    all_extinfiles = set()
+    for job in workflow["jobs"].values():
+        all_extinfiles.update(job["extinfiles"])
+    extinfile_size = {}
+    for extinfile in tqdm(
+        all_extinfiles, desc="Computing input file sizes ", disable=None, leave=False
+    ):
+        extinfile_size[extinfile] = Quantity(extinfile.stat().st_size, "byte")
+    for job in workflow["jobs"].values():
+        job_extinfile_size = sum(
+            [extinfile_size[extinfile] for extinfile in job["extinfiles"]]
+        )
+        job["extinfiles_size_MB"] = int(
+            math.ceil(job_extinfile_size.to("MB").magnitude)
+        )
 
     # Read configuration and get workflow writer
     cfg = read_config(tags=workflow["tags"])

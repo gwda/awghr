@@ -161,6 +161,12 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
         # - At least 10 minutes
         submit_time_min = max(10, math.ceil(len(jobs) / self.job_submit_per_min))
 
+        if not self.link_input_files:
+
+            # Adjust job disk space to accommodate external input files
+            for job in jobs.values():
+                job["disk_MB"] += job["extinfiles_size_MB"]
+
         # Bundle jobs by order, dependencies, and resources
         job_bundles: Dict[Tuple[int, str], Any] = {}
         for job in jobs.values():
@@ -343,7 +349,7 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
                                 f += f'ln -f "{jobarray_stdouterr_file}" "{job_stdouterr_file}"'
 
                             # Sym-link or copy input files into job scratch directory
-                            for infile in job["infiles"]:
+                            for infile in job["infiles"] + job["extinfiles"]:
                                 f += f"test -f '{infile}' || fail 'Missing input file {infile.name}'"
                                 if self.link_input_files:
                                     f += f"ln -s '{infile}' './{infile.name}'"

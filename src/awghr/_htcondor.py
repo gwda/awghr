@@ -119,7 +119,7 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                 jobscriptdir.mkdir(parents=True, exist_ok=True)
 
                 # All input and output files for HTCondor to transfer
-                job_all_infiles = job["infiles"]
+                job_all_infiles = job["infiles"] + job["extinfiles"]
                 job_all_outfiles = job["outfiles"] + job["joboutfiles"]
 
                 # Write job pre script
@@ -329,7 +329,9 @@ class HTCondorWorkflowWriter(WorkflowWriter):
 
                 # - Job resources
                 sub["REQUEST_MEMORY"] = "{}M".format(job["mem_MB"])
-                sub["REQUEST_DISK"] = "{}M".format(job["disk_MB"])
+                sub["REQUEST_DISK"] = "{}M".format(
+                    job["disk_MB"] + job["extinfiles_size_MB"]
+                )
                 sub["REQUEST_CPUS"] = job["ncpus"]
                 if job["ngpus"] > 0:
                     sub["REQUEST_GPUS"] = job["ngpus"]

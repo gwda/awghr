@@ -160,7 +160,7 @@ class LocalWorkflowWriter(WorkflowWriter):
                         """
 
                     # Soft-link input files into job scratch directory
-                    for infile in job["infiles"]:
+                    for infile in job["infiles"] + job["extinfiles"]:
                         f += f"test -f '{infile}' || fail 'Missing input file {infile.name}'"
                         f += f"ln -sf '{infile}' './{infile.name}'"
 

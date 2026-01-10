@@ -60,10 +60,9 @@ except WorkflowException:
     pass
 
 # Create input files
-infiles = [Path("/tmp/abcd/staging/path/to/file.txt")]
-for infile in infiles:
-    infile.parent.mkdir(parents=True, exist_ok=True)
-    infile.write_text("XYZ")
+for f in [Path.cwd() / "file.dat", Path("/tmp/abcd/staging/path/to/file.txt")]:
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(str(f))
 
 # Add job
 job_batchopt: Dict[str, Any] = dict(
@@ -84,7 +83,7 @@ job_args: Dict[str, Any] = dict(
     ncpus=2,
     ngpus=1,
     env=dict(WHY="now"),
-    inputs=[Path("/usr/bin/true")] + infiles,
+    inputs=[Path("/usr/bin/true"), Path("/tmp/abcd/staging/path/to/file.txt")],
     outputs=["out_{index}.txt"],
     batchopt=job_batchopt,
 )
