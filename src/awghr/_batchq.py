@@ -114,11 +114,24 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
     max_array_size: int
 
     @abstractmethod
+    def batchq_max_array_size(self) -> int:
+        """Get maximum size of a job array."""
+
+    @abstractmethod
     def batchq_ctrl_commands(self) -> Tuple[str, str, str]:
         """Get top-level batch control script commands."""
 
     def __init__(self, *, batchsyscfg):
         super().__init__(batchsyscfg=batchsyscfg)
+
+        # Store location of job scratch directory
+        self.jobfs = batchsyscfg["jobfs"]
+
+        # Store maximum size of a job array
+        if batchsyscfg["n_arraymax"] > 0:
+            self.max_array_size = batchsyscfg["n_arraymax"]
+        else:
+            self.max_array_size = self.batchq_max_array_size()
 
         # Store rate jobs can be submitted per minute
         # - At least 0.5 second per job

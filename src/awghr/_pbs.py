@@ -75,33 +75,28 @@ class PBSWorkflowWriter(BatchQWorkflowWriter):
     # optional and is removed for brevity.
     BATCHQ_ID_REMOVE_SUFFIX = "%%.*"
 
-    def __init__(self, *, batchsyscfg):
-        super().__init__(batchsyscfg=batchsyscfg)
+    def batchq_max_array_size(self) -> int:
+        """Get maximum size of a job array."""
 
-        # Store location of job scratch directory
-        self.jobfs = batchsyscfg["jobfs"]
+        # Run `qmgr -c 'print server'` and parse its output
+        retn = subprocess.run(
+            ["qmgr", "-c", "print server"], capture_output=True, check=True
+        )
+        pbs_cfg = {}
+        for line in retn.stdout.decode("utf-8").splitlines():
+            prefix = "set server "
+            if line.startswith(prefix):
+                key, val = line[len(prefix) :].split("=", maxsplit=1)
+                pbs_cfg[key.strip()] = val.strip()
 
-        # Store maximum size of PBS job array
-        if batchsyscfg["n_arraymax"] > 0:
-            self.max_array_size = batchsyscfg["n_arraymax"]
-        else:
-            # Run `qmgr -c 'print server'` and parse its output
-            retn = subprocess.run(
-                ["qmgr", "-c", "print server"], capture_output=True, check=True
-            )
-            pbs_cfg = {}
-            for line in retn.stdout.decode("utf-8").splitlines():
-                prefix = "set server "
-                if line.startswith(prefix):
-                    key, val = line[len(prefix) :].split("=", maxsplit=1)
-                    pbs_cfg[key.strip()] = val.strip()
+        # Get maximum size of PBS job array
+        try:
+            max_array_size = int(pbs_cfg["max_array_size"])
+        except KeyError:  # pragma: no cover
+            msg = "could not determine maximum size of PBS job array"
+            raise BatchSystemException(msg)
 
-            # Get maximum size of PBS job array
-            try:
-                self.max_array_size = int(pbs_cfg["max_array_size"])
-            except KeyError:  # pragma: no cover
-                msg = "could not determine maximum size of PBS job array"
-                raise BatchSystemException(msg)
+        return max_array_size
 
     def batchq_ctrl_commands(self) -> Tuple[str, str, str]:
         """Get top-level batch control script commands."""
