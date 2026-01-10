@@ -28,7 +28,7 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
         "jobfs": None,
         "link_input_files?": None,
         "n_arraymax": 0,
-        "n_jobsubpermin": 120,
+        "n_jobsubpermin": 300,
     }
 
     # Job script header; should define the fields:
@@ -138,8 +138,7 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
             self.max_array_size = self.batchq_max_array_size()
 
         # Store rate jobs can be submitted per minute
-        # - At least 0.5 second per job
-        self.job_submit_per_min = min(120.0, float(batchsyscfg["n_jobsubpermin"]))
+        self.job_submit_per_min = float(batchsyscfg["n_jobsubpermin"])
 
     def write_workflow(
         self,
