@@ -512,8 +512,8 @@ class HTCondorWorkflowWriter(WorkflowWriter):
             if test "X${{dagman_outs}}" != X; then
                 local awk_script='{{ print }}'
                 if test -t; then
-                    local cols=`tput cols 2>/dev/null || echo 96`
-                    awk_script="BEGIN {{ C = ${{cols}} - 24 }} "'{{ if (length($0) > C) {{ print substr($0, 0, C), "..." }} else {{ print }} }}'
+                    local cols=`tput cols 2>/dev/null || echo 90`
+                    awk_script="BEGIN {{ C = ${{cols}} - 30 }} "'{{ if (length($0) > C) {{ print substr($0, 0, C), "..." }} else {{ print }} }}'
                 fi
                 tail -v -n 10 ${{dagman_outs}} | awk "${{awk_script}}"
             fi
