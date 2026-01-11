@@ -254,6 +254,17 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
                 # Write common script header
                 f += SCRIPT_HEADER
 
+                # Write shell function stage_infile() to stage input files
+                stage_infile_cmd = "ln -s" if self.link_input_files else "cp"
+                f += f"""
+                function stage_infile() {{
+                    local dir="$1"
+                    local name="$2"
+                    test -f "${{dir}}/${{name}}" || fail "Missing input file ${{dir}}/${{name}}"
+                    {stage_infile_cmd} "${{dir}}/${{name}}" "./${{name}}"
+                }}
+                """
+
                 # Parse job array indexes to find which job to run based on batch index
                 jobarray_index_file = jobarraydir / "job_array_indexes"
                 batch_index = f"${{{self.BATCHQ_ARRAY_INDEX}}}"
@@ -347,13 +358,9 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
                                 job_stdouterr_file = job["dir"] / stdouterr
                                 f += f'ln -f "{jobarray_stdouterr_file}" "{job_stdouterr_file}"'
 
-                            # Sym-link or copy input files into job scratch directory
+                            # Stage input files into job scratch directory
                             for infile in job["infiles"] + job["extinfiles"]:
-                                f += f"test -f '{infile}' || fail 'Missing input file {infile.name}'"
-                                if self.link_input_files:
-                                    f += f"ln -s '{infile}' './{infile.name}'"
-                                else:
-                                    f += f"cp '{infile}' './{infile.name}'"
+                                f += f"stage_infile '{infile.parent}' '{infile.name}'"
 
                             # Run job script
                             f += "source ./job_script.sh"
