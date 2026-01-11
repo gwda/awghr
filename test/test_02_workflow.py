@@ -66,7 +66,7 @@ for f in [Path.cwd() / "file.dat", Path("/tmp/abcd/staging/path/to/file.txt")]:
 
 # Add job
 job_batchopt: Dict[str, Any] = dict(
-    htcondor={"sub_condor_test_opt": "anotherval"},
+    htcondor={"sub_my.condor_test_opt": "anotherval"},
     slurm={"comment": "a comment with spaces"},
 )
 job_args: Dict[str, Any] = dict(
@@ -359,8 +359,8 @@ if w.batch_system == "htcondor":
             disk=(10, "MB"),
             outputs=["out_0.txt"],
             batchopt=dict(
-                htcondor={"sub_condor_test_opt": "val1"},
-                htcondor_testing={"sub_condor_test_opt": "val2"},
+                htcondor={"sub_my.condor_test_opt": "val1"},
+                htcondor_testing={"sub_my.condor_test_opt": "val2"},
             ),
         )
         msg = "should have raised a WorkflowException"
