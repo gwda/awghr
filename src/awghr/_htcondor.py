@@ -29,6 +29,7 @@ class HTCondorWorkflowWriter(WorkflowWriter):
         "submit_cmd_account_user": "accounting_group_user",
         "submit_opt_list": [],
         "file_transfer_scheme_list": [],
+        "periodic_release_hold_codes": "4 7 8 9 10 11 12 13 14 17 18 19 22 23 24",
     }
 
     def __init__(self, *, batchsyscfg):
@@ -52,6 +53,14 @@ class HTCondorWorkflowWriter(WorkflowWriter):
         for scheme_str in batchsyscfg["file_transfer_scheme_list"]:
             scheme_root, scheme = (s.strip() for s in scheme_str.split("=", maxsplit=1))
             self.file_transfer_scheme.append((Path(scheme_root), scheme))
+
+        # Store list of hold reason codes where job can be periodically released
+        periodic_release_hold_codes_list = [
+            s.strip() for s in batchsyscfg["periodic_release_hold_codes"].split()
+        ]
+        self.periodic_release_hold_codes = (
+            "{" + ", ".join(periodic_release_hold_codes_list) + "}"
+        )
 
     def _write_sub(self, account, sub_file, sub):
         """Write HTCondor submit file."""
@@ -337,6 +346,11 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                 sub["REQUEST_CPUS"] = job["ncpus"]
                 if job["ngpus"] > 0:
                     sub["REQUEST_GPUS"] = job["ngpus"]
+
+                # - Periodically release held jobs
+                sub["PERIODIC_RELEASE"] = "member(HoldReasonCode, {})".format(
+                    self.periodic_release_hold_codes
+                )
 
                 # - Extra HTCondor job submit file options
                 submit_opt = self.default_submit_opt.copy()
