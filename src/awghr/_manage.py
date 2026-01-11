@@ -828,11 +828,6 @@ def cli(*argv: str, workdir: Path = Path.cwd()):
             )
             resource_args.append((long_arg, arg_name))
     parser.add_argument(
-        "--clear",
-        action="store_true",
-        help="clear and rebuild cache of job states, etc.",
-    )
-    parser.add_argument(
         "--concurrent", type=int, default=8, help="limit on concurrent I/O subprocesses"
     )
     parser.add_argument(
@@ -841,9 +836,20 @@ def cli(*argv: str, workdir: Path = Path.cwd()):
         default=15,
         help="timeout (in seconds) for subprocesses",
     )
+    parser.add_argument(
+        "--clear-cache",
+        action="store_true",
+        help="clear and rebuild cache of job states, etc.",
+    )
 
     # Parse command line
     args = parser.parse_args(argv)
+
+    # Clear cache
+    cache_file = workdir / ".manage-cache"
+    if args.clear_cache:
+        cache_file.unlink(missing_ok=True)
+        return 0
 
     # Check arguments
     resource_args_used = [
@@ -857,13 +863,10 @@ def cli(*argv: str, workdir: Path = Path.cwd()):
             "argument(s) %s can only be used to update resources of FAILED jobs",
             ", ".join(resource_args_used),
         )
-        sys.exit(2)
+        return 2
 
-    # Load/clear cache
-    cache_file = workdir / ".manage-cache"
-    if args.clear:
-        cache_file.unlink(missing_ok=True)
-    with DictCache(cache_file, __file__) as cache:
+    # Load cache
+    with DictCache(cache_file) as cache:
 
         # Run command, pipe output through a pager
         exit_code = 0

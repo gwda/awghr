@@ -265,24 +265,17 @@ class FileLineWriter:
 class DictCache(UserDict):
     """Load and save a dictionary to a cache file."""
 
-    def __init__(self, cachefile: Path, sourcefile: str):
+    def __init__(self, cache_file: Path):
         super().__init__()
-        self._cachefile = cachefile
-        self._sourcefile_mtime = Path(sourcefile).stat().st_mtime
+        self._cache_file = cache_file
 
     def __enter__(self):
         """Load cache."""
-        if self._cachefile.is_file():
-
-            # Check cache is not older than reference source file
-            cache_mtime = self._cachefile.stat().st_mtime
-            if cache_mtime > self._sourcefile_mtime:
-
-                # Load cache
-                self.data = pickle.load(self._cachefile.open("rb"))
+        if self._cache_file.is_file():
+            self.data = pickle.load(self._cache_file.open("rb"))
 
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         """Save cache."""
-        pickle.dump(self.data, self._cachefile.open("wb"))
+        pickle.dump(self.data, self._cache_file.open("wb"))

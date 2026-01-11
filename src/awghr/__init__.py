@@ -997,7 +997,7 @@ def _write_workflow(workflow_file):
     return 0
 
 
-def _write_ctrl_scripts(workdir, *, force_update_scripts=False):
+def _write_ctrl_scripts(workdir):
     """Write top-level control scripts."""
 
     # Name of workflow
@@ -1013,33 +1013,6 @@ def _write_ctrl_scripts(workdir, *, force_update_scripts=False):
     )
     all_workflow_IDs_str = " ".join(all_workflow_IDs)
 
-    # Check for any scripts older than this source file and any workflows
-    if not force_update_scripts:
-        reference_mtime = Path(__file__).stat().st_mtime
-        for ID in all_workflow_IDs:
-            workflow_timestamp_file = (
-                baseworkflowdir / ID / "batch_scripts" / ".timestamp"
-            )
-            if workflow_timestamp_file.is_file():
-                workflow_mtime = workflow_timestamp_file.stat().st_mtime
-                if workflow_mtime > reference_mtime:
-                    reference_mtime = workflow_mtime
-        update_scripts = any(
-            (not (workdir / script).is_file())
-            or (workdir / script).stat().st_mtime < reference_mtime
-            for script in (
-                "submit",
-                "queue",
-                "cancel",
-                "status",
-                "wait",
-                "manage",
-                "archive",
-            )
-        )
-        if not update_scripts:
-            return 1
-
     # Read configuration and get workflow writer
     cfg = read_config()
     workflow_writer = cfg["workflow_writer"](batchsyscfg=cfg["batch_system_cfg"])
@@ -1049,7 +1022,9 @@ def _write_ctrl_scripts(workdir, *, force_update_scripts=False):
     # - Update top-level control scripts
     top_level_script_header = f"""
     cd '{workdir}'
-    if {sys.executable} -m awghr.__init__ write-ctrl-scripts; then
+    if test "X${{_AWGHR_WRITE_CTRL_SCRIPTS}}" = X; then
+        {sys.executable} -m awghr.__init__ write-ctrl-scripts >/dev/null
+        export _AWGHR_WRITE_CTRL_SCRIPTS=no
         exec "$0" "$@"
         exit 1
     fi
@@ -1493,7 +1468,7 @@ def _archive_workflows(workdir):
                     pass
 
     # Update top-level control scripts
-    _write_ctrl_scripts(workdir, force_update_scripts=True)
+    _write_ctrl_scripts(workdir)
 
     # Log completion
     LOGGER.info("archiving complete")

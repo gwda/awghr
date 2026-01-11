@@ -85,12 +85,7 @@ try:
 except SystemExit:
     pass
 print("-----", flush=True)
-try:
-    manage_cli("-S", "-r", "+T", "9min", workdir=w.workdir)
-    msg = "should have exited"
-    raise AssertionError(msg)
-except SystemExit:
-    pass
+assert manage_cli("-S", "-r", "+T", "9min", workdir=w.workdir) == 2
 print("-----", flush=True)
 assert manage_cli("-F", "-r", "+T", "9min", "-M", "15MB", workdir=w.workdir) == 0
 
