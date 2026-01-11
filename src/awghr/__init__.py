@@ -1387,9 +1387,8 @@ def _archive_workflows(workdir):
     # Directory containing workflows
     baseworkflowdir = workdir / "workflows"
 
-    # Process workflows
+    # Determine if there are any workflows to archive
     archive_workflow_IDs = []
-    job_dir_used = defaultdict(int)
     for wflow in sorted(baseworkflowdir.iterdir()):
         ID = wflow.name.split(".", maxsplit=1)[0]
 
@@ -1408,7 +1407,13 @@ def _archive_workflows(workdir):
         if workstate == "SUCCESS":
             archive_workflow_IDs.append(ID)
 
-        # Count how many times jobs are used by each workflow
+    if not archive_workflow_IDs:
+        return 0
+
+    # Count how many times jobs are used by each workflow
+    job_dir_used = defaultdict(int)
+    for wflow in sorted(baseworkflowdir.iterdir()):
+        ID = wflow.name.split(".", maxsplit=1)[0]
         if wflow.is_dir():
             joblistfile = baseworkflowdir / wflow / "all_jobs"
             LOGGER.info("reading jobs list from '%s'", joblistfile)
@@ -1421,9 +1426,6 @@ def _archive_workflows(workdir):
         job_dirs = [Path(line) for line in joblistfile_text.split()]
         for job_dir in job_dirs:
             job_dir_used[job_dir] += 1
-
-    if not archive_workflow_IDs:
-        return 0
 
     # Archive successful workflows
     for ID in archive_workflow_IDs:
