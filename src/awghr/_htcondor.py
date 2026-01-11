@@ -402,11 +402,11 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                 # Check DAG output for exit status
                 dagman_out = batchdir / "condor.dag.dagman.out"
                 f += f"""
-                if tail -n 1 '{dagman_out}' | grep -q -v "EXITING WITH STATUS"; then
+                if ! ( tail -n 1 '{dagman_out}' | grep -q "EXITING WITH STATUS" ); then
                     echo "info: monitoring '{dagman_out}' for DAG exit status..."
                     ( tail -f -n 1 '{dagman_out}' & ) | grep -q "EXITING WITH STATUS"
                 fi
-                if tail -n 1 '{dagman_out}' | grep -q -v "EXITING WITH STATUS 0"; then
+                if ! ( tail -n 1 '{dagman_out}' | grep -q "EXITING WITH STATUS 0" ); then
                     workstate=FAILED
                 fi
                 """
@@ -527,7 +527,7 @@ class HTCondorWorkflowWriter(WorkflowWriter):
             local ID=
             for ID in $@; do
                 local dagman_out="./workflows/${{ID}}/batch_scripts/condor.dag.dagman.out"
-                if grep -q -v "Event: ULOG_SUBMIT" "${{dagman_out}}"; then
+                if ! ( grep -q "Event: ULOG_SUBMIT" "${{dagman_out}}" ); then
                     echo "info: monitoring '${{dagman_out}}' for job submit events..."
                     ( tail -f -n 10 "${{dagman_out}}" & ) | grep -q "Event: ULOG_SUBMIT"
                 fi
