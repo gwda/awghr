@@ -924,7 +924,7 @@ def _write_workflow(workflow_file):
         job["ID"] = job_ID
         job["dir"] = Path(job["dir"])
         for k in ("extinfiles", "infiles", "joboutfiles", "outfiles"):
-            job[k] = [Path(v) for v in job[k]]
+            job[k] = [Path(v) for v in job.get(k, [])]
     LOGGER.info("read workflow from %s", workflow_file)
 
     # Read configuration and get workflow writer
