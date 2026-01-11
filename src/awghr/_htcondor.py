@@ -502,14 +502,19 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                     constraint="${{constraint}} || "
                 fi
                 constraint="${{constraint}}JobBatchName == \\\"{workflowname}_${{ID}}\\\""
-                local dagman_out="./workflows/${{ID}}/batch_scripts/condor.dag.dagman.out"
+                local dagman_out="${{PWD}}/workflows/${{ID}}/batch_scripts/condor.dag.dagman.out"
                 if test -f "${{dagman_out}}"; then
                     dagman_outs="${{dagman_outs}} ${{dagman_out}}"
                 fi
             done
             constraint="( DAGManJobId != 0 ) && ( ${{constraint}} )"
-            condor_q -constraint "${{constraint}}"
+            echo "##### ALL JOBS #####"
+            condor_q -batch -constraint "${{constraint}}"
+            echo "##### HELD JOBS #####"
+            condor_q -hold -constraint "${{constraint}}"
             if test "X${{dagman_outs}}" != X; then
+                echo "##### DAGMAN OUTPUT #####"
+                echo
                 local awk_script='{{ print }}'
                 if test -t; then
                     local cols=`tput cols 2>/dev/null || echo 90`
