@@ -927,23 +927,6 @@ def _write_workflow(workflow_file):
             job[k] = [Path(v) for v in job[k]]
     LOGGER.info("read workflow from %s", workflow_file)
 
-    # Compute sizes of external input files
-    all_extinfiles = set()
-    for job in workflow["jobs"].values():
-        all_extinfiles.update(job["extinfiles"])
-    extinfile_size = {}
-    for extinfile in tqdm(
-        all_extinfiles, desc="Computing input file sizes ", disable=None, leave=False
-    ):
-        extinfile_size[extinfile] = Quantity(extinfile.stat().st_size, "byte")
-    for job in workflow["jobs"].values():
-        job_extinfile_size = sum(
-            [extinfile_size[extinfile] for extinfile in job["extinfiles"]]
-        )
-        job["extinfiles_size_MB"] = int(
-            math.ceil(job_extinfile_size.to("MB").magnitude)
-        )
-
     # Read configuration and get workflow writer
     cfg = read_config(tags=workflow["tags"])
     workflow_writer = cfg["workflow_writer"](batchsyscfg=cfg["batch_system_cfg"])

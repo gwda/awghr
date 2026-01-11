@@ -5,6 +5,7 @@
 """Utility functions."""
 
 import logging
+import math
 import os
 import pickle
 import re
@@ -19,6 +20,7 @@ from textwrap import dedent
 from typing import Tuple
 
 from pint import Quantity
+from tqdm import tqdm
 
 # Set up logging
 logging.basicConfig(
@@ -85,6 +87,37 @@ def job_dir_from_ID(basedir: Path, job_ID: str):
     ```
     """
     return basedir / job_ID[0:2] / job_ID[2:4] / job_ID[4:]
+
+
+def request_disk_for_external_input_files(jobs):
+    """Compute sizes of external input files and add to requested temporary disk space."""
+
+    # Get list of all external input files
+    all_extinfiles = set()
+    for job in jobs:
+        all_extinfiles.update(job["extinfiles"])
+
+    # Compute sizes of external input files
+    extinfile_size = {}
+    for extinfile in tqdm(
+        all_extinfiles, desc="Computing input file sizes ", disable=None, leave=False
+    ):
+        extinfile_size[extinfile] = Quantity(extinfile.stat().st_size, "byte")
+
+    for job in jobs:
+
+        # Compute size of all external input files for this job
+        job_extinfile_size = sum(
+            [extinfile_size[extinfile] for extinfile in job["extinfiles"]]
+        )
+        job_extinfile_size_MB = job_extinfile_size.to("MB").magnitude
+
+        # Round size up to 2 significant figures
+        d = 10 ** (math.floor(math.log10(job_extinfile_size_MB)) - 1)
+        job_extinfile_size_MB = math.ceil(job_extinfile_size_MB / d) * d
+
+        # Add to requested temporary disk space
+        job["disk_MB"] += job_extinfile_size_MB
 
 
 class WorkflowWriter(ABC):

@@ -17,6 +17,7 @@ from ._util import (
     ProgressLogger,
     WorkflowWriter,
     job_dir_from_ID,
+    request_disk_for_external_input_files,
 )
 
 
@@ -156,15 +157,14 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
     ) -> None:
         """Write workflow."""
 
+        if not self.link_input_files:
+
+            # Request temporary disk space for external input files
+            request_disk_for_external_input_files(jobs.values())
+
         # Guestimate runtime for submission and workstate jobs
         # - At least 10 minutes
         submit_time_min = max(10, math.ceil(len(jobs) / self.job_submit_per_min))
-
-        if not self.link_input_files:
-
-            # Adjust job disk space to accommodate external input files
-            for job in jobs.values():
-                job["disk_MB"] += job["extinfiles_size_MB"]
 
         # Bundle jobs by order, dependencies, and resources
         job_bundles: Dict[Tuple[int, str], Any] = {}

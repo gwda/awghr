@@ -15,6 +15,7 @@ from ._util import (
     WorkflowException,
     WorkflowWriter,
     job_dir_from_ID,
+    request_disk_for_external_input_files,
 )
 
 
@@ -94,6 +95,9 @@ class HTCondorWorkflowWriter(WorkflowWriter):
         skip_exit_code,
     ) -> None:
         """Write workflow."""
+
+        # Request temporary disk space for external input files
+        request_disk_for_external_input_files(jobs.values())
 
         # HTCondor job log
         job_log = batchdir / "condor.log"
@@ -329,9 +333,7 @@ class HTCondorWorkflowWriter(WorkflowWriter):
 
                 # - Job resources
                 sub["REQUEST_MEMORY"] = "{}M".format(job["mem_MB"])
-                sub["REQUEST_DISK"] = "{}M".format(
-                    job["disk_MB"] + job["extinfiles_size_MB"]
-                )
+                sub["REQUEST_DISK"] = "{}M".format(job["disk_MB"])
                 sub["REQUEST_CPUS"] = job["ncpus"]
                 if job["ngpus"] > 0:
                     sub["REQUEST_GPUS"] = job["ngpus"]
