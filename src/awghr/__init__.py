@@ -50,6 +50,7 @@ import subprocess
 import sys
 import tarfile
 from collections import defaultdict
+from contextlib import ExitStack
 from datetime import datetime
 from hashlib import blake2b
 from pathlib import Path
@@ -68,6 +69,7 @@ from ._util import (
     ProgressLogger,
     WorkflowException,
     job_dir_from_ID,
+    modify_read_only_directory,
     resolved_path,
     write_atomic,
 )
@@ -778,7 +780,8 @@ class Workflow:
             ):
 
                 # Remove duplicate workflow
-                shutil.rmtree(existing_workflow_workflowdir)
+                with modify_read_only_directory(baseworkflowdir):
+                    shutil.rmtree(existing_workflow_workflowdir)
                 LOGGER.info("removed duplicate workflow %s", existing_workflow_ID)
 
             elif num_duplicate_jobs > 0 or num_duplicate_outputs > 0:
@@ -869,7 +872,8 @@ class Workflow:
                 f += "_AWGHR_EOF_"
 
         # Make workflow directory
-        workflowdir.mkdir(parents=True, exist_ok=True)
+        with modify_read_only_directory(baseworkflowdir):
+            workflowdir.mkdir(exist_ok=True)
 
         # Write workflow description
         workflow_job_keys = (
@@ -1421,7 +1425,11 @@ def _archive_workflows(workdir):
             # Create archive tarfile
             archive_tarfile = baseworkflowdir / f"{ID}.tar.bz2"
             LOGGER.info("creating archive tarball '%s'", archive_tarfile)
-            with tarfile.open(archive_tarfile, "x:bz2") as tf:
+            with ExitStack() as stack:
+
+                # Open archive tarball file
+                with modify_read_only_directory(baseworkflowdir):
+                    tf = stack.enter_context(tarfile.open(archive_tarfile, "x:bz2"))
 
                 # Add list of jobs in workflow to archive tarball
                 tf.add(joblistfile, arcname=joblistfile.relative_to(workdir))
@@ -1454,7 +1462,8 @@ def _archive_workflows(workdir):
 
         # Remove workflow directory
         LOGGER.info("removing archived workflow directory '%s'", wflowdir)
-        shutil.rmtree(wflowdir)
+        with modify_read_only_directory(baseworkflowdir):
+            shutil.rmtree(wflowdir)
 
     # Remove empty job subdirectories
     job_root_dir = workdir / "jobs"
