@@ -271,10 +271,10 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                     fi
                     """
 
-                    # Skip post script if job was skipped
-                    f += f"""
-                    if test ${{RETURN}} -eq {skip_exit_code}; then
-                        exit ${{RETURN}}
+                    # Skip output file checks if job was not successful
+                    f += """
+                    if test ${RETURN} -ne 0; then
+                        exit ${RETURN}
                     fi
                     """
 
@@ -287,9 +287,6 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                             outfinaldir_file = outfinaldir / outfile.name
                             f += f"test ! -f '{outfinaldir_file}' || fail 'Output file {outfile.name} already exists in {outfinaldir}'"
                             f += f"ln -f '{outfile}' '{outfinaldir_file}'"
-
-                    # Exit with job return code
-                    f += "exit ${RETURN}"
 
                 ### Build HTCondor job submit file ###
 
