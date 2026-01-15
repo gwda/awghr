@@ -371,6 +371,9 @@ class HTCondorWorkflowWriter(WorkflowWriter):
 
                 # - Define job
                 F += f"JOB {job_ID} {job_sub_file} DIR {job['dir']}"
+                if "dag_retry" in job["batchopt"]:
+                    dag_retry = int(job["batchopt"]["dag_retry"])
+                    F += f"RETRY {job_ID} {dag_retry} UNLESS-EXIT {skip_exit_code}"
 
                 # - Define pre- and post-job script
                 F += f"""

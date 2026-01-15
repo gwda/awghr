@@ -43,6 +43,7 @@ for skip_exit_code in (77, 99):
             mem=(10, "MB"),
             disk=(10, "MB"),
             outputs=["file{exit_code}.txt"],
+            batchopt=dict(htcondor={"dag_retry": 1}),
         )
 
     w.write()
