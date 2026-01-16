@@ -1451,6 +1451,11 @@ def _archive_workflows(workdir):
                 stdout=subprocess.DEVNULL,
             )
 
+            # Record that archive tarball has been successfully created
+            # - In case of subsequent failures
+            workstatefile = wflowdir / "state"
+            workstatefile.write_text("ARCHIVE TARBALL CREATED")
+
             # Remove job directories
             LOGGER.info(
                 "removing directories of jobs archived in '%s'", archive_tarfile
