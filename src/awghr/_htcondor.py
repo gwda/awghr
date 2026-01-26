@@ -317,6 +317,10 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                 sub["OUTPUT"] = "job_stdout"
                 sub["ERROR"] = "job_stderr"
 
+                # - Stream job standard output/error
+                sub["STREAM_OUTPUT"] = "TRUE"
+                sub["STREAM_ERROR"] = "TRUE"
+
                 # - Job input and output files
                 #   - HTCondor automatically identifies and transfers output files
                 sub["SHOULD_TRANSFER_FILES"] = "YES"
