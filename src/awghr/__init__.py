@@ -1028,6 +1028,7 @@ def _write_ctrl_scripts(workdir):
     # Common top-level control script header:
     # - Change to workflow directory
     # - Update top-level control scripts
+    # - Export terminal width
     top_level_script_header = f"""
     cd '{workdir}'
     if test "X${{_AWGHR_WRITE_CTRL_SCRIPTS}}" = X; then
@@ -1035,6 +1036,9 @@ def _write_ctrl_scripts(workdir):
         export _AWGHR_WRITE_CTRL_SCRIPTS=no
         exec "$0" "$@"
         exit 1
+    fi
+    if test "X${{_AWGHR_COLUMNS}}" = X; then
+        export _AWGHR_COLUMNS=`tput cols 2>/dev/null || echo 80`
     fi
     """
 

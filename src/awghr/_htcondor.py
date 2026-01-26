@@ -511,18 +511,36 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                     dagman_outs="${{dagman_outs}} ${{dagman_out}}"
                 fi
             done
+            local awk_script='
+            NF {{ print S $0; S = ""; P = 1; next }}
+            P {{ S = S ORS }}
+            '
+            if test "X${{PAGER}}" = "Xcat"; then
+                awk_script="
+                BEGIN {{ C = ${{_AWGHR_COLUMNS}} - 4 }}
+                "'
+                NF {{
+                    if (length($0) > C) {{
+                        print S substr($0, 0, C) " ..."
+                    }} else {{
+                        print S $0
+                    }};
+                    S = ""; P = 1; next
+                }}
+                P {{ S = S ORS }}
+                '
+            fi
             echo "##### ALL JOBS #####"
-            condor_q -batch -constraint "${{constraint}}"
+            echo
+            condor_q -batch -constraint "${{constraint}}" | awk "${{awk_script}}"
+            echo
             echo "##### HELD JOBS #####"
-            condor_q -hold -constraint "${{constraint}}"
+            echo
+            condor_q -hold -constraint "${{constraint}}" | awk "${{awk_script}}"
             if test "X${{dagman_outs}}" != X; then
+                echo
                 echo "##### DAGMAN OUTPUT #####"
                 echo
-                local awk_script='{{ print }}'
-                if test -t; then
-                    local cols=`tput cols 2>/dev/null || echo 90`
-                    awk_script="BEGIN {{ C = ${{cols}} - 30 }} "'{{ if (length($0) > C) {{ print substr($0, 0, C), "..." }} else {{ print }} }}'
-                fi
                 tail -v -n 10 ${{dagman_outs}} | awk "${{awk_script}}"
             fi
         }}

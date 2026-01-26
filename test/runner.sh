@@ -5,7 +5,7 @@
 set -e
 
 source /testing/test/.runnerrc
-export COLUMNS
+export _AWGHR_COLUMNS
 
 batch_system="$1"
 

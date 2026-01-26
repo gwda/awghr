@@ -145,7 +145,8 @@ def test(docker_files, test_scripts):
     term_size = shutil.get_terminal_size()
 
     runnerrc = {
-        "COLUMNS": term_size.columns,
+        # reserve space for runner line prefixes
+        "_AWGHR_COLUMNS": term_size.columns - 24,
         "TESTFILES": " ".join(str(p) for p in test_scripts),
     }
 
