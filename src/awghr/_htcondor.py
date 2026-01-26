@@ -511,7 +511,6 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                     dagman_outs="${{dagman_outs}} ${{dagman_out}}"
                 fi
             done
-            constraint="( DAGManJobId != 0 ) && ( ${{constraint}} )"
             echo "##### ALL JOBS #####"
             condor_q -batch -constraint "${{constraint}}"
             echo "##### HELD JOBS #####"
