@@ -194,13 +194,13 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                     with f.indent(4):
                         f += """
                         local status=$1
-                        touch ./job_condor_missing
+                        echo -n > ./job_condor_missing
                         """
                         for outfile in job_all_outfiles:
                             f += f"""
                             if ! test -f './{outfile.name}'; then
                                 echo '{outfile}' >> ./job_condor_missing
-                                touch './{outfile.name}'
+                                echo -n > './{outfile.name}'
                             fi
                             """
                         f += "exit ${status}"
