@@ -62,7 +62,7 @@ except WorkflowException:
 # Create input files
 for f in [Path.cwd() / "file.dat", Path("/tmp/abcd/staging/path/to/file.txt")]:
     f.parent.mkdir(parents=True, exist_ok=True)
-    f.write_text(str(f))
+    f.write_text(str(f) + "\n")
 
 # Add job
 job_batchopt: Dict[str, Any] = dict(

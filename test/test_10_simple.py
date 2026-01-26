@@ -38,7 +38,7 @@ logger = logging.getLogger(Path(__file__).name)
 w = Workflow(name="simple", account="default", subdir=Path("sub"))
 
 infile = Path.cwd() / "prefix.txt"
-infile.write_text("XYZ")
+infile.write_text("XYZ\n")
 
 # Add 10 independent jobs
 for i in range(10):
