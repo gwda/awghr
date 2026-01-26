@@ -71,7 +71,9 @@ w.write()
 
 logger.info("check generated files")
 for f in (w.workdir / "workflows" / w.ID).iterdir():
-    assert f.name in ("all_jobs", "batch_scripts", "outputs", "workflow.json")
+    assert f.name in ("all_jobs", "batch_scripts", "outputs", "source")
+for f in (w.workdir / "workflows" / w.ID / "source").iterdir():
+    assert f.name == "workflow.json"
 
 logger.info("check for job files that should (not) exist before submission")
 joblistfile = w.workdir / "workflows" / w.ID / "all_jobs"

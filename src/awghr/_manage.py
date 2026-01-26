@@ -202,7 +202,7 @@ def manage_jobs(args, workdir, cache):
     jobs_from_dir = {}
     workflows = {}
     for wflowdir in workflowdirs:
-        workflow_file = wflowdir / "workflow.json"
+        workflow_file = wflowdir / "source" / "workflow.json"
         workflows[workflow_file] = json.load(workflow_file.open("r"))
         for job in workflows[workflow_file]["jobs"].values():
             jobs_from_dir[Path(job["dir"])] = dict(job=job, workflow_file=workflow_file)

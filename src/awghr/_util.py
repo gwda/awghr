@@ -75,15 +75,18 @@ def write_atomic(status: str, status_file: Path):
 
 
 @contextmanager
-def modify_read_only_directory(d: Path):
-    """Set permissions to modify a read-only directory."""
-    if not d.is_dir():
-        d.mkdir(parents=True, exist_ok=True)
+def modify_read_only_directory(*dirs: Path):
+    """Set permissions to modify read-only directories."""
     try:
-        os.chmod(d, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
+        for d in dirs:
+            if not d.is_dir():
+                d.mkdir(parents=True, exist_ok=True)
+            os.chmod(d, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
         yield
     finally:
-        os.chmod(d, stat.S_IRUSR | stat.S_IXUSR)
+        for d in dirs:
+            if d.is_dir():
+                os.chmod(d, stat.S_IRUSR | stat.S_IXUSR)
 
 
 def job_dir_from_ID(basedir: Path, job_ID: str):

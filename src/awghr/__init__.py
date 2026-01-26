@@ -780,7 +780,9 @@ class Workflow:
             ):
 
                 # Remove duplicate workflow
-                with modify_read_only_directory(baseworkflowdir):
+                with modify_read_only_directory(
+                    baseworkflowdir, existing_workflow_workflowdir / "source"
+                ):
                     shutil.rmtree(existing_workflow_workflowdir)
                 LOGGER.info("removed duplicate workflow %s", existing_workflow_ID)
 
@@ -875,7 +877,8 @@ class Workflow:
         with modify_read_only_directory(baseworkflowdir):
             workflowdir.mkdir(exist_ok=True)
 
-        # Write workflow description
+        # Write workflow description to read-only "source" directory
+        # - Prevent workflow description from being easily deleted
         workflow_job_keys = (
             "args",
             "batchopt",
@@ -905,8 +908,9 @@ class Workflow:
             },
             "skip_exit_code": self._skip_exit_code,
         }
-        workflow_file = workflowdir / "workflow.json"
-        json.dump(workflow, workflow_file.open("w"), default=str, sort_keys=True)
+        workflow_file = workflowdir / "source" / "workflow.json"
+        with modify_read_only_directory(workflow_file.parent):
+            json.dump(workflow, workflow_file.open("w"), default=str, sort_keys=True)
 
         # Write workflow from description
         _write_workflow(workflow_file)
@@ -936,10 +940,10 @@ def _write_workflow(workflow_file):
     workflow_writer = cfg["workflow_writer"](batchsyscfg=cfg["batch_system_cfg"])
 
     # Directory containing workflows
-    workflowdir = workflow_file.parent
+    workflowdir = workflow_file.parent.parent
 
     # Directory containing batch system scripts
-    batchdir = workflow_file.parent / "batch_scripts"
+    batchdir = workflowdir / "batch_scripts"
 
     # Make clean batch system script directory
     if batchdir.exists():
@@ -1083,7 +1087,7 @@ def _write_ctrl_scripts(workdir):
                 echo "info: workflow ${{ID}} has already been submitted"
                 continue
             fi
-            workflow_file="./workflows/${{ID}}/workflow.json"
+            workflow_file="./workflows/${{ID}}/source/workflow.json"
             timestamp_file="./workflows/${{ID}}/batch_scripts/.timestamp"
             if test "${{workflow_file}}" -nt "${{timestamp_file}}"; then
                 {sys.executable} -m awghr.__init__ write-workflow "${{workflow_file}}"
@@ -1466,7 +1470,7 @@ def _archive_workflows(workdir):
 
         # Remove workflow directory
         LOGGER.info("removing archived workflow directory '%s'", wflowdir)
-        with modify_read_only_directory(baseworkflowdir):
+        with modify_read_only_directory(baseworkflowdir, wflowdir / "source"):
             shutil.rmtree(wflowdir)
 
     # Remove empty job subdirectories
