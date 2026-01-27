@@ -39,6 +39,7 @@ _general_cfg: Dict[str, Any] = {
     "account": None,
     "basedir": Path.cwd(),
     "cluster": "default",
+    "dated?": False,
     "envlist": None,
 }
 

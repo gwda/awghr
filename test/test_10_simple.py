@@ -35,7 +35,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(Path(__file__).name)
 
-w = Workflow(name="simple", account="default", subdir=Path("sub"))
+w = Workflow(name="simple", account="default", subdir=Path("sub"), dated=True)
 
 infile = Path.cwd() / "prefix.txt"
 infile.write_text("XYZ\n")

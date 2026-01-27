@@ -12,6 +12,7 @@ Configuration:
         [DEFAULT]           # This section match all batch systems/hosts/tags
         account = ...           # Default value of ``account`` argument passed to Workflow()
         basedir = ...           # Default value of ``basedir`` argument passed to Workflow()
+        dated? = ...            # Default value of ``dated`` argument passed to Workflow()
         envlist =               # List of environment variables to save/set in job script:
             *PATH               # - Save any variables matching this regular expression.
             VAR=val             # - Set variable to the given value.
@@ -99,6 +100,13 @@ class Workflow:
         subdir (Optional[Path]):
             Subdirectory under the base workflow directory.
 
+        dated (Optional[bool]):
+            If true, the workflow directory will be named after the current date
+            and time, plus ``name``.
+            If false, the workflow directory will be just ``name``.
+            If not given, use the default value given in ``~/.awghr.cfg``,
+            or else false.
+
         account (Optional[Union[str, Dict[str, str]]]):
             Account the workflow should be charged against.
 
@@ -163,6 +171,7 @@ class Workflow:
         tags: Optional[List[str]] = None,
         basedir: Optional[Path] = None,
         subdir: Optional[Path] = None,
+        dated: Optional[bool] = None,
         account: Optional[Union[str, Dict[str, str]]] = None,
         skip_exit_code: Optional[int] = 77,
     ):
@@ -189,7 +198,15 @@ class Workflow:
 
         # Set name and working directory
         self.name = name
-        self.workdir = basedir / (Path(".") if subdir is None else subdir) / self.name
+        self.workdir = basedir
+        if subdir is not None:
+            self.workdir /= subdir
+        if dated is None:
+            dated = cfg["dated?"]
+        if dated:
+            self.workdir /= datetime.now().strftime("%Y-%m-%d_%H-%M-%S_") + self.name
+        else:
+            self.workdir /= self.name
 
         # Set name of cluster
         self.cluster = cfg["cluster"]
