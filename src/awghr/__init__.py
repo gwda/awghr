@@ -1185,7 +1185,7 @@ def _write_ctrl_scripts(workdir):
         ( queue {all_workflow_IDs_str} 2>&1 ) | ${{PAGER:-less -FKRSX}}
         """
 
-    # Write top-level control script: cancel all jobs
+    # Write top-level control script: cancel workflows
     with FileLineWriter(workdir / "cancel", executable=True) as f:
         f += """
         #!/bin/bash
@@ -1194,13 +1194,18 @@ def _write_ctrl_scripts(workdir):
         f += top_level_script_header
         f += """
         help="\\
-        usage: cancel [-h]
+        usage: cancel [-h] [WORKFLOW_IDS...]
 
-        cancel all jobs
+        cancel workflows
+
+        positional arguments:
+          WORKFLOW_IDS          IDs of workflows to cancel; if
+                                not given, cancel all workflows
 
         options:
           -h, --help            show this help message and exit
         "
+        workflow_IDs=
         while test "X$1" != X; do
             case $1 in
                 -h|--help)
@@ -1208,8 +1213,13 @@ def _write_ctrl_scripts(workdir):
                     exit 0
                     ;;
                 *)
-                    echo "ERROR: unrecognised argument: $1" >&2
-                    exit 2
+                    ID="$1"
+                    workflow_dir="./workflows/${ID}"
+                    if ! test -d "${workflow_dir}"; then
+                        echo "ERROR: invalid workflow ID: ${ID}" >&2
+                        exit 2
+                    fi
+                    workflow_IDs="${workflow_IDs} ${ID}"
                     ;;
             esac
             shift
@@ -1217,11 +1227,23 @@ def _write_ctrl_scripts(workdir):
         """
         f += cancel
         f += f"""
-        if test "X{all_workflow_IDs_str}" = X; then
+        if test "X${{workflow_IDs}}" = X; then
+            workflow_IDs="{all_workflow_IDs_str}"
+        fi
+        cancel_workflow_IDs=
+        for ID in ${{workflow_IDs}}; do
+            sub_file="./workflows/${{ID}}/submitted"
+            if ! test -f "${{sub_file}}"; then
+                echo "info: workflow ${{ID}} has not been submitted"
+                continue
+            fi
+            cancel_workflow_IDs="${{cancel_workflow_IDs}} ${{ID}}"
+        done
+        if test "X${{cancel_workflow_IDs}}" = X; then
             echo "info: no workflows to cancel"
             exit 1
         fi
-        cancel {all_workflow_IDs_str}
+        cancel ${{cancel_workflow_IDs}}
         """
 
     # Write top-level control script: display workflow status
@@ -1297,13 +1319,13 @@ def _write_ctrl_scripts(workdir):
         f += top_level_script_header
         f += """
         help="\\
-        usage: status [-h] [-n SEC] [command arguments...]
+        usage: status [-h] [-n SEC] [COMMAND ARGUMENTS...]
 
         wait for all workflows to complete
 
         positional arguments:
-          command               command to run periodically while waiting for workflows to complete
-          arguments             arguments to pass to command
+          COMMAND               command to run periodically while waiting for workflows to complete
+          ARGUMENTS             arguments to pass to command
 
         options:
           -h, --help            show this help message and exit
