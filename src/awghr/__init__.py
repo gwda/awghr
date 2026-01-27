@@ -84,10 +84,11 @@ class Workflow:
 
     Args:
         name (str):
-            Name of workflow.
+            Name of the workflow.
 
-            If ``subdir`` is given, workflow will be written to the path
-            ``basedir / subdir / name``, otherwise is will be written to ``basedir / name``.
+            If ``subdir`` is given, the workflow will be written to the path
+            ``basedir / subdir / name``.
+            Otherwise, it will be written to the path ``basedir / name``.
 
         tags (Optional[List[str]]):
             List of tags, used to retrieve default arguments from ``~/.awghr.cfg``.
@@ -112,11 +113,11 @@ class Workflow:
 
             If a dictionary, lists different accounts for different clusters
             and/or batch systems. The cluster name is defined by the user in
-            ``~/.awghr.cfg``; the batch system is determined
-            automatically on the computer cluster where the workflow is
-            being generated. If selection based on both cluster name and
-            batch system is required, they are given (in any order)
-            separated by an underscore. Example:
+            ``~/.awghr.cfg``; the batch system is determined automatically on
+            the computer cluster where the workflow is being generated. If
+            selection based on both cluster name and batch system is required,
+            they are given (in any order) separated by an underscore. For
+            example:
 
             * ``bigcomputer`` selects a cluster named ``bigcomputer``;
             * ``htcondor`` selects the HTCondor batch system;
@@ -140,11 +141,13 @@ class Workflow:
 
         cluster (str):
             Name of the computer cluster where the workflow is being generated.
-            Cluster names are defined by the user by matching against batch system,
-            host name, etc. in a configuration section in ``~/.awghr.cfg``.
+            Cluster names are defined by the user by matching against batch
+            system, host name, etc. in a configuration section in
+            ``~/.awghr.cfg``.
 
         batch_system (str):
-            Batch system of the computer cluster where the workflow is being generated.
+            Batch system of the computer cluster where the workflow is being
+            generated.
 
         account (str):
             Account the workflow should be charged against.
