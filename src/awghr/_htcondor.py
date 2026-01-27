@@ -29,7 +29,7 @@ class HTCondorWorkflowWriter(WorkflowWriter):
         "submit_cmd_account_user": "accounting_group_user",
         "submit_opt_list": [],
         "file_transfer_scheme_list": [],
-        "periodic_release_hold_codes": "4 7 8 9 10 11 12 13 14 17 18 19 22 23 24",
+        "transient_failure_hold_codes": "4 7 8 9 10 11 12 13 14 17 18 19 22 23 24",
     }
 
     def __init__(self, *, batchsyscfg):
@@ -54,12 +54,12 @@ class HTCondorWorkflowWriter(WorkflowWriter):
             scheme_root, scheme = (s.strip() for s in scheme_str.split("=", maxsplit=1))
             self.file_transfer_scheme.append((Path(scheme_root), scheme))
 
-        # Store list of hold reason codes where job can be periodically released
-        periodic_release_hold_codes_list = [
-            s.strip() for s in batchsyscfg["periodic_release_hold_codes"].split()
+        # Store list of hold reason codes representing transient failures
+        transient_failure_hold_codes_list = [
+            s.strip() for s in batchsyscfg["transient_failure_hold_codes"].split()
         ]
-        self.periodic_release_hold_codes = (
-            "{" + ", ".join(periodic_release_hold_codes_list) + "}"
+        self.transient_failure_hold_codes = (
+            "{" + ", ".join(transient_failure_hold_codes_list) + "}"
         )
 
     def _write_sub(self, account, sub_file, sub):
@@ -348,10 +348,13 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                 if job["ngpus"] > 0:
                     sub["REQUEST_GPUS"] = job["ngpus"]
 
-                # - Periodically release held jobs
-                sub["PERIODIC_RELEASE"] = "member(HoldReasonCode, {})".format(
-                    self.periodic_release_hold_codes
+                # - Periodically release jobs held due to transient failures
+                # - Periodically remove jobs held due to all other failures
+                periodic_release = "member(HoldReasonCode, {})".format(
+                    self.transient_failure_hold_codes
                 )
+                sub["PERIODIC_RELEASE"] = periodic_release
+                sub["PERIODIC_REMOVE"] = f"! ( {periodic_release} )"
 
                 # - Extra HTCondor job submit file options
                 submit_opt = self.default_submit_opt.copy()
