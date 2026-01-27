@@ -142,6 +142,14 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                     # Write common script header
                     f += SCRIPT_HEADER
 
+                    # Skip job if it has previously run successfully
+                    f += f"""
+                    jobstate=`cat '{jobstate_file}' 2>/dev/null || true`
+                    if test "X${{jobstate}}" = XSUCCESS; then
+                        exit {skip_exit_code}
+                    fi
+                    """
+
                     # Capture standard output and error
                     job_pre_stdout_file = job["dir"] / "job_stdout_pre"
                     job_pre_stderr_file = job["dir"] / "job_stderr_pre"

@@ -260,17 +260,24 @@ ws = [Workflow(name="multi_share") for n in range(3)]
 for w in ws:
     setup_id = w.add_job(
         args=dict(stage="setup"),
-        cmds=["echo setup > setup.txt"],
+        cmds=["date > setup.txt"],
         time=(10, "min"),
         mem=(10, "MB"),
         disk=(10, "MB"),
         outputs=["setup.txt"],
     )
 
+setup_job_dir = job_dir_from_ID(w.workdir / "jobs", setup_id)
+setup_date_0 = None
+
 for i, w in enumerate(ws[0:2]):
     w.add_job(
         args=dict(stage="use", index=i),
-        cmds=["echo `cat setup.txt`{index} > out_{index}.txt"],
+        cmds=[
+            """
+            echo "date=`cat setup.txt` job={index}" > out_{index}.txt
+            """
+        ],
         time=(10, "min"),
         mem=(10, "MB"),
         disk=(10, "MB"),
@@ -295,7 +302,16 @@ for i, w in enumerate(ws[0:2]):
     state = statefile.read_text().strip()
     assert state == "SUCCESS"
 
-setup_job_dir = job_dir_from_ID(w.workdir / "jobs", setup_id)
+    if setup_date_0 is None:
+
+        logger.info("get setup date written by first workflow")
+        setup_date_0 = (setup_job_dir / "setup.txt").read_text().strip()
+
+    else:
+
+        logger.info("check that setup date has not been changed")
+        setup_date = (setup_job_dir / "setup.txt").read_text().strip()
+        assert setup_date == setup_date_0
 
 for j in range(2):
     logger.info("test archiving workflows (#%i)", j + 1)
