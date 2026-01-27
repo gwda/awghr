@@ -255,7 +255,7 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
                 f += SCRIPT_HEADER
 
                 # Write shell function stage_infile() to stage input files
-                stage_infile_cmd = "ln -s" if self.link_input_files else "cp"
+                stage_infile_cmd = "ln -sf" if self.link_input_files else "cp -f"
                 f += f"""
                 function stage_infile() {{
                     local dir="$1"
@@ -368,7 +368,7 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
                             # Copy output files out of job scratch directory
                             for outfile in job["outfiles"] + job["joboutfiles"]:
                                 f += f"test -f './{outfile.name}' || fail 'Missing output file {outfile.name}'"
-                                f += f"cp './{outfile.name}' '{outfile}'"
+                                f += f"cp -f './{outfile.name}' '{outfile}'"
                             if job["outfinal"]:
                                 f += f"mkdir -p '{outfinaldir}'"
                                 for outfile in job["outfiles"]:
