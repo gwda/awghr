@@ -13,7 +13,9 @@ from typing import Any, Dict
 from pint import Quantity
 
 from awghr import Workflow, WorkflowException
+from awghr import _cli as workflow_cli
 from awghr._config import batch_system_names
+from awghr._manage import cli as manage_cli
 
 # Set up logging
 logging.basicConfig(
@@ -368,25 +370,6 @@ if w.batch_system == "htcondor":
     except WorkflowException:
         pass
 
-    # Try to add a job with a submit file option which is already defined
-    try:
-        bad_job = w.add_job(
-            args=dict(index=999),
-            cmds=["true"],
-            time=(10, "min"),
-            mem=(10, "MB"),
-            disk=(10, "MB"),
-            outputs=["dummy.txt"],
-            batchopt=dict(htcondor={"sub_executable": "dummy"}),
-        )
-        w.write()
-        msg = "should have raised a WorkflowException"
-        raise AssertionError(msg)
-    except WorkflowException:
-        pass
-    finally:
-        del w._jobs[bad_job]
-
     # Check that submit file options are written out
     for opt, val in job_batchopt["htcondor"].items():
         if opt[:4] == "sub_":
@@ -412,3 +395,44 @@ if w.batch_system == "htcondor":
                     ):
                         file_transfer_scheme_found = True
     assert file_transfer_scheme_found
+
+    # Test adding a batch system-specific configuration option using ./manage script
+    assert (
+        manage_cli("-AY", "+B", "sub_my.condor_test_opt", "extraval", workdir=w.workdir)
+        == 0
+    )
+    assert (
+        workflow_cli(
+            "write-workflow",
+            str(w.workdir / "workflows" / w.ID / "source" / "workflow.json"),
+            workdir=w.workdir,
+        )
+        == 0
+    )
+    sub_opt_found = False
+    for root, dirs, files in os.walk(w.workdir):
+        for fname in files:
+            if fname == "job_condor.sub":
+                for line in (Path(root) / fname).open("r"):
+                    if "MY.CONDOR_TEST_OPT = extraval" in line:
+                        sub_opt_found = True
+    assert sub_opt_found
+
+    # Try to add a job with a submit file option which is already defined
+    try:
+        bad_job = w.add_job(
+            args=dict(index=999),
+            cmds=["true"],
+            time=(10, "min"),
+            mem=(10, "MB"),
+            disk=(10, "MB"),
+            outputs=["dummy.txt"],
+            batchopt=dict(htcondor={"sub_executable": "dummy"}),
+        )
+        w.write()
+        msg = "should have raised a WorkflowException"
+        raise AssertionError(msg)
+    except WorkflowException:
+        pass
+    finally:
+        del w._jobs[bad_job]

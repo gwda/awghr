@@ -495,17 +495,21 @@ def manage_jobs(args, workdir, cache):
             )
         )
 
-    if args.any_resource_args:
+    if args.any_resource_args or args.add_batchopt:
 
-        # Update job resources
+        # Update job resources and/or batch system-specific configuration options
         workflows_to_write = set()
         for job_dir in tqdm(
             job_dirs, desc="Updating job resources ", disable=None, leave=False
         ):
 
-            # Iterate over resources, update job status with changes
+            # Get job state
+            # - Decrement state count, as state may be modified
             job_state = job_state_cache[job_dir]
             job_state_counts[job_state] -= 1
+
+            # Iterate over resources
+            # - Update job status with changes
             for res_name, res_unit in (
                 ("time", "min"),
                 ("mem", "MB"),
@@ -524,8 +528,17 @@ def manage_jobs(args, workdir, cache):
                             job_state += f"/{res_name}={res_val}{res_unit}"
                         workflows_to_write.add(jobs_from_dir[job_dir]["workflow_file"])
 
-            # Write updated job status to cache, file
+            # Iterate over batch system-specific configuration options
+            # - Update job status with changes
+            for opt, val in args.add_batchopt:
+                job["batchopt"][opt] = val
+                job_state += f"/{opt}={val}"
+                workflows_to_write.add(jobs_from_dir[job_dir]["workflow_file"])
+
+            # Update state count for (possibly modified) job status
             job_state_counts[job_state] += 1
+
+            # Write updated job status to cache, file
             if job_state_cache[job_dir] != job_state:
                 job_state_cache[job_dir] = job_state
 
@@ -534,7 +547,7 @@ def manage_jobs(args, workdir, cache):
                 job_state_file = job_dir / "job_state"
                 write_atomic(job_state, job_state_file)
 
-        # Write workflows with updated resources
+        # Write updated workflows
         for workflow_file in workflows_to_write:
             json.dump(
                 workflows[workflow_file],
@@ -827,6 +840,17 @@ def cli(*argv: str, workdir: Path = Path.cwd()):
                 help=f"{verb} the requested {res_desc} of the selected jobs",
             )
             resource_args.append((long_arg, arg_name))
+    parser.add_argument(
+        "+B",
+        "++batchopt",
+        nargs=2,
+        metavar=("OPT", "VAL"),
+        dest="add_batchopt",
+        type=str,
+        default=[],
+        action="append",
+        help="add the specified batch system-specific configuration options to the selected jobs",
+    )
     parser.add_argument(
         "--concurrent", type=int, default=8, help="limit on concurrent I/O subprocesses"
     )
