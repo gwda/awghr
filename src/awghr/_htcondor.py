@@ -381,8 +381,15 @@ class HTCondorWorkflowWriter(WorkflowWriter):
 
                 ### Add job to HTCondor DAG input file ###
 
+                # - Mark successful jobs as done
+                done = ""
+                if jobstate_file.is_file():
+                    jobstate = jobstate_file.read_text().strip()
+                    if jobstate == "SUCCESS":
+                        done = " DONE"
+
                 # - Define job
-                F += f"JOB {job_ID} {job_sub_file} DIR {job['dir']}"
+                F += f"JOB {job_ID} {job_sub_file} DIR {job['dir']}{done}"
                 if "dag_retry" in job["batchopt"]:
                     dag_retry = int(job["batchopt"]["dag_retry"])
                     F += f"RETRY {job_ID} {dag_retry} UNLESS-EXIT {skip_exit_code}"
