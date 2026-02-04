@@ -5,3 +5,6 @@ awghr documentation
    :maxdepth: 4
    :caption: Contents:
    :titlesonly:
+
+   workflow
+   configuration
