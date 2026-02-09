@@ -1029,7 +1029,7 @@ def _write_ctrl_scripts(workdir):
     # Get top-level control script commands
     submit, queue, cancel = workflow_writer.get_ctrl_commands(workflowname=name)
 
-    # Write top-level control script: submit all jobs
+    # Write top-level control script: submit workflows
     with FileLineWriter(workdir / "submit", executable=True) as f:
         f += """
         #!/bin/bash
@@ -1038,13 +1038,18 @@ def _write_ctrl_scripts(workdir):
         f += top_level_script_header
         f += """
         help="\\
-        usage: submit [-h]
+        usage: submit [-h] [WORKFLOW_IDS...]
 
-        submit all jobs
+        submit workflows
+
+        positional arguments:
+          WORKFLOW_IDS          IDs of workflows to cancel; if
+                                not given, cancel all workflows
 
         options:
           -h, --help            show this help message and exit
         "
+        workflow_IDs=
         while test "X$1" != X; do
             case $1 in
                 -h|--help)
@@ -1052,16 +1057,24 @@ def _write_ctrl_scripts(workdir):
                     exit 0
                     ;;
                 *)
-                    echo "ERROR: unrecognised argument: $1" >&2
-                    exit 2
+                    ID="$1"
+                    workflow_dir="./workflows/${ID}"
+                    if ! test -d "${workflow_dir}"; then
+                        echo "ERROR: invalid workflow ID: ${ID}" >&2
+                        exit 2
+                    fi
+                    workflow_IDs="${workflow_IDs} ${ID}"
                     ;;
             esac
             shift
         done
         """
         f += f"""
-        workflow_IDs=
-        for ID in {all_workflow_IDs_str}; do
+        if test "X${{workflow_IDs}}" = X; then
+            workflow_IDs="{all_workflow_IDs_str}"
+        fi
+        submit_workflow_IDs=
+        for ID in ${{workflow_IDs}}; do
             state_file="./workflows/${{ID}}/state"
             failed_file="./workflows/${{ID}}/failed_jobs"
             sub_file="./workflows/${{ID}}/submitted"
@@ -1080,19 +1093,19 @@ def _write_ctrl_scripts(workdir):
             if test "${{workflow_file}}" -nt "${{timestamp_file}}"; then
                 {sys.executable} -m awghr.__init__ write-workflow "${{workflow_file}}"
             fi
-            workflow_IDs="${{workflow_IDs}} ${{ID}}"
+            submit_workflow_IDs="${{submit_workflow_IDs}} ${{ID}}"
             rm -f "${{state_file}}" "${{failed_file}}" "${{sub_file}}"
         done
-        if test "X${{workflow_IDs}}" = X; then
+        if test "X${{submit_workflow_IDs}}" = X; then
             echo "info: no workflows to submit"
             exit 1
         fi
         """
         f += submit
         f += """
-        submit ${workflow_IDs}
+        submit ${submit_workflow_IDs}
         submitted_workflow_IDs=
-        for ID in ${workflow_IDs}; do
+        for ID in ${submit_workflow_IDs}; do
             state_file="./workflows/${ID}/state"
             if test -f "${state_file}"; then
                 workstate=`cat ${state_file}`
@@ -1189,7 +1202,6 @@ def _write_ctrl_scripts(workdir):
             shift
         done
         """
-        f += cancel
         f += f"""
         if test "X${{workflow_IDs}}" = X; then
             workflow_IDs="{all_workflow_IDs_str}"
@@ -1207,7 +1219,10 @@ def _write_ctrl_scripts(workdir):
             echo "info: no workflows to cancel"
             exit 1
         fi
-        cancel ${{cancel_workflow_IDs}}
+        """
+        f += cancel
+        f += """
+        cancel ${cancel_workflow_IDs}
         """
 
     # Write top-level control script: display workflow status

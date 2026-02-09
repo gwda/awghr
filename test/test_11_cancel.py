@@ -34,10 +34,12 @@ w.add_job(
 
 w.write()
 
-for cancel_args in ([], [w.ID]):
+for submit_cancel_args in ([], [w.ID]):
 
     logger.info("submit workflow, wait for it to start running, then cancel it")
-    subprocess.run([w.workdir / "submit"], check=True)
+    submit_cmd = [str(w.workdir / "submit")] + submit_cancel_args
+    logger.info("now running %s", " ".join(submit_cmd))
+    subprocess.run(submit_cmd, check=True)
     submittedfile = w.workdir / "workflows" / w.ID / "submitted"
     assert submittedfile.is_file()
     joblistfile = w.workdir / "workflows" / w.ID / "all_jobs"
@@ -49,7 +51,7 @@ for cancel_args in ([], [w.ID]):
         time.sleep(2)
         n += 1
         assert n < 100
-    cancel_cmd = [str(w.workdir / "cancel")] + cancel_args
+    cancel_cmd = [str(w.workdir / "cancel")] + submit_cancel_args
     logger.info("now running %s", " ".join(cancel_cmd))
     subprocess.run(cancel_cmd, check=True)
     statefile = w.workdir / "workflows" / w.ID / "state"
