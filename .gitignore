@@ -1,6 +1,5 @@
 .coverage*
 /dist
-/doc/api
 /html
 /src/*.egg-info
 /test/.runnerrc
