@@ -80,16 +80,14 @@ async def read_job_file(
             filetext_if_error = filetext_if_error.format(filepath=filepath)
 
             # Build shell script
-            script = dedent(
-                """
+            script = dedent("""
                 if test -r '{filepath}'; then
                     ( stat -c %Y '{filepath}' || echo 0 ) 2>/dev/null
                     {cat_cmd} '{filepath}'
                 else
                     echo -1
                 fi
-                """
-            ).format(
+                """).format(
                 filepath=filepath,
                 cat_cmd=f"tail -n {last_n_lines}" if last_n_lines > 0 else "cat",
             )

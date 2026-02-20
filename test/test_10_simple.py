@@ -44,8 +44,7 @@ infile.write_text("XYZ\n")
 for i in range(10):
     w.add_job(
         args=dict(index=i, const=10, sec=(0.1 if w.batch_system == "local" else 5)),
-        cmds=[
-            """
+        cmds=["""
             if [ $MYCPUS -ne 1 ]; then
                 echo 'MYCPUS!=1' >&2
                 exit 1
@@ -58,8 +57,7 @@ for i in range(10):
             echo `cat {_in[prefix: ]}`{index} > out_{index}.txt
             echo 'DO NOT STAGE OUT' > temp_{index}.dat
             sleep {sec}
-            """
-        ],
+            """],
         time=(10, "min"),
         mem=(10, "MB"),
         disk=(10, "MB"),

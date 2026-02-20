@@ -273,11 +273,9 @@ setup_date_0 = None
 for i, w in enumerate(ws[0:2]):
     w.add_job(
         args=dict(stage="use", index=i),
-        cmds=[
-            """
+        cmds=["""
             echo "date=`cat setup.txt` job={index}" > out_{index}.txt
-            """
-        ],
+            """],
         time=(10, "min"),
         mem=(10, "MB"),
         disk=(10, "MB"),
