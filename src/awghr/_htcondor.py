@@ -189,6 +189,8 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                 # Write job wrapper script
                 job_wrapper_file = jobscriptdir / "job_condor_wrapper.sh"
                 job_missing_file = jobscriptdir / "job_condor_missing"
+                job_all_infiles.append(job_wrapper_file)
+                job_all_outfiles.append(job_missing_file)
                 with FileLineWriter(job_wrapper_file) as f:
 
                     # Write common script header
@@ -198,16 +200,16 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                     # required by HTCondor's output file transfer mechanism, and
                     # record missing output files for later processing
                     # - for signals, exit with 128+<signal number>
+                    f += f"echo -n > './{job_missing_file.name}'"
                     f += "function trap_outfiles() {"
                     with f.indent(4):
                         f += """
                         local status=$1
-                        echo -n > ./job_condor_missing
                         """
                         for outfile in job_all_outfiles:
                             f += f"""
                             if ! test -f './{outfile.name}'; then
-                                echo '{outfile}' >> ./job_condor_missing
+                                echo '{outfile}' >> './{job_missing_file.name}'
                                 echo -n > './{outfile.name}'
                             fi
                             """
@@ -220,9 +222,6 @@ class HTCondorWorkflowWriter(WorkflowWriter):
 
                     # Run job script
                     f += "source ./job_script.sh"
-
-                job_all_infiles.append(job_wrapper_file)
-                job_all_outfiles.append(job_missing_file)
 
                 # Write job post script
                 job_post_file = jobscriptdir / "job_condor_post.sh"
