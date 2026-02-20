@@ -214,6 +214,10 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
             jobarraydir = job_dir_from_ID(batchdir / "job_arrays", job_array_ID)
             jobarraydir.mkdir(parents=True, exist_ok=True)
 
+            # Make subdirectories for standard output/error files
+            for stdouterr in ("job_stdout", "job_stderr"):
+                (jobarraydir / stdouterr).mkdir(exist_ok=True)
+
             # Use first job in array for retrieving resources
             job = job_array[0]
 
@@ -232,9 +236,11 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
                     disk_MB=job["disk_MB"],
                     ncpus=job["ncpus"],
                     stdout=jobarraydir
-                    / f"job_stdout_{job_array_ID}_{self.BATCHQ_SUBMIT_ARRAY_INDEX_REPL}",
+                    / "job_stdout"
+                    / self.BATCHQ_SUBMIT_ARRAY_INDEX_REPL,
                     stderr=jobarraydir
-                    / f"job_stderr_{job_array_ID}_{self.BATCHQ_SUBMIT_ARRAY_INDEX_REPL}",
+                    / "job_stderr"
+                    / self.BATCHQ_SUBMIT_ARRAY_INDEX_REPL,
                 )
                 if job["ngpus"] > 0:
                     f += self.BATCHQ_HEADER_NGPUS.format(n=job["ngpus"])
@@ -352,8 +358,7 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
                             # Hard-link standard output/error files from job array back to job directory
                             for stdouterr in ("job_stdout", "job_stderr"):
                                 jobarray_stdouterr_file = (
-                                    jobarraydir
-                                    / f"{stdouterr}_{job_array_ID}_{batch_index}"
+                                    jobarraydir / stdouterr / batch_index
                                 )
                                 job_stdouterr_file = job["dir"] / stdouterr
                                 f += f'ln -f "{jobarray_stdouterr_file}" "{job_stdouterr_file}"'
@@ -611,7 +616,7 @@ class BatchQWorkflowWriter(WorkflowWriter, ABC):
                     if test "X${{batchq_needs_IDs}}" != X; then
                         batchq_dependency="${{batchq_dependency}},{self.BATCHQ_SUBMIT_ARRAY_DEPEND}${{batchq_needs_IDs}}"
                     fi
-                    rm -f '{jobarraydir}/"job_stdout_'* '{jobarraydir}/"job_stderr_'*
+                    rm -f '{jobarraydir}/job_stdout/'* '{jobarraydir}/job_stderr/'*
                     batchq_ID=`{self.BATCHQ_SUBMIT_ARRAY} ${{batchq_dependency}} {self.BATCHQ_SUBMIT_ARG_ARRAY}${{batchq_array}} '{jobarray_submit_script_file}'`
                     batchq_ID=`echo "${{batchq_ID{self.BATCHQ_ID_REMOVE_SUFFIX}}}"`
                     echo "info: submitted ${{batchq_array_count}} jobs in job array {job_array_ID}, batch ID ${{batchq_ID}}"
