@@ -199,8 +199,11 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                     # Set trap to ensure that all output file exist on exit, as
                     # required by HTCondor's output file transfer mechanism, and
                     # record missing output files for later processing
+                    # - ensure that the file recording missing output files is
+                    #   itself not empty, in case HTCondor does not copy back
+                    #   empty files
                     # - for signals, exit with 128+<signal number>
-                    f += f"echo -n > './{job_missing_file.name}'"
+                    f += f"echo _AWGHR_NO_MISSING_FILES_ > './{job_missing_file.name}'"
                     f += "function trap_outfiles() {"
                     with f.indent(4):
                         f += """
@@ -209,8 +212,12 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                         for outfile in job_all_outfiles:
                             f += f"""
                             if ! test -f './{outfile.name}'; then
-                                echo '{outfile}' >> './{job_missing_file.name}'
-                                echo -n > './{outfile.name}'
+                                if test "X`cat './{job_missing_file.name}'`" = X_AWGHR_NO_MISSING_FILES_; then
+                                    echo '{outfile}' > './{job_missing_file.name}'
+                                else
+                                    echo '{outfile}' >> './{job_missing_file.name}'
+                                fi
+                                echo _AWGHR_EMPTY_OUTPUT_FILE_ > './{outfile.name}'
                             fi
                             """
                         f += "exit ${status}"
@@ -271,9 +278,11 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                     # Remove empty output files created by job wrapper script to
                     # ensure that all output file exist on exit, as required by
                     # HTCondor's output file transfer mechanism
+                    # - the file recording missing output files should always exist
                     f += f"""
+                    test -f '{job_missing_file}' || fail 'missing file {job_missing_file.name}'
                     missing_files=`cat '{job_missing_file}'`
-                    if test "X${{missing_files}}" != X; then
+                    if test "X${{missing_files}}" != X_AWGHR_NO_MISSING_FILES_; then
                         rm -f ${{missing_files}}
                     fi
                     """
