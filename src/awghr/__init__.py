@@ -894,7 +894,7 @@ class Workflow:
         _write_workflow(workflow_file)
 
         # Write top-level control scripts
-        _write_ctrl_scripts(self.workdir)
+        _write_ctrl_scripts(self.name, self.workdir)
 
         # Log completion
         LOGGER.info("all workflow files and directories have been written")
@@ -983,11 +983,8 @@ def _write_workflow(workflow_file):
     return 0
 
 
-def _write_ctrl_scripts(workdir):
+def _write_ctrl_scripts(workflowname, workdir):
     """Write top-level control scripts."""
-
-    # Name of workflow
-    name = workdir.name
 
     # Directory containing workflows
     baseworkflowdir = workdir / "workflows"
@@ -1010,7 +1007,7 @@ def _write_ctrl_scripts(workdir):
     top_level_script_header = f"""
     cd '{workdir}'
     if test "X${{_AWGHR_WRITE_CTRL_SCRIPTS}}" = X; then
-        {sys.executable} -m awghr.__init__ write-ctrl-scripts >/dev/null
+        {sys.executable} -m awghr.__init__ write-ctrl-scripts {workflowname} >/dev/null
         export _AWGHR_WRITE_CTRL_SCRIPTS=no
         exec "$0" "$@"
         exit 1
@@ -1021,7 +1018,7 @@ def _write_ctrl_scripts(workdir):
     """
 
     # Get top-level control script commands
-    submit, queue, cancel = workflow_writer.get_ctrl_commands(workflowname=name)
+    submit, queue, cancel = workflow_writer.get_ctrl_commands(workflowname=workflowname)
 
     # Write top-level control script: submit workflows
     with FileLineWriter(workdir / "submit", executable=True) as f:
@@ -1374,7 +1371,7 @@ def _write_ctrl_scripts(workdir):
         done
         """
         f += f"""
-        exec {sys.executable} -m awghr.__init__ archive-workflows
+        exec {sys.executable} -m awghr.__init__ archive-workflows {workflowname}
         """
 
     # Log completion
@@ -1383,7 +1380,7 @@ def _write_ctrl_scripts(workdir):
     return 0
 
 
-def _archive_workflows(workdir):
+def _archive_workflows(workflowname, workdir):
     """Archive workflows."""
 
     # Directory containing workflows
@@ -1504,7 +1501,7 @@ def _archive_workflows(workdir):
                     pass
 
     # Update top-level control scripts
-    _write_ctrl_scripts(workdir)
+    _write_ctrl_scripts(workflowname, workdir)
 
     # Log completion
     LOGGER.info("archiving complete")
@@ -1524,12 +1521,14 @@ def _cli(*argv: str, workdir: Path = Path.cwd()):
         subcommand=lambda args: _write_workflow(args.workflow_file)
     )
     parser_write_ctrl_scripts = subparsers.add_parser("write-ctrl-scripts")
+    parser_write_ctrl_scripts.add_argument("workflowname", type=str)
     parser_write_ctrl_scripts.set_defaults(
-        subcommand=lambda args: _write_ctrl_scripts(workdir)
+        subcommand=lambda args: _write_ctrl_scripts(args.workflowname, workdir)
     )
     parser_archive_workflows = subparsers.add_parser("archive-workflows")
+    parser_archive_workflows.add_argument("workflowname", type=str)
     parser_archive_workflows.set_defaults(
-        subcommand=lambda args: _archive_workflows(workdir)
+        subcommand=lambda args: _archive_workflows(args.workflowname, workdir)
     )
 
     # Parse command line

@@ -88,7 +88,7 @@ assert manage_cli("-P", workdir=w.workdir) == 0
 print("-----", flush=True)
 
 logger.info("check that workflow is not archived")
-assert workflow_cli("archive-workflows", workdir=w.workdir) == 0
+assert workflow_cli("archive-workflows", w.name, workdir=w.workdir) == 0
 archive_tarfile = w.workdir / "workflows" / f"{w.ID}.tar.bz2"
 assert not archive_tarfile.is_file()
 
@@ -221,7 +221,7 @@ except WorkflowException:
 
 for j in range(2):
     logger.info("test archiving workflow (#%i)", j + 1)
-    assert workflow_cli("archive-workflows", workdir=w.workdir) == 0
+    assert workflow_cli("archive-workflows", w.name, workdir=w.workdir) == 0
     archive_tarfile = w.workdir / "workflows" / f"{w.ID}.tar.bz2"
     assert archive_tarfile.is_file()
     tar_output = subprocess.check_output(["tar", "-tf", archive_tarfile], text=True)

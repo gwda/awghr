@@ -24,7 +24,7 @@ logger = logging.getLogger(Path(__file__).name)
 
 # -- Test multiple workflows duplicating the same jobs
 
-ws = [Workflow("multi_dup_job") for n in range(2)]
+ws = [Workflow("multi_dup_job", dated=True) for n in range(2)]
 
 for w, (i0, n) in zip(ws, ((0, 10), (5, 10))):
     for i in range(i0, n):
@@ -48,7 +48,7 @@ except WorkflowException:
 
 # -- Test multiple workflows duplicating the same outputs
 
-ws = [Workflow("multi_dup_out") for n in range(3)]
+ws = [Workflow("multi_dup_out", dated=True) for n in range(3)]
 
 for w, (i0, n) in zip(ws, ((0, 5), (5, 10), (0, 10))):
     for i in range(i0, n):
@@ -73,7 +73,7 @@ except WorkflowException:
 
 # -- Test workflows replacing previous workflows with same jobs/outputs
 
-ws = [Workflow("multi_repl1") for n in range(3)]
+ws = [Workflow("multi_repl1", dated=True) for n in range(3)]
 
 for w, (i0, n) in zip(ws, ((0, 5), (5, 10), (0, 10))):
     for i in range(i0, n):
@@ -91,7 +91,7 @@ for w in ws:
 
 # -- Test workflows replacing previous workflows with same jobs/outputs
 
-ws = [Workflow("multi_repl2") for n in range(2)]
+ws = [Workflow("multi_repl2", dated=True) for n in range(2)]
 
 for w, (i0, n) in zip(ws, ((0, 5), (0, 10))):
     for i in range(i0, n):
@@ -109,7 +109,7 @@ for w in ws:
 
 # -- Test multiple workflows in the same directory, submitted concurrently
 
-ws = [Workflow("multi_con") for n in range(2)]
+ws = [Workflow("multi_con", dated=True) for n in range(2)]
 
 for i in range(10):
     w = ws[i % 2]
@@ -172,7 +172,7 @@ except WorkflowException:
 
 for j in range(2):
     logger.info("test archiving workflows (#%i)", j + 1)
-    assert workflow_cli("archive-workflows", workdir=w.workdir) == 0
+    assert workflow_cli("archive-workflows", w.name, workdir=w.workdir) == 0
     assert not (w.workdir / "jobs").is_dir()
     for w in ws:
         archive_tarfile = w.workdir / "workflows" / f"{w.ID}.tar.bz2"
@@ -180,7 +180,7 @@ for j in range(2):
 
 # -- Test multiple workflows in the same directory, submitted sequentially
 
-ws = [Workflow("multi_seq") for n in range(2)]
+ws = [Workflow("multi_seq", dated=True) for n in range(2)]
 
 for i in range(10):
     w = ws[i % 2]
@@ -200,7 +200,7 @@ while True:
     if i >= 0:
         for j in range(2):
             logger.info("test archiving workflows (#%i)", j + 1)
-            assert workflow_cli("archive-workflows", workdir=w.workdir) == 0
+            assert workflow_cli("archive-workflows", w.name, workdir=w.workdir) == 0
             archive_tarfile = w.workdir / "workflows" / f"{w.ID}.tar.bz2"
             assert archive_tarfile.is_file()
 
@@ -255,7 +255,7 @@ for i in range(10):
 
 # -- Test workflows sharing jobs
 
-ws = [Workflow("multi_share") for n in range(3)]
+ws = [Workflow("multi_share", dated=True) for n in range(3)]
 
 for w in ws:
     setup_id = w.add_job(
@@ -313,7 +313,7 @@ for i, w in enumerate(ws[0:2]):
 
 for j in range(2):
     logger.info("test archiving workflows (#%i)", j + 1)
-    assert workflow_cli("archive-workflows", workdir=w.workdir) == 0
+    assert workflow_cli("archive-workflows", w.name, workdir=w.workdir) == 0
     for w in ws[0:2]:
         archive_tarfile = w.workdir / "workflows" / f"{w.ID}.tar.bz2"
         assert archive_tarfile.is_file()
@@ -339,7 +339,7 @@ state = statefile.read_text().strip()
 assert state == "SUCCESS"
 
 logger.info("test archiving workflow with only jobs used by other workflows")
-assert workflow_cli("archive-workflows", workdir=w.workdir) == 0
+assert workflow_cli("archive-workflows", w.name, workdir=w.workdir) == 0
 archive_tarfile = w.workdir / "workflows" / f"{w.ID}.tar.bz2"
 assert not archive_tarfile.is_file()
 assert list(w.workdir.glob("**/job_state")) == [setup_job_dir / "job_state"]
