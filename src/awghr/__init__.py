@@ -67,8 +67,9 @@ class Workflow:
             If not given, use the default value given in ``~/.awghr.cfg``,
             or else false.
 
-        tags (Optional[List[str]]):
-            List of tags, used to retrieve default arguments from ``~/.awghr.cfg``.
+        tags (Optional[Union[str, List[str]]]):
+            Tag, or list of tags, used to retrieve default arguments from
+            ``~/.awghr.cfg``.
 
         account (Optional[Union[str, Dict[str, str]]]):
             Account the workflow should be charged against.
@@ -133,12 +134,13 @@ class Workflow:
         *path: str,
         basedir: Optional[Path] = None,
         dated: Optional[bool] = None,
-        tags: Optional[List[str]] = None,
+        tags: Optional[Union[str, List[str]]] = None,
         account: Optional[Union[str, Dict[str, str]]] = None,
         skip_exit_code: Optional[int] = 77,
     ):
 
         # Read configuration
+        tags = [tags] if isinstance(tags, str) else tags
         cfg = read_config(tags=tags)
 
         # Check name
