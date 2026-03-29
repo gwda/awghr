@@ -58,7 +58,7 @@ skip-checking-raises = true
 [tool.sphinx-pyproject]
 project = "awghr"
 language = "en"
-html_theme = "sphinx_nefertiti"
+html_theme = "alabaster"
 extensions = [
     "autoapi.extension",
     "sphinx.ext.autodoc",
