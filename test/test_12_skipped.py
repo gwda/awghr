@@ -26,7 +26,7 @@ for skip_exit_code in (77, 99):
 
     # -- Test that independent jobs can be skipped
 
-    w = Workflow(name=f"skipped-{skip_exit_code}-1", skip_exit_code=skip_exit_code)
+    w = Workflow(f"skipped-{skip_exit_code}-1", skip_exit_code=skip_exit_code)
 
     # Add jobs
     for exit_code in (0, skip_exit_code):
@@ -83,7 +83,7 @@ for skip_exit_code in (77, 99):
 
     # -- Test that dependent jobs cannot be skipped
 
-    w = Workflow(name=f"skipped-{skip_exit_code}-2", skip_exit_code=skip_exit_code)
+    w = Workflow(f"skipped-{skip_exit_code}-2", skip_exit_code=skip_exit_code)
 
     # Add jobs
     j1 = w.add_job(

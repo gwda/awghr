@@ -22,7 +22,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(Path(__file__).name)
 
-w = Workflow(name="timeout")
+w = Workflow("timeout")
 
 if w.batch_system not in ("pbs", "slurm"):
     logger.warning(

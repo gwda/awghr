@@ -20,7 +20,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(Path(__file__).name)
 
-w = Workflow(name="qlimit", account="default")
+w = Workflow("qlimit", account="default")
 
 if w.batch_system not in ("pbs", "slurm"):
     logger.warning(

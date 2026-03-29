@@ -24,7 +24,7 @@ logger = logging.getLogger(Path(__file__).name)
 
 # -- Test multiple workflows duplicating the same jobs
 
-ws = [Workflow(name="multi_dup_job") for n in range(2)]
+ws = [Workflow("multi_dup_job") for n in range(2)]
 
 for w, (i0, n) in zip(ws, ((0, 10), (5, 10))):
     for i in range(i0, n):
@@ -48,7 +48,7 @@ except WorkflowException:
 
 # -- Test multiple workflows duplicating the same outputs
 
-ws = [Workflow(name="multi_dup_out") for n in range(3)]
+ws = [Workflow("multi_dup_out") for n in range(3)]
 
 for w, (i0, n) in zip(ws, ((0, 5), (5, 10), (0, 10))):
     for i in range(i0, n):
@@ -73,7 +73,7 @@ except WorkflowException:
 
 # -- Test workflows replacing previous workflows with same jobs/outputs
 
-ws = [Workflow(name="multi_repl1") for n in range(3)]
+ws = [Workflow("multi_repl1") for n in range(3)]
 
 for w, (i0, n) in zip(ws, ((0, 5), (5, 10), (0, 10))):
     for i in range(i0, n):
@@ -91,7 +91,7 @@ for w in ws:
 
 # -- Test workflows replacing previous workflows with same jobs/outputs
 
-ws = [Workflow(name="multi_repl2") for n in range(2)]
+ws = [Workflow("multi_repl2") for n in range(2)]
 
 for w, (i0, n) in zip(ws, ((0, 5), (0, 10))):
     for i in range(i0, n):
@@ -109,7 +109,7 @@ for w in ws:
 
 # -- Test multiple workflows in the same directory, submitted concurrently
 
-ws = [Workflow(name="multi_con") for n in range(2)]
+ws = [Workflow("multi_con") for n in range(2)]
 
 for i in range(10):
     w = ws[i % 2]
@@ -180,7 +180,7 @@ for j in range(2):
 
 # -- Test multiple workflows in the same directory, submitted sequentially
 
-ws = [Workflow(name="multi_seq") for n in range(2)]
+ws = [Workflow("multi_seq") for n in range(2)]
 
 for i in range(10):
     w = ws[i % 2]
@@ -255,7 +255,7 @@ for i in range(10):
 
 # -- Test workflows sharing jobs
 
-ws = [Workflow(name="multi_share") for n in range(3)]
+ws = [Workflow("multi_share") for n in range(3)]
 
 for w in ws:
     setup_id = w.add_job(

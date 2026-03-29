@@ -47,30 +47,28 @@ class Workflow:
     """Generate a workflow.
 
     Args:
-        name (str):
-            Name of the workflow.
+        *path (str):
+            Path of the workflow, relative to the base workflow directory
+            ``basedir``.
 
-            If ``subdir`` is given, the workflow will be written to the path
-            ``basedir / subdir / name``.
-            Otherwise, it will be written to the path ``basedir / name``.
-
-        tags (Optional[List[str]]):
-            List of tags, used to retrieve default arguments from ``~/.awghr.cfg``.
+            The last component of the path is the name of workflow. It must
+            start with a letter, and may contain only letters, numbers, dashes,
+            and underscores.
 
         basedir (Optional[Path]):
             Base workflow directory.
             If not given, use the default value given in ``~/.awghr.cfg``,
             or else the current directory.
 
-        subdir (Optional[Path]):
-            Subdirectory under the base workflow directory.
-
         dated (Optional[bool]):
-            If true, the workflow directory will be named after the current date
-            and time, plus ``name``.
-            If false, the workflow directory will be just ``name``.
+            If true, the workflow path ``path`` will be appended with a
+            subdirectory named after the current date.
+
             If not given, use the default value given in ``~/.awghr.cfg``,
             or else false.
+
+        tags (Optional[List[str]]):
+            List of tags, used to retrieve default arguments from ``~/.awghr.cfg``.
 
         account (Optional[Union[str, Dict[str, str]]]):
             Account the workflow should be charged against.
@@ -132,12 +130,10 @@ class Workflow:
 
     def __init__(
         self,
-        name: str,
-        *,
-        tags: Optional[List[str]] = None,
+        *path: str,
         basedir: Optional[Path] = None,
-        subdir: Optional[Path] = None,
         dated: Optional[bool] = None,
+        tags: Optional[List[str]] = None,
         account: Optional[Union[str, Dict[str, str]]] = None,
         skip_exit_code: Optional[int] = 77,
     ):
@@ -146,9 +142,10 @@ class Workflow:
         cfg = read_config(tags=tags)
 
         # Check name
-        if not re.fullmatch(r"[a-z][a-z0-9_-]*", name, re.IGNORECASE):
+        self.name = path[-1]
+        if not re.fullmatch(r"[a-z][a-z0-9_-]*", self.name, re.IGNORECASE):
             msg = (
-                f"workflow name '{name}' must start with a letter,"
+                f"workflow name '{self.name}' must start with a letter,"
                 + " and may contain only letters, numbers, dashes, and underscores"
             )
             raise WorkflowException(msg)
@@ -162,17 +159,12 @@ class Workflow:
             msg = f"base directory '{basedir}' is not a directory"
             raise WorkflowException(msg)
 
-        # Set name and working directory
-        self.name = name
-        self.workdir = basedir
-        if subdir is not None:
-            self.workdir /= subdir
+        # Set working directory
+        self.workdir = basedir / Path(*path)
         if dated is None:
             dated = cfg["dated?"]
         if dated:
-            self.workdir /= datetime.now().strftime("%Y-%m-%d_%H-%M-%S_") + self.name
-        else:
-            self.workdir /= self.name
+            self.workdir /= datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
         # Set name of cluster
         self.cluster = cfg["cluster"]

@@ -10,7 +10,7 @@ import subprocess
 from awghr import Workflow
 
 # Write a dummy workflow
-w = Workflow(name="cli_help")
+w = Workflow("cli_help")
 w.add_job(
     args=dict(),
     cmds=[":"],

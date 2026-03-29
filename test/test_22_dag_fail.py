@@ -44,7 +44,7 @@ def get_fail_cmd(cmd):
     return cmd
 
 
-w = Workflow(name="dag_fail", tags=["maxarray"])
+w = Workflow("dag_fail", tags=["maxarray"])
 
 # Build up files containing up to 3 digits
 for level in range(3):

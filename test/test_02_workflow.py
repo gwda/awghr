@@ -31,12 +31,12 @@ for batch_system in batch_system_names():
     accounts[batch_system] = "user@" + batch_system + "_account"
 
 # Create workflow
-w = Workflow(name="add_job", account=accounts)
+w = Workflow("add_job", account=accounts)
 assert w.account == "user@" + w.batch_system + "_account"
 
 # Try creating a workflow with an invalid name
 try:
-    Workflow(name="123", account=accounts)
+    Workflow("123", account=accounts)
     msg = "should have raised a WorkflowException"
     raise AssertionError(msg)
 except WorkflowException:
@@ -45,7 +45,7 @@ except WorkflowException:
 # Try creating a workflow with no account
 try:
     os.environ["AWGHR_CFGFILE"] = str(Path.cwd() / ".awghr-no-account.cfg")
-    Workflow(name="dummy", account=None)
+    Workflow("dummy", account=None)
     msg = "should have raised a WorkflowException"
     raise AssertionError(msg)
 except WorkflowException:
@@ -55,7 +55,7 @@ finally:
 
 # Try creating a workflow with a non-existent base directory
 try:
-    Workflow(name="dummy", basedir=Path("/nonexistent"))
+    Workflow("dummy", basedir=Path("/nonexistent"))
     msg = "should have raised a WorkflowException"
     raise AssertionError(msg)
 except WorkflowException:

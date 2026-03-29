@@ -21,7 +21,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(Path(__file__).name)
 
-w = Workflow(name="cancel")
+w = Workflow("cancel")
 
 w.add_job(
     args=dict(sleep=1000),
