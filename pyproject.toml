@@ -15,7 +15,7 @@ dependencies = [
 ]
 readme = "README.md"
 license = "MIT"
-license-files = ["LICENSES/MIT.txt"]
+license-files = ["LICENSES/MIT.txt", "LICENSES/CC0-1.0.txt"]
 dynamic = ["version"]
 
 [project.scripts]
