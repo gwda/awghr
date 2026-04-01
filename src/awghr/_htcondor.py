@@ -203,7 +203,7 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                     #   itself not empty, in case HTCondor does not copy back
                     #   empty files
                     # - for signals, exit with 128+<signal number>
-                    f += f"echo _AWGHR_NO_MISSING_FILES_ > './{job_missing_file.name}'"
+                    f += f"echo '# {job_missing_file.name}' > './{job_missing_file.name}'"
                     f += "function trap_outfiles() {"
                     with f.indent(4):
                         f += """
@@ -212,12 +212,8 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                         for outfile in job_all_outfiles:
                             f += f"""
                             if ! test -f './{outfile.name}'; then
-                                if test "X`cat './{job_missing_file.name}'`" = X_AWGHR_NO_MISSING_FILES_; then
-                                    echo '{outfile}' > './{job_missing_file.name}'
-                                else
-                                    echo '{outfile}' >> './{job_missing_file.name}'
-                                fi
-                                echo _AWGHR_EMPTY_OUTPUT_FILE_ > './{outfile.name}'
+                                echo '{outfile}' >> './{job_missing_file.name}'
+                                echo '# empty {outfile.name}' > './{outfile.name}'
                             fi
                             """
                         f += "exit ${status}"
@@ -278,12 +274,12 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                     # Remove empty output files created by job wrapper script to
                     # ensure that all output file exist on exit, as required by
                     # HTCondor's output file transfer mechanism
-                    # - the file recording missing output files should always exist
                     f += f"""
-                    test -f '{job_missing_file}' || fail 'missing file {job_missing_file.name}'
-                    missing_files=`cat '{job_missing_file}'`
-                    if test "X${{missing_files}}" != X_AWGHR_NO_MISSING_FILES_; then
-                        rm -f ${{missing_files}}
+                    if test -f '{job_missing_file}'; then
+                        missing_files=`grep -v '^#' '{job_missing_file}' || true`
+                        if test "X${{missing_files}}" != X; then
+                            rm -f ${{missing_files}}
+                        fi
                     fi
                     """
 
@@ -293,7 +289,6 @@ class HTCondorWorkflowWriter(WorkflowWriter):
                         exit ${RETURN}
                     fi
                     """
-
                     # Check for output files, and link to final output directory
                     for outfile in job_all_outfiles:
                         f += f"test -f '{outfile}' || fail 'Missing output file {outfile.name}'"
