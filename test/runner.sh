@@ -45,6 +45,7 @@ source /testing/venv/bin/activate
 log "install packages"
 pip install -r /testing/test/requirements-test.txt
 pip install --force-reinstall /testing/dist/*.whl
+rm -rf /testing/dist/
 
 export COVERAGE_RCFILE="/testing/test/coverage.cfg"
 export COVERAGE_FILE="/testing/.coverage-${batch_system}"
