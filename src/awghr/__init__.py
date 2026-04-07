@@ -980,8 +980,8 @@ def _write_workflow(workflow_file):
         skip_exit_code=workflow["skip_exit_code"],
     )
 
-    # Write timestamp
-    write_atomic(str(datetime.now()), batchdir / ".timestamp")
+    # Write current version number to timestamp file
+    write_atomic(__version__, batchdir / ".timestamp")
 
     # Log completion
     LOGGER.info("workflow has been written")
@@ -1087,7 +1087,8 @@ def _write_ctrl_scripts(workflowname, workdir):
             fi
             workflow_file="./workflows/${{ID}}/source/workflow.json"
             timestamp_file="./workflows/${{ID}}/batch_scripts/.timestamp"
-            if test "${{workflow_file}}" -nt "${{timestamp_file}}"; then
+            version=`cat ${{timestamp_file}} || true`
+            if test "${{workflow_file}}" -nt "${{timestamp_file}}" || test "X${{timestamp}}" != "X{__version__}"; then
                 {sys.executable} -m awghr.__init__ write-workflow "${{workflow_file}}"
             fi
             submit_workflow_IDs="${{submit_workflow_IDs}} ${{ID}}"
