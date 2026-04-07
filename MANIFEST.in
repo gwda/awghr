@@ -1,0 +1,12 @@
+exclude .git*
+exclude .pre-commit-config.yaml
+exclude LICENSE
+exclude REUSE.toml
+exclude requirements-dev.txt
+exclude test/awghr.cfg
+exclude test/coverage.cfg
+exclude test/requirements-test.txt
+exclude test/runner.sh
+prune .github/
+prune doc/
+prune docker/

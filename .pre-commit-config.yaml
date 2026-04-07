@@ -12,7 +12,7 @@ repos:
       - id: check-yaml
       - id: file-contents-sorter
         args: [--unique]
-        files: ^\.gitattributes$|^\.gitignore$|^requirements-dev\.txt$
+        files: ^\.gitattributes$|^\.gitignore$|^requirements-dev\.txt$|^MANIFEST.in$
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.8

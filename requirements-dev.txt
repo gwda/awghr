@@ -1,7 +1,8 @@
 build>=1.2
 coverage>=7.6
 pre-commit>=3.7
-setuptools>=64.0
+setuptools-scm>=8
+setuptools>=80
 sphinx-autoapi>=3.6
 sphinx-pyproject>=0.3
 sphinx>=8.0

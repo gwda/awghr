@@ -5,6 +5,7 @@ path = [
     ".github/**",
     ".gitignore",
     ".pre-commit-config.yaml",
+    "MANIFEST.in",
     "README.md",
     "doc/*.py",
     "doc/*.rst",

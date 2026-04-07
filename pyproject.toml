@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=64.0"]
+requires = ["setuptools>=80", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -21,8 +21,8 @@ dynamic = ["version"]
 [project.scripts]
 awghr-config = "awghr._config:cli"
 
-[tool.setuptools.dynamic]
-version = {attr = "awghr.__version__"}
+[tool.setuptools_scm]
+# required for version inference
 
 [tool.ruff]
 fix = true

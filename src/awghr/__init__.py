@@ -18,6 +18,7 @@ from collections import defaultdict
 from contextlib import ExitStack
 from datetime import datetime
 from hashlib import blake2b
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from textwrap import dedent
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
@@ -40,7 +41,12 @@ from ._util import (
 )
 
 __author__ = "Karl Wette"
-__version__ = "0.1"
+
+
+try:
+    __version__ = version("awghr")
+except PackageNotFoundError:  # pragma: no cover
+    __version__ = "NOT-INSTALLED"
 
 
 class Workflow:
