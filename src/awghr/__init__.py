@@ -1426,9 +1426,15 @@ def _archive_workflows(workflowname, workdir):
             joblistfile_text = joblistfile.read_text()
         else:
             joblistfile = str(Path("workflows") / ID / "all_jobs")
-            with tarfile.open(wflow, "r:bz2") as tf:
+            with tarfile.open(wflow, "r|*") as tf:
                 LOGGER.info("reading jobs list from '%s'", wflow)
-                joblistfile_text = tf.extractfile(joblistfile).read().decode()
+                for f in tf:
+                    if f.name == joblistfile:
+                        joblistfile_text = tf.extractfile(f).read().decode()
+                        break
+                else:  # pragma: no cover
+                    msg = f"did not find '{joblistfile}' in '{wflow}'"
+                    raise WorkflowException(msg)
         job_dirs = [Path(line) for line in joblistfile_text.split()]
         for job_dir in job_dirs:
             job_dir_used[job_dir] += 1
