@@ -127,7 +127,7 @@ statefile.unlink()
 
 logger.info("test command line interface")
 print("-----", flush=True)
-assert manage_cli("--clear", "-Y", workdir=w.workdir) == 0
+assert manage_cli("--clear", workdir=w.workdir) == 0
 print("-----", flush=True)
 manage_cli(
     "-Ae",

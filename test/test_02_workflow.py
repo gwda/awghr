@@ -398,7 +398,7 @@ if w.batch_system == "htcondor":
 
     # Test adding a batch system-specific configuration option using ./manage script
     assert (
-        manage_cli("-AY", "+B", "sub_my.condor_test_opt", "extraval", workdir=w.workdir)
+        manage_cli("-A", "+B", "sub_my.condor_test_opt", "extraval", workdir=w.workdir)
         == 0
     )
     assert (

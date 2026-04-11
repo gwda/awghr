@@ -245,9 +245,6 @@ def manage_jobs(args, workdir, cache):
             job_dirs.update(job_dirs_from_list)
             job_workflow_dirs.update(dict.fromkeys(job_dirs_from_list, str(wflowdir)))
 
-    # Do not show jobs unless a filter is applied
-    show_jobs = False
-
     # Get which job states to read
     if "state" not in cache:
         cache["state"] = {}
@@ -291,7 +288,6 @@ def manage_jobs(args, workdir, cache):
 
     # Filter jobs by state
     if args.state is not None:
-        show_jobs = True
         if args.state != "all":
             job_dirs = [
                 job_dir
@@ -318,7 +314,6 @@ def manage_jobs(args, workdir, cache):
             cache["args_str"][job_dir] = job_args_str
 
     if args.filter_expr:
-        show_jobs = True
 
         # Compile filter
         filter_code = compile(args.filter_expr, "--filter", "eval")
@@ -408,7 +403,6 @@ def manage_jobs(args, workdir, cache):
 
     # Filter jobs by batch system ID
     if args.batch_ID is not None:
-        show_jobs = True
         job_dirs = [
             job_dir
             for job_dir in job_dirs
@@ -417,7 +411,6 @@ def manage_jobs(args, workdir, cache):
 
     job_stdouterr_lines = {}
     if args.output or args.error:
-        show_jobs = True
 
         # Get which job standard output/error files to read
         job_stdouterr_filepaths = []
@@ -560,9 +553,27 @@ def manage_jobs(args, workdir, cache):
     )
     len_n = len(str(len(ordered_job_dirs)))
 
-    if show_jobs and not args.summary:
+    # By default, do not show individual jobs
+    show_jobs = False
 
-        # Show jobs
+    # If user gave an argument to print job information, show jobs
+    if (
+        args.job_dir
+        or args.resources
+        or args.files
+        or args.output
+        or args.error
+        or args.usage
+    ):
+        show_jobs = True
+
+    # If user gave an argument to modify jobs, do not show jobs
+    if args.any_resource_args:
+        show_jobs = False
+
+    if show_jobs:
+
+        # Show individual jobs
         for n, (job_args_str, job_dir) in enumerate(ordered_job_dirs, start=1):
             print("")
 
@@ -731,12 +742,6 @@ def cli(*argv: str, workdir: Path = Path.cwd()):
         help="show only jobs matching state REGEX",
     )
     parser.set_defaults(state=None)
-    parser.add_argument(
-        "-Y",
-        "--summary",
-        action="store_true",
-        help="show only summary",
-    )
     parser.add_argument(
         "-i",
         "--batch-ID",
