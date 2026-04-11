@@ -1087,7 +1087,7 @@ def _write_ctrl_scripts(workflowname, workdir):
             fi
             workflow_file="./workflows/${{ID}}/source/workflow.json"
             timestamp_file="./workflows/${{ID}}/batch_scripts/.timestamp"
-            version=`cat ${{timestamp_file}} || true`
+            version=`cat ${{timestamp_file}} 2>/dev/null || true`
             if test "${{workflow_file}}" -nt "${{timestamp_file}}" || test "X${{version}}" != "X{__version__}"; then
                 {sys.executable} -m awghr.__init__ write-workflow "${{workflow_file}}"
             fi
