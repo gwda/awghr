@@ -429,7 +429,7 @@ def manage_jobs(args, workdir, cache):
             read_job_files(
                 "job stdout/err",
                 job_stdouterr_filepaths,
-                last_n_lines=args.last_n_lines,
+                last_n_lines=0 if len(args.grep_regex) > 0 else args.last_n_lines,
                 filetext_if_not_exist=None,
                 filetext_if_error="ERROR/could not read {filepath}",
                 concurrent=args.concurrent,
