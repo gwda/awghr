@@ -205,6 +205,24 @@ def manage_jobs(args, workdir, cache):
         for job in workflows[workflow_file]["jobs"].values():
             jobs_from_dir[Path(job["dir"])] = dict(job=job, workflow_file=workflow_file)
 
+    # By default, do not show individual jobs
+    show_jobs = False
+
+    # If user gave an argument to print job information, show jobs
+    if (
+        args.job_dir
+        or args.resources
+        or args.files
+        or args.output
+        or args.error
+        or args.usage
+    ):
+        show_jobs = True
+
+    # If user gave an argument to modify jobs, do not show jobs
+    if args.any_resource_args:
+        show_jobs = False
+
     # Get list of jobs to examine
     job_dirs = set()
     job_state_counts = defaultdict(int)
@@ -217,7 +235,7 @@ def manage_jobs(args, workdir, cache):
             workstate = workstatefile.read_text().strip()
         else:
             workstate = None
-        if workstate == "SUCCESS":
+        if workstate == "SUCCESS" and not show_jobs:
 
             # Just count number of successful jobs
             use_job_list_file = wflowdir / "all_jobs"
@@ -552,24 +570,6 @@ def manage_jobs(args, workdir, cache):
         [(cache["args_str"][job_dir], job_dir) for job_dir in job_dirs]
     )
     len_n = len(str(len(ordered_job_dirs)))
-
-    # By default, do not show individual jobs
-    show_jobs = False
-
-    # If user gave an argument to print job information, show jobs
-    if (
-        args.job_dir
-        or args.resources
-        or args.files
-        or args.output
-        or args.error
-        or args.usage
-    ):
-        show_jobs = True
-
-    # If user gave an argument to modify jobs, do not show jobs
-    if args.any_resource_args:
-        show_jobs = False
 
     if show_jobs:
 
