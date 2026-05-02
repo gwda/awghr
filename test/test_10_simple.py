@@ -61,11 +61,15 @@ for i in range(10):
         time=(10, "min"),
         mem=(10, "MB"),
         disk=(10, "MB"),
-        inputs=[infile],
+        inputs=[(infile, "copy")],
         outputs=["out_{index}.txt"],
     )
 
 w.write()
+
+# Delete input file, should have been copied
+infile.unlink()
+del infile
 
 logger.info("check generated files")
 for f in (w.workdir / "workflows" / w.ID).iterdir():

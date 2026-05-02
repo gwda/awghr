@@ -15,6 +15,7 @@ import time
 from abc import ABC, abstractmethod
 from collections import UserDict
 from contextlib import contextmanager
+from hashlib import blake2b
 from pathlib import Path
 from textwrap import dedent
 from typing import Tuple
@@ -65,6 +66,14 @@ function write_atomic() {
 def resolved_path(value):
     """Resolve a path."""
     return Path(value).resolve(strict=True)
+
+
+def file_hash(path: Path):
+    h = blake2b(digest_size=32, usedforsecurity=False)
+    with path.open("rb") as f:
+        for b in iter(lambda: f.read(2**16), b""):
+            h.update(b)
+    return h.hexdigest()
 
 
 def write_atomic(status: str, status_file: Path):
