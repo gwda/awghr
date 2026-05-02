@@ -197,7 +197,7 @@ class Workflow:
         self._workflow_hash = blake2b(digest_size=8, usedforsecurity=False)
         self._jobs: Dict[str, Dict[str, Any]] = {}
         self._log_add_jobs = ProgressLogger(msg="added %s jobs")
-        self._copy_ext_input_files: List[Tuple[Path, Path]] = []
+        self._copy_ext_input_files: Dict[Path, Path] = {}
 
         # Process environment variables
         self._env = {}
@@ -515,7 +515,7 @@ class Workflow:
                 if isinstance(inp, Path):
                     inp = (inp, "")
                 if isinstance(inp[0], Path):
-                    inp_src = inp[0]
+                    inp_src = inp[0].resolve()
                     inp_opts = inp[1].split(",")
                     if not inp_src.is_file():
                         msg = f"external input file '{inp_src}' does not exist"
@@ -529,7 +529,7 @@ class Workflow:
                             / inp_src_hash
                             / inp_src.name
                         )
-                        self._copy_ext_input_files.append((inp_src, inp_dest))
+                        self._copy_ext_input_files[inp_src] = inp_dest
                         job["extinfiles"].append(inp_dest)
                     else:
                         job["extinfiles"].append(inp_src)
@@ -547,7 +547,7 @@ class Workflow:
                         inp_file = self._jobs[inp_job_ID]["dir"] / inp_filename.format(
                             **self._jobs[inp_job_ID]["args"], _id=inp_job_ID
                         )
-                        job["infiles"].append(inp_file)
+                        job["infiles"].append(inp_file.resolve())
 
         # Parse job dependencies and dependency order
         job["needs"] = []
@@ -571,13 +571,10 @@ class Workflow:
             if len(outputs) != len(set(outputs)):
                 msg = "'outputs' is not a unique list"
                 raise WorkflowException(msg)
-            for outp in outputs:
-                job["outfiles"].append(jobdir / outp.format(**args, _id=job_ID))
+            for outp_filename in outputs:
+                outp_file = jobdir / outp_filename.format(**args, _id=job_ID)
+                job["outfiles"].append(outp_file.resolve())
         job["outfinal"] = final
-
-        # Resolve all input and output file paths
-        for key in ("infiles", "extinfiles", "outfiles"):
-            job[key] = [path.resolve() for path in job[key]]
 
         # Parse and store commands
         format_cmd = dict(args)
@@ -808,7 +805,7 @@ class Workflow:
                 raise WorkflowException(msg)
 
         # Copy external job input files
-        for inp_src, inp_dest in self._copy_ext_input_files:
+        for inp_src, inp_dest in self._copy_ext_input_files.items():
             inp_dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(inp_src, inp_dest)
 
