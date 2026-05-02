@@ -551,7 +551,7 @@ class Workflow:
                 job["outfiles"].append(jobdir / outp.format(**args, _id=job_ID))
         job["outfinal"] = final
 
-        # Reolve all input and output file paths
+        # Resolve all input and output file paths
         for key in ("infiles", "extinfiles", "outfiles"):
             job[key] = [path.resolve() for path in job[key]]
 
