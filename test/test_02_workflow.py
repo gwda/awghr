@@ -62,7 +62,11 @@ except WorkflowException:
     pass
 
 # Create input files
-for f in [Path.cwd() / "file.dat", Path("/tmp/abcd/staging/path/to/file.txt")]:
+for f in [
+    Path.cwd() / "file.dat",
+    Path.cwd() / "file2.dat",
+    Path("/tmp/abcd/staging/path/to/file.txt"),
+]:
     f.parent.mkdir(parents=True, exist_ok=True)
     f.write_text(str(f) + "\n")
 
@@ -77,7 +81,13 @@ job_args: Dict[str, Any] = dict(
         "/usr/bin/true",
         "/usr/bin/true a b",
         ["/usr/bin/true", "a", "b"],
-        ["/usr/bin/true", "a", {"b": 1, "c": 2}, Path.cwd() / "file.dat"],
+        [
+            "/usr/bin/true",
+            "a",
+            {"b": 1, "c": 2},
+            Path.cwd() / "file.dat",
+            Path.cwd() / "file2.dat",
+        ],
     ],
     time=(10, "min"),
     mem="10 MB",
@@ -85,7 +95,11 @@ job_args: Dict[str, Any] = dict(
     ncpus=2,
     ngpus=1,
     env=dict(WHY="now"),
-    inputs=[Path("/usr/bin/true"), Path("/tmp/abcd/staging/path/to/file.txt")],
+    inputs=[
+        Path("/usr/bin/true"),
+        (Path.cwd() / "file.dat", "copy"),
+        Path("/tmp/abcd/staging/path/to/file.txt"),
+    ],
     outputs=["out_{index}.txt"],
     batchopt=job_batchopt,
 )

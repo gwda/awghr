@@ -611,6 +611,8 @@ class Workflow:
 
                         # Stage path in input files, format as local path
                         cmd_arg = cmd_arg.resolve()
+                        if cmd_arg in self._copy_ext_input_files:
+                            cmd_arg = self._copy_ext_input_files[cmd_arg]
                         if cmd_arg not in job["extinfiles"]:
                             job["extinfiles"].append(cmd_arg)
                         cmd_args.append("./" + cmd_arg.name)
