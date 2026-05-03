@@ -69,7 +69,7 @@ def resolved_path(value):
 
 
 def file_hash(path: Path):
-    h = blake2b(digest_size=20, usedforsecurity=False)
+    h = blake2b(digest_size=8, usedforsecurity=False)
     with path.open("rb") as f:
         for b in iter(lambda: f.read(2**16), b""):
             h.update(b)
