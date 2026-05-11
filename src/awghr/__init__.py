@@ -67,12 +67,20 @@ class Workflow:
             If not given, use the default value given in ``~/.awghr.cfg``,
             or else the current directory.
 
-        dated (Optional[bool]):
+        dated (Optional[Union[bool, datetime]]):
             If true, the workflow path ``path`` will be appended with a
             subdirectory named after the current date.
 
+            If a :py:class:`datetime.datetime`, will use instead of the current date.
+
             If not given, use the default value given in ``~/.awghr.cfg``,
             or else false.
+
+        datednote (Optional[str]):
+            If given, the workflow path ``path`` will be appended with a
+            subdirectory named after a date (as determined by ``dated``) with
+            the given string appended. The string is stripped of any invalid
+            path characters.
 
         tags (Optional[Union[str, List[str]]]):
             Tag, or list of tags, used to retrieve default arguments from
@@ -140,7 +148,8 @@ class Workflow:
         self,
         *path: str,
         basedir: Optional[Path] = None,
-        dated: Optional[bool] = None,
+        dated: Optional[Union[bool, datetime]] = None,
+        datednote: Optional[str] = None,
         tags: Optional[Union[str, List[str]]] = None,
         account: Optional[Union[str, Dict[str, str]]] = None,
         skip_exit_code: Optional[int] = 77,
@@ -172,8 +181,15 @@ class Workflow:
         self.workdir = basedir / Path(*path)
         if dated is None:
             dated = cfg["dated?"]
-        if dated:
-            self.workdir /= datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        if dated or datednote:
+            subdir_date = dated if isinstance(dated, datetime) else datetime.now()
+            subdir = subdir_date.strftime("%Y-%m-%d_%H-%M-%S")
+            if datednote:
+                subdir_note = datednote.strip()
+                subdir_note = re.sub(r"[ _-]+", "-", subdir_note)
+                subdir_note = re.sub(r"[^A-Za-z0-9-]", "", subdir_note)
+                subdir += "_" + subdir_note
+            self.workdir /= subdir
 
         # Set name of cluster
         self.cluster = cfg["cluster"]

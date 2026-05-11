@@ -9,3 +9,5 @@ config = SphinxConfig(
     globalns=globals(),
     config_overrides={"version": __version__},
 )
+
+intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}

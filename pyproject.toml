@@ -63,6 +63,7 @@ extensions = [
     "autoapi.extension",
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
+    "sphinx.ext.intersphinx",
 ]
 autoapi_dirs = ["../src"]
 autoapi_generate_api_docs = false
