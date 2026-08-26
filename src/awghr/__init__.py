@@ -317,6 +317,9 @@ class Workflow:
                     below), and the argument replaced with a job-local path to the file;
                   * anything else are formatted as a string.
 
+                  ``None`` values are ignored, whether they appear as list
+                  arguments or dictionary values.
+
                 Commands may contain ``{format}`` strings which will be filled by:
 
                 * the dictionary supplied in ``args``;
@@ -613,13 +616,19 @@ class Workflow:
                 # Treat `cmd` as a single command
                 cmd_args = []
                 for cmd_arg in cmd:
-                    if isinstance(cmd_arg, dict):
+                    if cmd_arg is None:
 
-                        # Format dict argument as ``key=value``
+                        # Ignore None arguments
+                        pass
+
+                    elif isinstance(cmd_arg, dict):
+
+                        # Format dict argument as ``key=value``, ignoring None values
                         cmd_args.extend(
                             [
                                 f"{k}={v}".format(**format_cmd)
                                 for k, v in cmd_arg.items()
+                                if v is not None
                             ]
                         )
 
