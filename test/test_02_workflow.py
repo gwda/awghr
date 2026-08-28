@@ -84,8 +84,9 @@ job_args: Dict[str, Any] = dict(
         [
             "/usr/bin/true",
             "a",
-            {"b": 1, "c": 2},
+            {"b": 1, "c": 2, "z": None},
             Path.cwd() / "file.dat",
+            None,
             Path.cwd() / "file2.dat",
         ],
     ],
