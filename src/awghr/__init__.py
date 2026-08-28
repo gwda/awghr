@@ -186,8 +186,7 @@ class Workflow:
             subdir = subdir_date.strftime("%Y-%m-%d_%H-%M-%S")
             if datednote:
                 subdir_note = datednote.strip()
-                subdir_note = re.sub(r"[ _-]+", "-", subdir_note)
-                subdir_note = re.sub(r"[^A-Za-z0-9-]", "", subdir_note)
+                subdir_note = re.sub(r"[^A-Za-z0-9]+", "-", subdir_note)
                 subdir += "_" + subdir_note
             self.workdir /= subdir
 
