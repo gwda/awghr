@@ -325,15 +325,15 @@ class Workflow:
                 * the dictionary supplied in ``args``;
                 * ``_id``: the unique string representing the job.
                 * ``_in``: input file(s) supplied in ``inputs``, separated by spaces.
-                * ``_in[re:sep]``: the input file(s) supplied in ``inputs`` that
-                  match the regular expression ``re``, separated by ``sep``.
-                  Both arguments are optional.
-                  Example: ``_in[\\.dat$:,]`` returns file(s) with ``.dat`` extensions,
-                  separated by commas.
+                * ``_in[glob]``: the input file(s) supplied in ``inputs`` that match
+                  the shell-style glob pattern ``glob``, separated by spaces.
+                  Example: ``_in[*.dat]`` returns file(s) with ``.dat`` extensions.
+                * ``_in[glob:sep]``: as for ``_in[glob]``, except separated by ``sep``.
                 * ``_out``: output file(s) supplied in ``outputs``, separated by spaces.
-                * ``_out[re:sep]``: the output file(s) supplied in ``outputs`` that
-                  match the regular expression ``re``, separated by ``sep``.
-                  See ``_in[...]``.
+                * ``_out[glob]``: the output file(s) supplied in ``outputs`` that match
+                  the shell-style glob pattern ``glob``, separated by spaces.
+                  See ``_in[glob]``.
+                * ``_out[glob:sep]``: as for ``_out[glob]``, except separated by ``sep``.
                 * ``_time_min``: requested wall time in minutes.
                 * ``_mem_MB``: requested memory in MB.
                 * ``_ncpus``: requested number of CPUs.

@@ -4,11 +4,11 @@
 
 """Utility functions."""
 
+import fnmatch
 import logging
 import math
 import os
 import pickle
-import re
 import stat
 import sys
 import time
@@ -173,7 +173,7 @@ class WorkflowWriter(ABC):
 
 
 class JobFileList:
-    """List of job files, which may be indexed with regular expressions."""
+    """List of job files, which may be indexed with shell-style glob patterns."""
 
     def __init__(self, _name, _list):
         self._name = _name
@@ -187,14 +187,13 @@ class JobFileList:
 
     def __getitem__(self, arg):
         if ":" in arg:
-            regex, sep = arg.split(":", maxsplit=1)
+            glob, sep = arg.split(":", maxsplit=1)
         else:
-            regex = arg
+            glob = arg
             sep = " "
-        regex = re.compile(regex)
-        filtered_list = [x for x in self._list if re.search(regex, x) is not None]
+        filtered_list = fnmatch.filter(self._list, glob)
         if len(filtered_list) == 0:
-            msg = f"'{self._name}[{regex}:{sep}]' must return at least one file"
+            msg = f"'{self._name}[{glob}:{sep}]' must return at least one file"
             raise WorkflowException(msg)
         return sep.join("./" + x for x in sorted(filtered_list))
 
