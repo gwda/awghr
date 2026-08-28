@@ -7,6 +7,7 @@ path = [
     ".pre-commit-config.yaml",
     "MANIFEST.in",
     "README.md",
+    "doc/awghr.jpg",
     "doc/*.py",
     "doc/*.rst",
     "pyproject.toml",
