@@ -16,7 +16,6 @@ jobs:
       fail-fast: false
       matrix:
         python-version:
-          - "3.10"
           - "3.11"
           - "3.12"
           - "3.13"
@@ -25,6 +24,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
@@ -41,6 +42,7 @@ jobs:
             python -m pip install --upgrade pip
             python -m pip install ppqs
             ppqs init
+            ppqs version
 
       - name: Perform linting checks
         run: |
@@ -75,6 +77,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Initialise project
         uses: nick-fields/retry@v2
@@ -84,6 +88,7 @@ jobs:
           retry_wait_seconds: 30
           command: |
             python -m pip install -r requirements-dev.txt
+            python -m setuptools_scm
 
       - name: Build project
         run: |
