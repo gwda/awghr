@@ -17,32 +17,27 @@ repos:
         files: ^\.gitattributes$|^\.gitignore$|^requirements-dev\.txt$|^MANIFEST.in$
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.8
+    rev: v0.17.4
     hooks:
       - id: ruff-check
 
   - repo: https://github.com/jsh9/pydoclint
-    rev: 0.8.3
+    rev: 0.12.0
     hooks:
       - id: pydoclint
 
   - repo: https://github.com/assorted-pre-commit-hooks/copyright
-    rev: v0.11
+    rev: v0.12
     hooks:
       - id: copyright
 
   - repo: https://github.com/psf/black
-    rev: 26.3.1
+    rev: 26.10.1
     hooks:
       - id: black
         args: [--target-version=py311]
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.20.0
+    rev: v2.4.1
     hooks:
       - id: mypy
-
-  - repo: https://github.com/assorted-pre-commit-hooks/version-tag
-    rev: v0.1
-    hooks:
-      - id: version-tag

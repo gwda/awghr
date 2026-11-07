@@ -43,11 +43,10 @@ from ._util import (
 
 __author__ = "Karl Wette"
 
-
 try:
     __version__ = version("awghr")
 except PackageNotFoundError:  # pragma: no cover
-    __version__ = "NOT-INSTALLED"
+    __version__ = "0.0.0.dev0"
 
 
 class Workflow:

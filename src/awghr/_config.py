@@ -12,7 +12,7 @@ from configparser import ConfigParser
 from pathlib import Path
 from shutil import which
 from socket import getfqdn
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from ._htcondor import HTCondorWorkflowWriter
 from ._local import LocalWorkflowWriter
@@ -50,7 +50,7 @@ _general_cfg_valid_chars: Dict[str, str] = {"cluster": "a-z"}
 _override_host = None
 
 # List of all cluster names in configuration file
-cluster_names = set()
+cluster_names: Set[str] = set()
 
 
 def host_name():
