@@ -28,6 +28,8 @@ def build(docker_files):
             "docker",
             "buildx",
             "build",
+            "--progress",
+            "plain",
             "--allow",
             "network.host",
             "--build-arg",

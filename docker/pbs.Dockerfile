@@ -4,14 +4,20 @@
 
 # syntax=docker/dockerfile:1
 
-FROM ubuntu:22.04 AS build
+ARG UBUNTU_VERSION=24.04
+ARG PYTHON_VERSION=3.12
+ARG OPENPBS_VERSION=22.05.11
+
+FROM ubuntu:${UBUNTU_VERSION} AS build
+ARG PYTHON_VERSION
+ARG OPENPBS_VERSION
 
 RUN grep -q '[[:space:]]pbs-ubuntu-host$' /etc/hosts
 
 WORKDIR /tmp
 
 # Install build prerequisites
-ARG DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
 RUN --mount=type=cache,target=/var/lib/apt/lists,sharing=locked --mount=type=cache,target=/var/cache/apt,sharing=locked <<EOF
 set -e
@@ -39,33 +45,50 @@ apt-get -y install \
     postgresql-server-dev-all \
     python3-dev \
     python3-pip \
-    python3.10 \
-    python3.10-venv \
+    python${PYTHON_VERSION} \
+    python${PYTHON_VERSION}-venv \
     swig \
     tcl-dev \
     tk-dev \
     ;
 update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 update-alternatives --set python /usr/bin/python3
-update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
-update-alternatives --set python3 /usr/bin/python3.10
-update-alternatives --install /usr/bin/python-config python-config /usr/bin/python3.10-config 1
-update-alternatives --set python-config /usr/bin/python3.10-config
-update-alternatives --install /usr/bin/python3-config python3-config /usr/bin/python3.10-config 1
-update-alternatives --set python3-config /usr/bin/python3.10-config
+update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1
+update-alternatives --set python3 /usr/bin/python${PYTHON_VERSION}
+update-alternatives --install /usr/bin/python-config python-config /usr/bin/python${PYTHON_VERSION}-config 1
+update-alternatives --set python-config /usr/bin/python${PYTHON_VERSION}-config
+update-alternatives --install /usr/bin/python3-config python3-config /usr/bin/python${PYTHON_VERSION}-config 1
+update-alternatives --set python3-config /usr/bin/python${PYTHON_VERSION}-config
 echo dash dash/sh boolean false | debconf-set-selections
 dpkg-reconfigure -f noninteractive dash
 EOF
 
 # Download OpenPBS
-ARG OPENPBS_VERSION=22.05.11
 ADD https://github.com/openpbs/openpbs/archive/refs/tags/v${OPENPBS_VERSION}.tar.gz /tmp
+
+COPY <<EOF /tmp/openpbs-22.05.11.patch
+--- a/src/lib/Libpython/pbs_python_external.c
++++ b/src/lib/Libpython/pbs_python_external.c
+@@ -54,7 +54,7 @@
+~#ifdef PYTHON
+~
+~#include <pbs_python_private.h> /* private python file  */
+-#include <eval.h>		/* For PyEval_EvalCode  */
++#include <Python.h>		/* For PyEval_EvalCode  */
+~#include <pythonrun.h>		/* For Py_SetPythonHome */
+~#include <sys/types.h>
+~#include <sys/stat.h>
+EOF
 
 # Build and install OpenPBS
 RUN <<EOF
 set -e
 tar xf v${OPENPBS_VERSION}.tar.gz
 cd /tmp/openpbs-${OPENPBS_VERSION}
+if [ -f /tmp/openpbs-${OPENPBS_VERSION}.patch ]; then
+  sed -i 's/^~/ /' /tmp/openpbs-${OPENPBS_VERSION}.patch
+  patch --verbose -p1 < /tmp/openpbs-${OPENPBS_VERSION}.patch
+fi
 ./autogen.sh
 ./configure --prefix=/usr/local
 make
@@ -73,14 +96,15 @@ make install DESTDIR=/tmp/openpbs-install
 rm -f /tmp/openpbs-install/usr/local/lib/init.d/limits.*
 EOF
 
-FROM ubuntu:22.04
+FROM ubuntu:${UBUNTU_VERSION}
+ARG PYTHON_VERSION
 
 LABEL name="Testing PBS batch system" maintainer="Karl Wette"
 
 WORKDIR /tmp
 
 # Install prerequisites
-ARG DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
 RUN --mount=type=cache,target=/var/lib/apt/lists,sharing=locked --mount=type=cache,target=/var/cache/apt,sharing=locked <<EOF
 set -e
@@ -89,6 +113,7 @@ apt-get update
 apt-get -y upgrade
 apt-get -y install \
     expat \
+    git \
     less \
     libedit2 \
     libhwloc15 \
@@ -96,9 +121,9 @@ apt-get -y install \
     nano \
     postgresql \
     postgresql-contrib \
+    python${PYTHON_VERSION} \
+    python${PYTHON_VERSION}-venv \
     python3-pip \
-    python3.10 \
-    python3.10-venv \
     sudo \
     systemctl \
     tcl \
@@ -107,11 +132,14 @@ apt-get -y install \
     ;
 update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 update-alternatives --set python /usr/bin/python3
-update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
-update-alternatives --set python3 /usr/bin/python3.10
+update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1
+update-alternatives --set python3 /usr/bin/python${PYTHON_VERSION}
 echo dash dash/sh boolean false | debconf-set-selections
 dpkg-reconfigure -f noninteractive dash
 EOF
+
+# Ignore syntax errors in systemctl
+ENV PYTHONWARNINGS="ignore::SyntaxWarning"
 
 # Configure test user
 RUN <<EOF
@@ -148,17 +176,30 @@ COPY <<EOF /var/spool/pbs/mom_priv/config
 EOF
 
 # Configure OpenPBS
-RUN --network=host <<EOF
+RUN --network=host <<'EOF'
 set -e
 chmod 4755 /usr/local/sbin/pbs_iff /usr/local/sbin/pbs_rcp
+rm -f /var/spool/pbs/sched_priv/lock /var/spool/pbs/server_priv/lock /var/spool/pbs/postmaster.pid 2>/dev/null || true
+echo "pbs-ubuntu-host" > /var/spool/pbs/server_name
 /etc/init.d/pbs start || true
-qmgr -c "set server flatuid=true,max_array_size=10"
-qmgr -c "set node pbs-ubuntu-host resources_available.ncpus=2,resources_available.mem=100Mb"
+for i in $(seq 1 15); do
+    echo "INFO: waiting for qmgr..."
+    sleep 1
+    if PBS_SERVER_HOST_NAME=localhost qmgr -c "list server" >/dev/null 2>&1; then
+        break
+    fi
+done
+if [ ${i} -eq 15 ]; then
+    echo "ERROR: failed to wait for qmgr"
+    exit 1
+fi
+PBS_SERVER_HOST_NAME=localhost qmgr -c "set server flatuid=true,max_array_size=10"
+PBS_SERVER_HOST_NAME=localhost qmgr -c "set node pbs-ubuntu-host resources_available.ncpus=2,resources_available.mem=100Mb"
 /etc/init.d/pbs stop
 EOF
 
 # Create entrypoint
-COPY <<EOF /usr/local/bin/entrypoint
+COPY <<'EOF' /usr/local/bin/entrypoint
 #!/bin/bash
 set -e
 if ! grep -q '[[:space:]]pbs-ubuntu-host$' /etc/hosts; then
@@ -169,11 +210,11 @@ if ! systemctl restart pbs; then
     echo "ERROR: could not start OpenPBS" >&2
     exit 1
 fi
-while true; do
+for i in $(seq 1 15); do
     echo "INFO: waiting for pbsnodes..."
-    sleep 0.5
+    sleep 1
     nodeparams=`( pbsnodes -F dsv pbs-ubuntu-host || true ) 2>/dev/null`
-    case "\${nodeparams}"  in
+    case "${nodeparams}"  in
         *"|state=free|"*)
             break
             ;;
@@ -185,9 +226,13 @@ while true; do
             ;;
     esac
 done
+if [ ${i} -eq 15 ]; then
+    echo "ERROR: failed to wait for pbsnodes"
+    exit 1
+fi
 chown -R testuser:testuser /testing
 chmod -R u+rwX,ug+rw /testing
-su testuser -l -P -c "\$*"
+su testuser -l -P -c "$*"
 EOF
 RUN chmod 0755 /usr/local/bin/entrypoint
 ENTRYPOINT ["/usr/local/bin/entrypoint"]

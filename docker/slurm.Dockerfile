@@ -4,12 +4,18 @@
 
 # syntax=docker/dockerfile:1
 
-FROM ubuntu:22.04 AS build
+ARG UBUNTU_VERSION=24.04
+ARG PYTHON_VERSION=3.12
+ARG SLURM_VERSION=23.02.6
+
+FROM ubuntu:${UBUNTU_VERSION} AS build
+ARG PYTHON_VERSION
+ARG SLURM_VERSION
 
 WORKDIR /tmp
 
 # Install build prerequisites
-ARG DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
 RUN --mount=type=cache,target=/var/lib/apt/lists,sharing=locked --mount=type=cache,target=/var/cache/apt,sharing=locked <<EOF
 set -e
@@ -39,16 +45,15 @@ apt-get -y install \
     librrd-dev \
     libswitch-perl \
     libyaml-dev \
-    python3.10 \
+    python${PYTHON_VERSION} \
     ;
 update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 update-alternatives --set python /usr/bin/python3
-update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
-update-alternatives --set python3 /usr/bin/python3.10
+update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1
+update-alternatives --set python3 /usr/bin/python${PYTHON_VERSION}
 EOF
 
 # Download Slurm
-ARG SLURM_VERSION=23.02.6
 ADD https://download.schedmd.com/slurm/slurm-${SLURM_VERSION}.tar.bz2 /tmp
 
 # Build and install Slurm
@@ -61,14 +66,15 @@ make all contrib
 make install install-contrib DESTDIR=/tmp/slurm-install
 EOF
 
-FROM ubuntu:22.04
+FROM ubuntu:${UBUNTU_VERSION}
+ARG PYTHON_VERSION
 
 LABEL name="Testing Slurm batch system" maintainer="Karl Wette"
 
 WORKDIR /tmp
 
 # Install prerequisites
-ARG DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
 RUN --mount=type=cache,target=/var/lib/apt/lists,sharing=locked --mount=type=cache,target=/var/cache/apt,sharing=locked <<EOF
 set -e
@@ -76,16 +82,17 @@ rm -f /etc/apt/apt.conf.d/docker-clean
 apt-get update
 apt-get -y upgrade
 apt-get -y install \
+    git \
     less \
     libcurl4 \
     libfreeipmi17 \
-    libgtk2.0-0 \
-    libhdf5-103 \
+    libgtk2.0-0t64 \
+    libhdf5-103-1t64 \
     libhttp-parser2.9 \
     libhwloc15 \
     libipmimonitoring6 \
     libjson-c5 \
-    libjwt0 \
+    libjwt2 \
     liblua5.3-0 \
     liblz4-1 \
     libmysqlclient21 \
@@ -93,25 +100,28 @@ apt-get -y install \
     libpam0g \
     libpmix-dev \
     librdkafka1 \
-    librrd8 \
+    librrd8t64 \
     libswitch-perl \
     libyaml-0-2 \
     mysql-client \
     mysql-server \
     nano \
     perl \
+    python${PYTHON_VERSION} \
+    python${PYTHON_VERSION}-venv \
     python3-pip \
-    python3.10 \
-    python3.10-venv \
     sudo \
     systemctl \
     time \
     ;
 update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 update-alternatives --set python /usr/bin/python3
-update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
-update-alternatives --set python3 /usr/bin/python3.10
+update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1
+update-alternatives --set python3 /usr/bin/python${PYTHON_VERSION}
 EOF
+
+# Ignore syntax errors in systemctl
+ENV PYTHONWARNINGS="ignore::SyntaxWarning"
 
 # Configure test user
 RUN <<EOF
@@ -217,7 +227,7 @@ chmod 0700 /var/spool/slurmctld
 mysqld_safe &
 while ! test -e /var/run/mysqld/mysqld.sock; do
     echo "INFO: waiting for mysqld..."
-    sleep 0.5
+    sleep 1
 done
 mysql <<_EOF_
 create user 'slurm'@'localhost';
@@ -243,7 +253,7 @@ set -e
 mysqld_safe &
 while ! test -e /var/run/mysqld/mysqld.sock; do
     echo "INFO: waiting for mysqld..."
-    sleep 0.5
+    sleep 1
 done
 if ! systemctl restart slurmdbd slurmctld slurmd; then
     echo "ERROR: could not start Slurm" >&2

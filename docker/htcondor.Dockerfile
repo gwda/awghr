@@ -4,14 +4,18 @@
 
 # syntax=docker/dockerfile:1
 
-FROM ubuntu:22.04
+ARG UBUNTU_VERSION=24.04
+ARG PYTHON_VERSION=3.12
+
+FROM ubuntu:${UBUNTU_VERSION}
+ARG PYTHON_VERSION
 
 LABEL name="Testing HTCondor batch system" maintainer="Karl Wette"
 
 WORKDIR /tmp
 
 # Install prerequisites
-ARG DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
 RUN --mount=type=cache,target=/var/lib/apt/lists,sharing=locked --mount=type=cache,target=/var/cache/apt,sharing=locked <<EOF
 set -e
@@ -20,18 +24,19 @@ apt-get update
 apt-get -y upgrade
 apt-get -y install \
     curl \
+    git \
     less \
     nano \
+    python${PYTHON_VERSION} \
+    python${PYTHON_VERSION}-venv \
     python3-pip \
-    python3.10 \
-    python3.10-venv \
     sudo \
     time \
     ;
 update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 update-alternatives --set python /usr/bin/python3
-update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
-update-alternatives --set python3 /usr/bin/python3.10
+update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1
+update-alternatives --set python3 /usr/bin/python${PYTHON_VERSION}
 EOF
 
 # Configure test user
@@ -46,16 +51,18 @@ EOF
 # Download and install HTCondor
 RUN --mount=type=cache,target=/var/lib/apt/lists,sharing=locked --mount=type=cache,target=/var/cache/apt,sharing=locked <<EOF
 set -e
-curl -fsSL https://get.htcondor.org | sed 's/CHANNEL_DIR=[0-9][0-9.]*$/CHANNEL_DIR=23.0/' | /bin/bash -s -- --no-dry-run --channel stable
+curl -fsSL https://get.htcondor.org | /bin/bash -s -- --no-dry-run --channel lts
 condor_off
 EOF
 
 # Install daemon-less systemctl
 RUN --mount=type=cache,target=/var/lib/apt/lists,sharing=locked --mount=type=cache,target=/var/cache/apt,sharing=locked <<EOF
 set -e
-apt-get -y remove systemd
-apt-get -y install systemctl
+apt-get -y install --allow-remove-essential systemctl systemd-standalone-sysusers systemd-sysv-
 EOF
+
+# Ignore syntax errors in systemctl
+ENV PYTHONWARNINGS="ignore::SyntaxWarning"
 
 # Create additional HTCondor configuration
 COPY <<EOF /etc/condor/config.d/01-local
@@ -73,7 +80,7 @@ fi
 trap 'status=\$?; systemctl stop condor; exit \${status}' EXIT INT TERM
 while ! pidof condor_collector >/dev/null; do
     echo "INFO: waiting for condor_collector..."
-    sleep 0.5
+    sleep 1
 done
 chown -R testuser:testuser /testing
 chmod -R u+rwX,ug+rw /testing
