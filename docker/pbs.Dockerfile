@@ -51,14 +51,6 @@ apt-get -y install \
     tcl-dev \
     tk-dev \
     ;
-update-alternatives --install /usr/bin/python python /usr/bin/python3 1
-update-alternatives --set python /usr/bin/python3
-update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1
-update-alternatives --set python3 /usr/bin/python${PYTHON_VERSION}
-update-alternatives --install /usr/bin/python-config python-config /usr/bin/python${PYTHON_VERSION}-config 1
-update-alternatives --set python-config /usr/bin/python${PYTHON_VERSION}-config
-update-alternatives --install /usr/bin/python3-config python3-config /usr/bin/python${PYTHON_VERSION}-config 1
-update-alternatives --set python3-config /usr/bin/python${PYTHON_VERSION}-config
 echo dash dash/sh boolean false | debconf-set-selections
 dpkg-reconfigure -f noninteractive dash
 EOF
@@ -90,7 +82,7 @@ if [ -f /tmp/openpbs-${OPENPBS_VERSION}.patch ]; then
   patch --verbose -p1 < /tmp/openpbs-${OPENPBS_VERSION}.patch
 fi
 ./autogen.sh
-./configure --prefix=/usr/local
+./configure --prefix=/usr/local PYTHON=python${PYTHON_VERSION}
 make
 make install DESTDIR=/tmp/openpbs-install
 rm -f /tmp/openpbs-install/usr/local/lib/init.d/limits.*
@@ -98,6 +90,7 @@ EOF
 
 FROM ubuntu:${UBUNTU_VERSION}
 ARG PYTHON_VERSION
+ENV PYTHON_VERSION=${PYTHON_VERSION}
 
 LABEL name="Testing PBS batch system" maintainer="Karl Wette"
 
@@ -130,10 +123,6 @@ apt-get -y install \
     time \
     tk \
     ;
-update-alternatives --install /usr/bin/python python /usr/bin/python3 1
-update-alternatives --set python /usr/bin/python3
-update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1
-update-alternatives --set python3 /usr/bin/python${PYTHON_VERSION}
 echo dash dash/sh boolean false | debconf-set-selections
 dpkg-reconfigure -f noninteractive dash
 EOF

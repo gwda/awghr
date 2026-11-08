@@ -38,7 +38,7 @@ esac
 
 log "set up virtual environment"
 if test ! -f /testing/venv/bin/activate; then
-    python -m venv /testing/venv
+    python${PYTHON_VERSION} -m venv /testing/venv
 fi
 source /testing/venv/bin/activate
 
@@ -49,12 +49,12 @@ rm -rf /testing/dist/
 
 export COVERAGE_RCFILE="/testing/test/coverage.cfg"
 export COVERAGE_FILE="/testing/.coverage-${batch_system}"
-coverage erase
+python${PYTHON_VERSION} -m coverage erase
 
 log "configuration"
 (
     export AWGHR_CFGFILE="/testing/test/awghr.cfg"
-    coverage run -a /testing/venv/bin/awghr-config --batch="${batch_system}"
+    python${PYTHON_VERSION} -m coverage run -a /testing/venv/bin/awghr-config --batch="${batch_system}"
 )
 
 baseworkdir="/testing/workdir"
@@ -72,7 +72,7 @@ for TESTFILE in ${TESTFILES}; do
         exec 2> >(trap "" INT TERM; sed "s/^/${batch_system}:${TEST} E| /" >&2)
         cd "${workdir}"
         export HOME="${workdir}"
-        coverage run -a "${TESTFILE}"
+        python${PYTHON_VERSION} -m coverage run -a "${TESTFILE}"
     )
     status=$?
     if test ${status} -eq 0; then

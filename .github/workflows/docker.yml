@@ -1,0 +1,89 @@
+name: Build Docker containers
+
+on:
+  schedule:
+    - cron: '5 5 5 * *'
+  workflow_dispatch: null
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        container:
+          - batch-system: "htcondor"
+            network: "default"
+          - batch-system: "local"
+            network: "default"
+          - batch-system: "pbs"
+            network: "host"
+          - batch-system: "slurm"
+            network: "default"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set hostname
+        run: |
+          TARGET_HOST="${{ matrix.container.batch-system }}-ubuntu-host"
+          echo "Setting hostname of runner to: ${TARGET_HOST}"
+          sudo hostnamectl set-hostname "${TARGET_HOST}"
+          RUNNER_IP="$(hostname -I | awk '{print $1}')"
+          echo "Detected runner primary IP: ${RUNNER_IP}"
+          sudo sed -i "s/127.0.0.1 localhost.*/127.0.0.1 localhost/" /etc/hosts
+          echo "${RUNNER_IP} ${TARGET_HOST}" | sudo tee -a /etc/hosts >/dev/null
+          host="$(hostname)"
+          ip="$(getent ahostsv4 "${TARGET_HOST}" | awk 'NR == 1 {print $1}')"
+          if test "X${TARGET_HOST}" != "X${host}"; then
+             echo "ERROR: hostname of runner not set: '${TARGET_HOST}' != '${host}'"
+             exit 1
+          fi
+          if test "X${RUNNER_IP}" != "X${ip}"; then
+             echo "ERROR: IP of runner not resolved: '${RUNNER_IP}' != '${ip}'"
+             exit 1
+          fi
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=test-${{ matrix.container.batch-system }}
+            type=schedule,pattern=test-${{ matrix.container.batch-system }}-{{date 'YYYY-MM-DD'}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: docker
+          file: docker/${{ matrix.container.batch-system }}.Dockerfile
+          push: true
+          allow: network.host
+          network: ${{ matrix.container.network }}
+          add-hosts: |
+            ${{ matrix.container.batch-system }}-ubuntu-host:host-gateway
+          build-args: |
+            BUILDKIT_SANDBOX_HOSTNAME=${{ matrix.container.batch-system }}-ubuntu-host
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.container.batch-system }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.container.batch-system }},ignore-error=true

@@ -4,11 +4,12 @@
 
 # syntax=docker/dockerfile:1
 
-ARG UBUNTU_VERSION=24.04
-ARG PYTHON_VERSION=3.12
+ARG UBUNTU_VERSION=26.04
+ARG PYTHON_VERSION=3.14
 
 FROM ubuntu:${UBUNTU_VERSION}
 ARG PYTHON_VERSION
+ENV PYTHON_VERSION=${PYTHON_VERSION}
 
 LABEL name="Testing HTCondor batch system" maintainer="Karl Wette"
 
@@ -33,10 +34,6 @@ apt-get -y install \
     sudo \
     time \
     ;
-update-alternatives --install /usr/bin/python python /usr/bin/python3 1
-update-alternatives --set python /usr/bin/python3
-update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1
-update-alternatives --set python3 /usr/bin/python${PYTHON_VERSION}
 EOF
 
 # Configure test user

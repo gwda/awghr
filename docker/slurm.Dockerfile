@@ -47,10 +47,6 @@ apt-get -y install \
     libyaml-dev \
     python${PYTHON_VERSION} \
     ;
-update-alternatives --install /usr/bin/python python /usr/bin/python3 1
-update-alternatives --set python /usr/bin/python3
-update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1
-update-alternatives --set python3 /usr/bin/python${PYTHON_VERSION}
 EOF
 
 # Download Slurm
@@ -61,13 +57,14 @@ RUN <<EOF
 set -e
 tar xf slurm-${SLURM_VERSION}.tar.bz2
 cd /tmp/slurm-${SLURM_VERSION}
-./configure --prefix=/usr/local --with-systemdsystemunitdir=/lib/systemd/system --with-mysql_conf=/path/to/mysql_config
+./configure --prefix=/usr/local --with-systemdsystemunitdir=/lib/systemd/system --with-mysql_conf=/path/to/mysql_config PYTHON=python${PYTHON_VERSION}
 make all contrib
 make install install-contrib DESTDIR=/tmp/slurm-install
 EOF
 
 FROM ubuntu:${UBUNTU_VERSION}
 ARG PYTHON_VERSION
+ENV PYTHON_VERSION=${PYTHON_VERSION}
 
 LABEL name="Testing Slurm batch system" maintainer="Karl Wette"
 
@@ -114,10 +111,6 @@ apt-get -y install \
     systemctl \
     time \
     ;
-update-alternatives --install /usr/bin/python python /usr/bin/python3 1
-update-alternatives --set python /usr/bin/python3
-update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1
-update-alternatives --set python3 /usr/bin/python${PYTHON_VERSION}
 EOF
 
 # Ignore syntax errors in systemctl
