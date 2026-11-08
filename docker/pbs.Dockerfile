@@ -92,7 +92,7 @@ FROM ubuntu:${UBUNTU_VERSION}
 ARG PYTHON_VERSION
 ENV PYTHON_VERSION=${PYTHON_VERSION}
 
-LABEL name="Testing PBS batch system" maintainer="Karl Wette"
+LABEL name="Test awghr with PBS batch system" maintainer="Karl Wette"
 
 WORKDIR /tmp
 

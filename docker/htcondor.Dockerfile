@@ -11,7 +11,7 @@ FROM ubuntu:${UBUNTU_VERSION}
 ARG PYTHON_VERSION
 ENV PYTHON_VERSION=${PYTHON_VERSION}
 
-LABEL name="Testing HTCondor batch system" maintainer="Karl Wette"
+LABEL name="Test awghr with HTCondor batch system" maintainer="Karl Wette"
 
 WORKDIR /tmp
 
