@@ -240,7 +240,7 @@ mysqladmin -u root shutdown
 EOF
 
 # Create entrypoint
-COPY <<EOF /usr/local/bin/entrypoint
+COPY <<'EOF' /usr/local/bin/entrypoint
 #!/bin/bash
 set -e
 mysqld_safe &
@@ -255,12 +255,12 @@ fi
 scancel --me --full --hurry
 scontrol update nodename=localhost state=down reason=shutdown
 _shutdown_slurm() {
-    status=\$?
+    status=$?
     scancel --me --full --hurry
     scontrol update nodename=localhost state=down reason=shutdown
     systemctl stop slurmdbd slurmctld slurmd
     mysqladmin -u root shutdown
-    exit \${status}
+    exit ${status}
 }
 trap _shutdown_slurm EXIT INT TERM
 if ! scontrol update nodename=localhost state=idle; then
@@ -269,14 +269,14 @@ if ! scontrol update nodename=localhost state=idle; then
 fi
 chown -R testuser:testuser /testing
 chmod -R u+rwX,ug+rw /testing
-su testuser -l -P -c "\$*"
+su testuser -w PYTHON_VERSION -l -P -c "$*"
 EOF
 RUN chmod 0755 /usr/local/bin/entrypoint
 ENTRYPOINT ["/usr/local/bin/entrypoint"]
 CMD ["/bin/bash"]
 
 # Run a simple test
-COPY <<EOF /tmp/slurm.sh
+COPY <<'EOF' /tmp/slurm.sh
 #!/bin/bash
 #SBATCH --array=0-2
 #SBATCH --time=10:00
@@ -284,9 +284,9 @@ COPY <<EOF /tmp/slurm.sh
 #SBATCH --tmp=10MB
 #SBATCH --output=/tmp/slurm.out.%a
 #SBATCH --error=/tmp/slurm.err.%a
-echo "slurm:\${SLURM_ARRAY_TASK_ID}"
+echo "slurm:${SLURM_ARRAY_TASK_ID}"
 EOF
-RUN <<EOF
+RUN <<'EOF'
 set -e
 entrypoint sbatch --wait /tmp/slurm.sh
 for n in 0 1 2; do
@@ -298,8 +298,8 @@ EOF
 
 # Configure test user environment
 WORKDIR /testing
-COPY <<EOF .bashrc
+COPY <<'EOF' .bashrc
 umask 002
-export PS1='\\[\\e[1m\\]\\h:\\w\\[\\e[0m\\] \$ '
+export PS1='\\[\\e[1m\\]\\h:\\w\\[\\e[0m\\] $ '
 alias ls='ls --color=always'
 EOF

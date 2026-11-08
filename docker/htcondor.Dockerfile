@@ -67,43 +67,43 @@ NUM_SLOTS = 2
 EOF
 
 # Create entrypoint
-COPY <<EOF /usr/local/bin/entrypoint
+COPY <<'EOF' /usr/local/bin/entrypoint
 #!/bin/bash
 set -e
 if ! systemctl restart condor; then
     echo "ERROR: could not start HTCondor" >&2
     exit 1
 fi
-trap 'status=\$?; systemctl stop condor; exit \${status}' EXIT INT TERM
+trap 'status=$?; systemctl stop condor; exit ${status}' EXIT INT TERM
 while ! pidof condor_collector >/dev/null; do
     echo "INFO: waiting for condor_collector..."
     sleep 1
 done
 chown -R testuser:testuser /testing
 chmod -R u+rwX,ug+rw /testing
-su testuser -l -P -c "\$*"
+su testuser -w PYTHON_VERSION -l -P -c "$*"
 EOF
 RUN chmod 0755 /usr/local/bin/entrypoint
 ENTRYPOINT ["/usr/local/bin/entrypoint"]
 CMD ["/bin/bash"]
 
 # Run a simple test
-COPY <<EOF /tmp/condor.sub
+COPY <<'EOF' /tmp/condor.sub
 universe = vanilla
 initialdir = /tmp
 executable = /usr/bin/echo
-arguments = "condor:\$(Process)"
-output = condor.out.\$(Process)
-error = condor.err.\$(Process)
+arguments = "condor:$(Process)"
+output = condor.out.$(Process)
+error = condor.err.$(Process)
 log = condor.log
 queue 3
 EOF
-COPY <<EOF /tmp/condor.sh
+COPY <<'EOF' /tmp/condor.sh
 set -e
 condor_submit /tmp/condor.sub
 condor_wait /tmp/condor.log
 EOF
-RUN <<EOF
+RUN <<'EOF'
 set -e
 entrypoint /bin/bash /tmp/condor.sh
 for n in 0 1 2; do
@@ -115,8 +115,8 @@ EOF
 
 # Configure test user environment
 WORKDIR /testing
-COPY <<EOF .bashrc
+COPY <<'EOF' .bashrc
 umask 002
-export PS1='\\[\\e[1m\\]\\h:\\w\\[\\e[0m\\] \$ '
+export PS1='\\[\\e[1m\\]\\h:\\w\\[\\e[0m\\] $ '
 alias ls='ls --color=always'
 EOF

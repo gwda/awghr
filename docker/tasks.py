@@ -39,26 +39,9 @@ def build(docker_files):
             "--file",
             str(docker_file),
             "--tag",
-            f"kwwette/testing-batch-system:{name}",
+            f"gwda/awghr:test-{name}",
             str(docker_file.parent),
         )
-
-
-def push(docker_files):
-    """Push Docker images."""
-
-    run("docker", "login")
-
-    try:
-
-        for docker_file in docker_files:
-            name = docker_file.stem
-
-            run("docker", "push", f"kwwette/testing-batch-system:{name}")
-
-    finally:
-
-        run("docker", "logout")
 
 
 def init(docker_files):
@@ -70,7 +53,7 @@ def init(docker_files):
         run(
             "docker",
             "stop",
-            f"awghr-testing-{name}",
+            f"awghr-test-{name}",
             check=False,
             stdout=DEVNULL,
             stderr=DEVNULL,
@@ -79,7 +62,7 @@ def init(docker_files):
         run(
             "docker",
             "rm",
-            f"awghr-testing-{name}",
+            f"awghr-test-{name}",
             check=False,
             stdout=DEVNULL,
             stderr=DEVNULL,
@@ -93,8 +76,8 @@ def init(docker_files):
             "--hostname",
             f"{name}-ubuntu-host",
             "--name",
-            f"awghr-testing-{name}",
-            f"kwwette/testing-batch-system:{name}",
+            f"awghr-test-{name}",
+            f"gwda/awghr:test-{name}",
             "/bin/bash",
             "/testing/test/runner.sh",
             name,
@@ -110,7 +93,7 @@ def debug(docker_file):
     image = run(
         "docker",
         "commit",
-        f"awghr-testing-{name}",
+        f"awghr-test-{name}",
         capture_output=True,
         encoding="utf-8",
     ).stdout.strip()
@@ -149,7 +132,7 @@ def test(docker_files, test_scripts):
     runnerrc = {
         # reserve space for runner line prefixes
         "_AWGHR_COLUMNS": term_size.columns - 24,
-        "TESTFILES": " ".join(str(p) for p in test_scripts),
+        "TESTFILES": " ".join(f"/testing/{p}" for p in test_scripts),
     }
 
     runnerrc_file = Path("test") / ".runnerrc"
@@ -161,7 +144,7 @@ def test(docker_files, test_scripts):
         run(
             "docker",
             "stop",
-            f"awghr-testing-{name}",
+            f"awghr-test-{name}",
             check=False,
             stdout=DEVNULL,
             stderr=DEVNULL,
@@ -172,16 +155,16 @@ def test(docker_files, test_scripts):
                 "docker",
                 "cp",
                 f"{d}/.",
-                f"awghr-testing-{name}:/testing/{d}",
+                f"awghr-test-{name}:/testing/{d}",
                 stdout=DEVNULL,
             )
 
-        run("docker", "start", "--interactive", "--attach", f"awghr-testing-{name}")
+        run("docker", "start", "--interactive", "--attach", f"awghr-test-{name}")
 
         run(
             "docker",
             "cp",
-            f"awghr-testing-{name}:/testing/.coverage-{name}",
+            f"awghr-test-{name}:/testing/.coverage-{name}",
             f"test/.coverage-{name}",
             stdout=DEVNULL,
         )
@@ -189,7 +172,7 @@ def test(docker_files, test_scripts):
         run(
             "docker",
             "stop",
-            f"awghr-testing-{name}",
+            f"awghr-test-{name}",
             check=False,
             stdout=DEVNULL,
             stderr=DEVNULL,
@@ -207,7 +190,7 @@ all_test_scripts = sorted(test_scripts.values())
 parser = argparse.ArgumentParser()
 subparsers = parser.add_subparsers(dest="command")
 subparsers.required = True
-for command in (build, push, init, debug, test):
+for command in (build, init, debug, test):
 
     cmdparser = subparsers.add_parser(
         command.__name__, description=command.__doc__, help=command.__doc__

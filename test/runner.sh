@@ -13,6 +13,12 @@ log() {
     echo "===== $0: ${batch_system}: $@"
 }
 
+if [ "X${PYTHON_VERSION}" = X ]; then
+    log "ERROR: PYTHON_VERSION is not defined"
+    exit 1
+fi
+export PYTHON=python${PYTHON_VERSION}
+
 log "set up batch system"
 case "${batch_system}" in
     local)
@@ -36,9 +42,9 @@ case "${batch_system}" in
         ;;
 esac
 
-log "set up virtual environment"
+log "set up virtual environment with Python v${PYTHON_VERSION}"
 if test ! -f /testing/venv/bin/activate; then
-    python${PYTHON_VERSION} -m venv /testing/venv
+    ${PYTHON} -m venv /testing/venv
 fi
 source /testing/venv/bin/activate
 
@@ -49,12 +55,12 @@ rm -rf /testing/dist/
 
 export COVERAGE_RCFILE="/testing/test/coverage.cfg"
 export COVERAGE_FILE="/testing/.coverage-${batch_system}"
-python${PYTHON_VERSION} -m coverage erase
+${PYTHON} -m coverage erase
 
 log "configuration"
 (
     export AWGHR_CFGFILE="/testing/test/awghr.cfg"
-    python${PYTHON_VERSION} -m coverage run -a /testing/venv/bin/awghr-config --batch="${batch_system}"
+    ${PYTHON} -m coverage run -a /testing/venv/bin/awghr-config --batch="${batch_system}"
 )
 
 baseworkdir="/testing/workdir"
@@ -72,7 +78,7 @@ for TESTFILE in ${TESTFILES}; do
         exec 2> >(trap "" INT TERM; sed "s/^/${batch_system}:${TEST} E| /" >&2)
         cd "${workdir}"
         export HOME="${workdir}"
-        python${PYTHON_VERSION} -m coverage run -a "${TESTFILE}"
+        ${PYTHON} -m coverage run -a "${TESTFILE}"
     )
     status=$?
     if test ${status} -eq 0; then

@@ -45,11 +45,11 @@ echo 'testuser ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 EOF
 
 # Create entrypoint
-COPY <<EOF /usr/local/bin/entrypoint
+COPY <<'EOF' /usr/local/bin/entrypoint
 #!/bin/bash
 chown -R testuser:testuser /testing
 chmod -R u+rwX,ug+rw /testing
-su testuser -l -P -c "\$*"
+su testuser -w PYTHON_VERSION -l -P -c "$*"
 EOF
 RUN chmod 0755 /usr/local/bin/entrypoint
 ENTRYPOINT ["/usr/local/bin/entrypoint"]
@@ -57,8 +57,8 @@ CMD ["/bin/bash"]
 
 # Configure test user environment
 WORKDIR /testing
-COPY <<EOF .bashrc
+COPY <<'EOF' .bashrc
 umask 002
-export PS1='\\[\\e[1m\\]\\h:\\w\\[\\e[0m\\] \$ '
+export PS1='\\[\\e[1m\\]\\h:\\w\\[\\e[0m\\] $ '
 alias ls='ls --color=always'
 EOF
