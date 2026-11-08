@@ -1,0 +1,72 @@
+name: Publish package
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch: null
+
+jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+
+    environment: ${{ github.event_name == 'workflow_dispatch' && 'testpypi' || 'pypi' }}
+
+    permissions:
+      id-token: write
+      attestations: write
+      contents: read
+
+    env:
+      SETUPTOOLS_SCM_OVERRIDES_FOR_AWGHR: '{local_scheme="no-local-version"}'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+
+      - name: Initialise project
+        uses: nick-fields/retry@v4
+        with:
+          timeout_minutes: 5
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: |
+            python -m pip install --upgrade pip
+            python -m pip install ppqs
+            ppqs init
+            ppqs version
+
+      - name: Build project
+        run: |
+          ppqs build
+
+      - name: Validate metadata
+        run: |
+          twine check dist/*
+
+      - name: Attest build
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: "dist/*"
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        if: ${{ github.event_name == 'push' }}
+
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: true

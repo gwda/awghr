@@ -7,3 +7,4 @@ setuptools>=80
 sphinx-autoapi>=3.9.0
 sphinx-pyproject>=0.3
 sphinx>=9.0.4
+twine>=7.0.0
