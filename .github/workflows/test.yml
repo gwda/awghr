@@ -86,7 +86,7 @@ jobs:
             python-version: "3.12"
 
     container:
-      image: docker://kwwette/testing-batch-system:${{ matrix.test.batch-system }}
+      image: docker://ghcr.io/${{ github.repository }}:test-${{ matrix.test.batch-system }}
       options: --hostname ${{ matrix.test.batch-system }}-ubuntu-host
 
     defaults:
