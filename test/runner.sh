@@ -61,7 +61,7 @@ baseworkdir="/testing/workdir"
 rm -rf "${baseworkdir}"
 
 for TESTFILE in ${TESTFILES}; do
-    TEST=`expr "X${TESTFILE}" : "^Xtest/test_[0-9][0-9]_\(.*\)\.py"`
+    TEST=`expr "X${TESTFILE}" : "^X/testing/test/test_[0-9][0-9]_\(.*\)\.py"`
     log "test: ${TEST}"
     workdir="${baseworkdir}/${TEST}"
     mkdir -p "${workdir}"
@@ -72,7 +72,7 @@ for TESTFILE in ${TESTFILES}; do
         exec 2> >(trap "" INT TERM; sed "s/^/${batch_system}:${TEST} E| /" >&2)
         cd "${workdir}"
         export HOME="${workdir}"
-        coverage run -a "/testing/${TESTFILE}"
+        coverage run -a "${TESTFILE}"
     )
     status=$?
     if test ${status} -eq 0; then

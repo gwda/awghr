@@ -53,6 +53,16 @@ jobs:
         run: |
           ppqs build
 
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts-${{ matrix.python-version }}
+          path: |
+            README.md
+            dist/
+            test/
+          retention-days: 1
+
       - name: Clean up build files
         run: |
           ppqs clean
@@ -65,58 +75,49 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        batch-system:
-          - "htcondor"
-          - "local"
-          - "pbs"
-          - "slurm"
+        test:
+          - batch-system: "htcondor"
+            python-version: "3.12"
+          - batch-system: "local"
+            python-version: "3.12"
+          - batch-system: "pbs"
+            python-version: "3.12"
+          - batch-system: "slurm"
+            python-version: "3.12"
 
     container:
-      image: docker://kwwette/testing-batch-system:${{ matrix.batch-system }}
-      options: --hostname ${{ matrix.batch-system }}-ubuntu-host
+      image: docker://kwwette/testing-batch-system:${{ matrix.test.batch-system }}
+      options: --hostname ${{ matrix.test.batch-system }}-ubuntu-host
+
+    defaults:
+      run:
+        working-directory: /testing
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
         with:
-          fetch-depth: 0
-
-      - name: Initialise project
-        uses: nick-fields/retry@v2
-        with:
-          timeout_minutes: 5
-          max_attempts: 3
-          retry_wait_seconds: 30
-          command: |
-            python -m pip install -r requirements-dev.txt
-            python -m setuptools_scm
-
-      - name: Build project
-        run: |
-          python -m build
+          name: build-artifacts-${{ matrix.test.python-version }}
+          path: /testing
 
       - name: Setup tests
         run: |
-          mkdir -p /testing/dist
-          cp dist/*.whl /testing/dist
-          testfiles=`echo test/test_*.py`
-          echo "COLUMNS='${COLUMNS:-96}'" > test/.runnerrc
-          echo "TESTFILES='${testfiles}'" >> test/.runnerrc
-          echo "----- test/.runnerrc"
-          cat test/.runnerrc
+          testfiles=`echo /testing/test/test_*.py`
+          echo "COLUMNS='${COLUMNS:-96}'" > /testing/test/.runnerrc
+          echo "TESTFILES='${testfiles}'" >> /testing/test/.runnerrc
+          echo "----- /testing/test/.runnerrc"
+          cat /testing/test/.runnerrc
           echo "-----"
-          cp -r test/ /testing/test
 
       - name: Run tests
         run: |
-          cd /testing
-          /usr/local/bin/entrypoint /bin/bash ./test/runner.sh ${{ matrix.batch-system }}
+          /usr/local/bin/entrypoint /bin/bash /testing/test/runner.sh ${{ matrix.test.batch-system }}
 
       - name: Upload coverage data file
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-${{ matrix.batch-system }}
-          path: /testing/.coverage-${{ matrix.batch-system }}
+          name: coverage-${{ matrix.test.batch-system }}
+          path: /testing/.coverage-${{ matrix.test.batch-system }}
           include-hidden-files: true
           if-no-files-found: error
 
@@ -129,7 +130,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Initialise
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Initialise project
         uses: nick-fields/retry@v2
         with:
           timeout_minutes: 5
@@ -140,7 +146,7 @@ jobs:
             python -m pip install -r requirements-dev.txt
 
       - name: Download coverage data files
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v4
         with:
           pattern: coverage-*
           merge-multiple: true
