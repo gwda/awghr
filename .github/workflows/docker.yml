@@ -1,6 +1,16 @@
 name: Build Docker containers
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docker/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'docker/**'
   schedule:
     - cron: '5 5 5 * *'
   workflow_dispatch: null
@@ -76,7 +86,7 @@ jobs:
         with:
           context: docker
           file: docker/${{ matrix.container.batch-system }}.Dockerfile
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           allow: network.host
           network: ${{ matrix.container.network }}
           add-hosts: |
