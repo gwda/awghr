@@ -17,7 +17,10 @@ if [ "X${PYTHON_VERSION}" = X ]; then
     log "ERROR: PYTHON_VERSION is not defined"
     exit 1
 fi
-export PYTHON=python${PYTHON_VERSION}
+if [ "X${_GHA_PYTHON_VERSION}" != X ] && [ "X${_GHA_PYTHON_VERSION}" != "X${PYTHON_VERSION}" ]; then
+    log "ERROR: Python version from GitHub workflow (${_GHA_PYTHON_VERSION}) does not match container (${PYTHON_VERSION})"
+fi
+export PYTHON="python${PYTHON_VERSION}"
 
 log "set up batch system"
 case "${batch_system}" in
