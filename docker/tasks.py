@@ -39,7 +39,7 @@ def build(docker_files):
             "--file",
             str(docker_file),
             "--tag",
-            f"gwda/awghr:test-{name}",
+            f"gwda/awghr:local-test-{name}",
             str(docker_file.parent),
         )
 
@@ -77,7 +77,7 @@ def init(docker_files):
             f"{name}-ubuntu-host",
             "--name",
             f"awghr-test-{name}",
-            f"gwda/awghr:test-{name}",
+            f"gwda/awghr:local-test-{name}",
             "/bin/bash",
             "/testing/test/runner.sh",
             name,
