@@ -2,17 +2,27 @@ name: Test package
 
 on:
   push:
-    branches:
-      - "*"
+    branches-ignore:
+      - main
   pull_request:
-    branches:
-      - "*"
+    branches-ignore:
+      - main
+  workflow_run:
+    workflows:
+      - "Build Docker containers"
+    types:
+      - completed
   workflow_call: {}
   workflow_dispatch: {}
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    if: >
+      github.event_name != 'workflow_run' ||
+      (github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository)
 
     strategy:
       fail-fast: false
@@ -27,6 +37,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          repository: ${{ github.event.workflow_run.head_repository.full_name || github.repository }}
+          ref: ${{ github.event.workflow_run.head_branch || github.ref }}
           fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
