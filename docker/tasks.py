@@ -44,47 +44,6 @@ def build(docker_files):
         )
 
 
-def init(docker_files):
-    """Create Docker containers for testing."""
-
-    for docker_file in docker_files:
-        name = docker_file.stem
-
-        run(
-            "docker",
-            "stop",
-            f"awghr-test-{name}",
-            check=False,
-            stdout=DEVNULL,
-            stderr=DEVNULL,
-        )
-
-        run(
-            "docker",
-            "rm",
-            f"awghr-test-{name}",
-            check=False,
-            stdout=DEVNULL,
-            stderr=DEVNULL,
-        )
-
-        run(
-            "docker",
-            "create",
-            "--interactive",
-            "--tty",
-            "--hostname",
-            f"{name}-ubuntu-host",
-            "--name",
-            f"awghr-test-{name}",
-            f"gwda/awghr:local-test-{name}",
-            "/bin/bash",
-            "/testing/test/runner.sh",
-            name,
-            stdout=DEVNULL,
-        )
-
-
 def debug(docker_file):
     """Debug a Docker container."""
 
@@ -150,6 +109,31 @@ def test(docker_files, test_scripts):
             stderr=DEVNULL,
         )
 
+        run(
+            "docker",
+            "rm",
+            f"awghr-test-{name}",
+            check=False,
+            stdout=DEVNULL,
+            stderr=DEVNULL,
+        )
+
+        run(
+            "docker",
+            "create",
+            "--interactive",
+            "--tty",
+            "--hostname",
+            f"{name}-ubuntu-host",
+            "--name",
+            f"awghr-test-{name}",
+            f"gwda/awghr:local-test-{name}",
+            "/bin/bash",
+            "/testing/test/runner.sh",
+            name,
+            stdout=DEVNULL,
+        )
+
         for d in ("dist", "test"):
             run(
                 "docker",
@@ -190,7 +174,7 @@ all_test_scripts = sorted(test_scripts.values())
 parser = argparse.ArgumentParser()
 subparsers = parser.add_subparsers(dest="command")
 subparsers.required = True
-for command in (build, init, debug, test):
+for command in (build, debug, test):
 
     cmdparser = subparsers.add_parser(
         command.__name__, description=command.__doc__, help=command.__doc__
