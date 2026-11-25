@@ -14,6 +14,7 @@ import sys
 import time
 from abc import ABC, abstractmethod
 from collections import UserDict
+from collections.abc import Iterable
 from contextlib import contextmanager
 from hashlib import blake2b
 from pathlib import Path
@@ -61,6 +62,14 @@ function write_atomic() {
     mv -f "${status_file}.tmp" "${status_file}"
 }
 """
+
+
+def flatten(items):
+    for item in items:
+        if isinstance(item, Iterable) and not isinstance(item, (str, bytes)):
+            yield from flatten(item)
+        else:
+            yield item
 
 
 def resolved_path(value):

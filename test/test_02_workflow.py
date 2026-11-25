@@ -88,6 +88,7 @@ job_args: Dict[str, Any] = dict(
             Path.cwd() / "file.dat",
             None,
             Path.cwd() / "file2.dat",
+            ["c d", ["e", "f g"]],
         ],
     ],
     time=(10, "min"),

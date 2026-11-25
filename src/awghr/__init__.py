@@ -35,6 +35,7 @@ from ._util import (
     ProgressLogger,
     WorkflowException,
     file_hash,
+    flatten,
     job_dir_from_ID,
     modify_read_only_directory,
     resolved_path,
@@ -311,12 +312,13 @@ class Workflow:
 
                   * dictionaries, which are formatted as a series of arguments
                     ``key=value``, where ``key``/``value`` are its key/values;
+                  * (nested) lists of strings, which are flattened and their
+                    strings split into separate arguments by whitespace;
                   * paths, which are staged as additional input files (see ``inputs``
                     below), and the argument replaced with a job-local path to the file;
                   * anything else are formatted as a string.
 
-                  ``None`` values are ignored, whether they appear as list
-                  arguments or dictionary values.
+                  ``None`` values are ignored wherever they appear.
 
                 Commands may contain ``{format}`` strings which will be filled by:
 
@@ -624,11 +626,20 @@ class Workflow:
                         # Format dict argument as ``key=value``, ignoring None values
                         cmd_args.extend(
                             [
-                                f"{k}={v}".format(**format_cmd)
+                                shlex.quote(f"{k}={v}".format(**format_cmd))
                                 for k, v in cmd_arg.items()
                                 if v is not None
                             ]
                         )
+
+                    elif isinstance(cmd_arg, list):
+
+                        # Parse list by splitting all arguments and flattening, ignoring None values
+                        split_cmd_arg = [
+                            shlex.split(v) for v in flatten(cmd_arg) if v is not None
+                        ]
+                        quote_cmd_arg = [shlex.quote(u) for u in flatten(split_cmd_arg)]
+                        cmd_args.extend(quote_cmd_arg)
 
                     elif isinstance(cmd_arg, Path):
 
@@ -638,15 +649,15 @@ class Workflow:
                             cmd_arg = self._copy_ext_input_files[cmd_arg]
                         if cmd_arg not in job["extinfiles"]:
                             job["extinfiles"].append(cmd_arg)
-                        cmd_args.append("./" + cmd_arg.name)
+                        cmd_args.append(shlex.quote("./" + cmd_arg.name))
 
                     else:
 
                         # Format all other arguments as strings
                         cmd_args.append(str(cmd_arg).format(**format_cmd))
 
-                # Quote arguments
-                cmd = " ".join(shlex.quote(arg) for arg in cmd_args)
+                # Join arguments
+                cmd = " ".join(cmd_args)
 
             job["cmds"].append(cmd)
 
