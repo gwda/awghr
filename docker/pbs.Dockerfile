@@ -251,6 +251,6 @@ EOF
 WORKDIR /testing
 COPY <<'EOF' .bashrc
 umask 002
-export PS1='\\[\\e[1m\\]\\h:\\w\\[\\e[0m\\] $ '
+export PS1='\[\e[1m\]\h:\w\[\e[0m\] $ '
 alias ls='ls --color=always'
 EOF
