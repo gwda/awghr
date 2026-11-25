@@ -636,7 +636,9 @@ class Workflow:
 
                         # Parse list by splitting all arguments and flattening, ignoring None values
                         split_cmd_arg = [
-                            shlex.split(v) for v in flatten(cmd_arg) if v is not None
+                            shlex.split(str(v).format(**format_cmd))
+                            for v in flatten(cmd_arg)
+                            if v is not None
                         ]
                         quote_cmd_arg = [shlex.quote(u) for u in flatten(split_cmd_arg)]
                         cmd_args.extend(quote_cmd_arg)
@@ -654,7 +656,7 @@ class Workflow:
                     else:
 
                         # Format all other arguments as strings
-                        cmd_args.append(str(cmd_arg).format(**format_cmd))
+                        cmd_args.append(shlex.quote(str(cmd_arg)).format(**format_cmd))
 
                 # Join arguments
                 cmd = " ".join(cmd_args)
