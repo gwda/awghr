@@ -203,7 +203,7 @@ def manage_jobs(args, workdir, cache):
         workflow_file = wflowdir / "source" / "workflow.json"
         workflows[workflow_file] = json.load(workflow_file.open("r"))
         for job in workflows[workflow_file]["jobs"].values():
-            jobs_from_dir[Path(job["dir"])] = dict(job=job, workflow_file=workflow_file)
+            jobs_from_dir[Path(job["dir"])] = dict(job=job, wflowdir=wflowdir)
 
     # By default, do not show individual jobs
     show_jobs = False
@@ -220,7 +220,9 @@ def manage_jobs(args, workdir, cache):
         show_jobs = True
 
     # If user gave an argument to modify jobs, do not show jobs
-    if args.any_resource_args:
+    modify_jobs = False
+    if args.any_resource_args or args.add_batchopt or args.force_rerun:
+        modify_jobs = True
         show_jobs = False
 
     # Get list of jobs to examine
@@ -504,12 +506,12 @@ def manage_jobs(args, workdir, cache):
             )
         )
 
-    if args.any_resource_args or args.add_batchopt:
+    if modify_jobs:
 
         # Update job resources and/or batch system-specific configuration options
         workflows_to_write = set()
         for job_dir in tqdm(
-            job_dirs, desc="Updating job resources ", disable=None, leave=False
+            job_dirs, desc="Updating job states/resources ", disable=None, leave=False
         ):
 
             # Get job state
@@ -517,32 +519,40 @@ def manage_jobs(args, workdir, cache):
             job_state = job_state_cache[job_dir]
             job_state_counts[job_state] -= 1
 
-            # Iterate over resources
-            # - Update job status with changes
-            for res_name, res_unit in (
-                ("time", "min"),
-                ("mem", "MB"),
-                ("disk", "MB"),
-            ):
-                for prefix in ("set", "add"):
-                    res = f"{res_name}_{res_unit}"
-                    res_val = getattr(args, f"{prefix}_{res}", 0)
-                    if res_val != 0:
-                        job = jobs_from_dir[job_dir]["job"]
-                        if prefix == "add":
-                            job[res] += res_val
-                            job_state += f"/{res_name}+={res_val}{res_unit}"
-                        else:
-                            job[res] = res_val
-                            job_state += f"/{res_name}={res_val}{res_unit}"
-                        workflows_to_write.add(jobs_from_dir[job_dir]["workflow_file"])
+            # Force job to be rerun if requested
+            if args.force_rerun and job_state == "SUCCESS":
+                job_state = "PENDING"
+                workflows_to_write.add(jobs_from_dir[job_dir]["wflowdir"])
 
-            # Iterate over batch system-specific configuration options
-            # - Update job status with changes
-            for opt, val in args.add_batchopt:
-                job["batchopt"][opt] = val
-                job_state += f"/{opt}={val}"
-                workflows_to_write.add(jobs_from_dir[job_dir]["workflow_file"])
+            # Do not update successful jobs
+            if job_state != "SUCCESS":
+
+                # Iterate over resources
+                # - Update job status with changes
+                for res_name, res_unit in (
+                    ("time", "min"),
+                    ("mem", "MB"),
+                    ("disk", "MB"),
+                ):
+                    for prefix in ("set", "add"):
+                        res = f"{res_name}_{res_unit}"
+                        res_val = getattr(args, f"{prefix}_{res}", 0)
+                        if res_val != 0:
+                            job = jobs_from_dir[job_dir]["job"]
+                            if prefix == "add":
+                                job[res] += res_val
+                                job_state += f"/{res_name}+={res_val}{res_unit}"
+                            else:
+                                job[res] = res_val
+                                job_state += f"/{res_name}={res_val}{res_unit}"
+                            workflows_to_write.add(jobs_from_dir[job_dir]["wflowdir"])
+
+                # Iterate over batch system-specific configuration options
+                # - Update job status with changes
+                for opt, val in args.add_batchopt:
+                    job["batchopt"][opt] = val
+                    job_state += f"/{opt}={val}"
+                    workflows_to_write.add(jobs_from_dir[job_dir]["wflowdir"])
 
             # Update state count for (possibly modified) job status
             job_state_counts[job_state] += 1
@@ -556,14 +566,20 @@ def manage_jobs(args, workdir, cache):
                 job_state_file = job_dir / "job_state"
                 write_atomic(job_state, job_state_file)
 
-        # Write updated workflows
-        for workflow_file in workflows_to_write:
+        for wflowdir in workflows_to_write:
+
+            # Write updated workflows
+            workflow_file = wflowdir / "source" / "workflow.json"
             json.dump(
                 workflows[workflow_file],
                 workflow_file.open("w"),
                 default=str,
                 sort_keys=True,
             )
+
+            # Remove workflow state to indicate need to re-submit
+            workstatefile = wflowdir / "state"
+            workstatefile.unlink(missing_ok=True)
 
     # Order jobs by their arguments
     ordered_job_dirs = sorted(
@@ -855,6 +871,9 @@ def cli(*argv: str, workdir: Path = Path.cwd()):
         help="add the specified batch system-specific configuration options to the selected jobs",
     )
     parser.add_argument(
+        "--force-rerun", action="store_true", help="force a rerun of the selected jobs"
+    )
+    parser.add_argument(
         "--concurrent", type=int, default=8, help="limit on concurrent I/O subprocesses"
     )
     parser.add_argument(
@@ -872,7 +891,7 @@ def cli(*argv: str, workdir: Path = Path.cwd()):
     # Parse command line
     args = parser.parse_args(argv)
 
-    # Clear cache
+    # Clear cache, if requested
     cache_file = workdir / ".manage-cache"
     if args.clear_cache:
         cache_file.unlink(missing_ok=True)
@@ -911,6 +930,10 @@ def cli(*argv: str, workdir: Path = Path.cwd()):
                 proc.stdin.close()
         except (KeyboardInterrupt, BrokenPipeError):  # pragma: no cover
             proc.terminate()
+
+    # Clear cache, if forcing jobs to be rerun, so that states are refreshed
+    if args.force_rerun:
+        cache_file.unlink(missing_ok=True)
 
     return exit_code
 
